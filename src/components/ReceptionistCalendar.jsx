@@ -1,85 +1,94 @@
-// ======================== ReceptionistCalendar.jsx (PLANNER SEMANAL) ========================
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { Calendar, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/lib/customSupabaseClient';
+import { toast } from '@/components/ui/use-toast';
 
-import React, { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/customSupabaseClient";
 
-// Dias da semana
-const weekdays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-const ReceptionistCalendar = ({ clinicId, doctorId }) => {
+const ReceptionistCalendar = ({ clinicId }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [doctors, setDoctors] = useState([]);
+
   const [appointments, setAppointments] = useState([]);
   const [workHours, setWorkHours] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ----------------- Funções de Datas -----------------
-  const startOfWeek = (date) => {
-    const d = new Date(date);
-    d.setDate(d.getDate() - d.getDay());
-    return d;
-  };
+  // Função para formatar data sem UTC
+
+
+
+
 
   const getLocalDateString = (date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   };
 
-  const addDays = (date, days) => {
-    const d = new Date(date);
-    d.setDate(d.getDate() + days);
-    return d;
-  };
-
-  // ----------------- Gerar Horários -----------------
-  const generateTimeSlots = (workHour) => {
-    if (!workHour) return [];
-
-    const slots = [];
-    const [startH, startM] = workHour.start_time.split(":").map(Number);
-    const [endH, endM] = workHour.end_time.split(":").map(Number);
-
-    let current = startH * 60 + startM;
-    const end = endH * 60 + endM;
-
-    while (current < end) {
-      const h = Math.floor(current / 60);
-      const m = current % 60;
-
-      slots.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
-      current += workHour.slot_minutes;
-    }
-
-    return slots;
-  };
-
-  // ----------------- Carregar dados da semana -----------------
+  // Carregar dados: médicos, horários e agendamentos
   const loadData = useCallback(async () => {
     if (!clinicId) return;
     setLoading(true);
 
-    const weekStart = startOfWeek(selectedDate);
-    const weekEnd = addDays(weekStart, 6);
+    const dateStr = getLocalDateString(selectedDate);
+    const weekday = selectedDate.getDay();
 
-    const startStr = `${getLocalDateString(weekStart)}T00:00:00`;
-    const endStr = `${getLocalDateString(weekEnd)}T23:59:59`;
+    const [{ data: doctorsData, error: doctorsError },
+           { data: appointmentsData, error: appointmentsError },
+           { data: workHoursData, error: workHoursError }] = await Promise.all([
+      supabase.from('doctors').select('*, profile:profiles(name)').eq('clinic_id', clinicId),
+      supabase.from('appointments')
+        .select('*')
+        .eq('clinic_id', clinicId)
+        .gte('scheduled_start', `${dateStr}T00:00:00`)
+        .lte('scheduled_start', `${dateStr}T23:59:59`),
+      supabase.from('doctor_work_hours').select('*').eq('clinic_id', clinicId),
 
-    const [{ data: appointmentsData }, { data: workHoursData }] = await Promise.all([
-      supabase
-        .from("appointments")
-        .select("*")
-        .eq("clinic_id", clinicId)
-        .gte("scheduled_start", startStr)
-        .lte("scheduled_start", endStr),
 
-      supabase.from("doctor_work_hours").select("*").eq("clinic_id", clinicId)
+
+
+
+
     ]);
 
-    setAppointments(appointmentsData || []);
-    setWorkHours(workHoursData || []);
+    if (doctorsError || appointmentsError || workHoursError) {
+      toast({ title: "Erro ao carregar dados da agenda", variant: "destructive" });
+    } else {
+      setDoctors(doctorsData);
+      setAppointments(appointmentsData);
+      setWorkHours(workHoursData);
+    }
+
     setLoading(false);
   }, [clinicId, selectedDate]);
 
@@ -87,116 +96,178 @@ const ReceptionistCalendar = ({ clinicId, doctorId }) => {
     loadData();
   }, [loadData]);
 
-  // ----------------- Work Hours por médico -----------------
-  const getDoctorWorkHours = (doctorId, date) => {
-    if (!doctorId) return null;
+  // Pega horários de um médico para a data selecionada
+  const getDoctorWorkHours = (doctorId) => {
+    const dateStr = getLocalDateString(selectedDate);
 
-    const dateStr = getLocalDateString(date);
-    const weekday = date.getDay();
-
+    // Primeiro, horários específicos para a data
     const specific = workHours.find(
       (wh) => wh.doctor_id === doctorId && wh.specific_date === dateStr
     );
     if (specific) return specific;
 
-    return workHours.find((wh) => wh.doctor_id === doctorId && wh.weekday === weekday);
-  };
-
-  // ----------------- Verificar agendamentos -----------------
-  const isBooked = (doctorId, date, timeStr) => {
-    if (!doctorId) return false;
-
-    const dt = new Date(`${getLocalDateString(date)}T${timeStr}:00`);
-    return appointments.some(
-      (apt) =>
-        apt.doctor_id === doctorId &&
-        new Date(apt.scheduled_start).getTime() === dt.getTime()
+    // Depois, horários do dia da semana
+    return workHours.find(
+      (wh) => wh.doctor_id === doctorId && wh.weekday === selectedDate.getDay()
     );
   };
 
-  // ----------------- Semana Selecionada -----------------
-  const previousWeek = () => setSelectedDate(addDays(selectedDate, -7));
-  const nextWeek = () => setSelectedDate(addDays(selectedDate, 7));
+  // Gera os horários em intervalos definidos
+  const generateTimeSlots = (workHour) => {
+    if (!workHour) return [];
+    const slots = [];
+    const [startHour, startMin] = workHour.start_time.split(':').map(Number);
+    const [endHour, endMin] = workHour.end_time.split(':').map(Number);
 
-  const weekStart = startOfWeek(selectedDate);
-  const weekDays = [...Array(7)].map((_, i) => addDays(weekStart, i));
+    let currentTime = startHour * 60 + startMin;
+    const endTime = endHour * 60 + endMin;
 
-  const workHour = doctorId ? getDoctorWorkHours(doctorId, selectedDate) : null;
-  const allSlots = workHour ? generateTimeSlots(workHour) : [];
+    while (currentTime < endTime) {
+      const hour = Math.floor(currentTime / 60);
+      const min = currentTime % 60;
+      slots.push(`${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`);
+      currentTime += workHour.slot_minutes;
+    }
+    return slots;
+  };
+
+  // Verifica se o horário já está reservado
+  const isSlotBooked = (doctorId, timeStr) => {
+    const date = new Date(`${getLocalDateString(selectedDate)}T${timeStr}:00`);
+    return appointments.some(
+      (apt) =>
+        apt.doctor_id === doctorId &&
+        new Date(apt.scheduled_start).getTime() === date.getTime()
+    );
+  };
+
+  const previousDay = () => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() - 1);
+    setSelectedDate(newDate);
+  };
+
+  const nextDay = () => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + 1);
+    setSelectedDate(newDate);
+  };
+
+
+
+
+
+
+
+
+
+
 
   return (
     <div className="glass-effect rounded-2xl p-6">
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-2xl font-bold">{`Semana de ${weekStart.toLocaleDateString(
-          "pt-BR"
-        )}`}</h3>
 
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-2xl font-bold text-gray-900">
+          {selectedDate.toLocaleDateString('pt-BR', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+          })}
+        </h3>
         <div className="flex space-x-2">
-          <Button onClick={previousWeek} variant="outline" size="sm" disabled={loading}>
+          <Button onClick={previousDay} variant="outline" size="sm" disabled={loading}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <Button onClick={nextWeek} variant="outline" size="sm" disabled={loading}>
+          <Button onClick={nextDay} variant="outline" size="sm" disabled={loading}>
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       {loading ? (
-        <div className="text-center py-16">
-          <div className="animate-spin h-8 w-8 rounded-full border-b-2 border-purple-600 mx-auto" />
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          {/* GRID SEMANAL */}
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                <th className="p-2 text-left text-gray-700">Horário</th>
-                {weekDays.map((day, idx) => (
-                  <th key={idx} className="p-2 text-center text-gray-700">
-                    {weekdays[day.getDay()]} <br />
-                    <span className="text-xs text-gray-500">{day.toLocaleDateString("pt-BR")}</span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {doctors.map((doctor, index) => {
+            const workHour = getDoctorWorkHours(doctor.id);
+            const timeSlots = generateTimeSlots(workHour);
 
-            <tbody>
-              {allSlots.map((time) => (
-                <tr key={time} className="border-t">
-                  <td className="p-2 font-medium text-gray-800">{time}</td>
+            return (
+              <motion.div
+                key={doctor.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="glass-effect rounded-xl p-4"
+              >
+                <div className="mb-4">
+                  <h4 className="font-semibold text-gray-900">{doctor.profile?.name}</h4>
+                  <p className="text-sm text-gray-600">CRM: {doctor.crm}</p>
+                </div>
 
-                  {weekDays.map((day, idx) => {
-                    const booked = isBooked(doctorId, day, time);
+                {workHour ? (
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {timeSlots.map((time) => {
+                      const booked = isSlotBooked(doctor.id, time);
+                      return (
 
-                    return (
-                      <td key={idx} className="p-2">
+
+
+
                         <div
-                          className={`p-2 rounded-lg text-center text-sm flex items-center justify-center gap-2 ${
+                          key={time}
+                          className={`flex items-center justify-between p-2 rounded-lg text-sm ${
                             booked
-                              ? "bg-red-100 text-red-700"
-                              : "bg-green-100 text-green-700"
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-green-100 text-green-700'
                           }`}
                         >
-                          <Clock className="w-3 h-3" />
-                          {booked ? "Ocupado" : "Livre"}
+                          <div className="flex items-center space-x-2">
+                            <Clock className="w-3 h-3" />
+                            <span>{time}</span>
+                          </div>
+                          <span className="text-xs font-semibold">
+                            {booked ? 'Ocupado' : 'Livre'}
+                          </span>
                         </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-gray-500 text-sm">
+                    Sem horários neste dia
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
 
-              {allSlots.length === 0 && (
-                <tr>
-                  <td colSpan="8" className="text-center py-6 text-gray-500">
-                    Este médico não possui horários configurados para esta semana.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          {doctors.length === 0 && !loading && (
+            <div className="col-span-full text-center py-12">
+              <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">
+                Nenhum médico cadastrado para esta clínica
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
