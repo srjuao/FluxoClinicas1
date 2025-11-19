@@ -147,7 +147,7 @@ const CreatePrescriptionModal = ({ doctorId, clinicId, onClose, onSuccess, prese
         {activeTab === 'receita' && (
           <>
             <div className="flex mb-3 border-b">
-              <button className={`flex-1 p-2 ${subTab === 'sem_lentes' ? 'border-b-2 border-blue-500 font-semibold' : ''}`} onClick={() => setSubTab('sem_lentes')}>Sem Lentes</button>
+              <button className={`flex-1 p-2 ${subTab === 'sem_lentes' ? 'border-b-2 border-blue-500 font-semibold' : ''}`} onClick={() => setSubTab('sem_lentes')}>Medicamentos</button>
               <button className={`flex-1 p-2 ${subTab === 'lentes' ? 'border-b-2 border-blue-500 font-semibold' : ''}`} onClick={() => setSubTab('lentes')}>Lentes</button>
               <button className={`flex-1 p-2 ${subTab === 'exames' ? 'border-b-2 border-blue-500 font-semibold' : ''}`} onClick={() => setSubTab('exames')}>Exames</button>
             </div>

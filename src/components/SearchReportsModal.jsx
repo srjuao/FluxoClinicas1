@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/customSupabaseClient';
 import { toast } from '@/components/ui/use-toast';
 
-export const SearchReportsModal = ({ clinicId, onClose }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+export const SearchReportsModal = ({ clinicId, preselectedPatient, onClose }) => {
+  const [searchTerm, setSearchTerm] = useState(preselectedPatient?.name || '');
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -42,11 +42,11 @@ export const SearchReportsModal = ({ clinicId, onClose }) => {
   }, [searchTerm, clinicId]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 !m-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="glass-effect rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+        className="glass-effect rounded-2xl p-6 w-full max-w-4xl min-h-[42vh] max-h-[90vh] overflow-y-auto"
       >
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center space-x-3">
@@ -75,7 +75,12 @@ export const SearchReportsModal = ({ clinicId, onClose }) => {
               </div>
             </div>
 
-            {loading && <p>Buscando...</p>}
+            {loading && (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+                <p className="text-gray-600">Buscando...</p>
+              </div>
+            )}
 
             <div className="space-y-3">
               {reports.map((report, index) => (

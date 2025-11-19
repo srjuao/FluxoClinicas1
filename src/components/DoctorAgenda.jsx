@@ -74,7 +74,7 @@ const DoctorAgenda = ({ doctorId, clinicId, onSelectPatient }) => {
   const handleMarkAsNotAttended = async (appointmentId) => {
     const { error } = await supabase
       .from('appointments')
-      .update({ status: 'NOT_ATTENDED' })
+      .update({ status: 'CANCELED' })
       .eq('id', appointmentId);
 
     if (error) {
@@ -87,7 +87,7 @@ const DoctorAgenda = ({ doctorId, clinicId, onSelectPatient }) => {
       toast({ title: 'Paciente marcado como não atendido!' });
       setAppointments(prev =>
         prev.map(a =>
-          a.id === appointmentId ? { ...a, status: 'NOT_ATTENDED' } : a
+          a.id === appointmentId ? { ...a, status: 'CANCELED' } : a
         )
       );
     }
@@ -153,7 +153,13 @@ const DoctorAgenda = ({ doctorId, clinicId, onSelectPatient }) => {
                       </span>
                     </div>
                     
-                    <p className="text-purple-700 font-semibold">
+                    <p
+                      className="text-purple-700 font-semibold cursor-pointer"
+                      onClick={() => {
+                        setSelectedPatientForPrescription(apt.patient);
+                        setShowSearchReports(true);
+                      }}
+                    >
                       {apt.patient?.name || 'Paciente não encontrado'}
                     </p>
                   </div>
@@ -165,7 +171,7 @@ const DoctorAgenda = ({ doctorId, clinicId, onSelectPatient }) => {
                           ? 'bg-blue-100 text-blue-700'
                           : apt.status === 'COMPLETED'
                           ? 'bg-green-100 text-green-700'
-                          : apt.status === 'NOT_ATTENDED'
+                          : apt.status === 'CANCELED'
                           ? 'bg-red-100 text-red-700'
                           : 'bg-gray-100 text-gray-700'
                       }`}
@@ -174,7 +180,7 @@ const DoctorAgenda = ({ doctorId, clinicId, onSelectPatient }) => {
                         ? 'Agendado'
                         : apt.status === 'COMPLETED'
                         ? 'Atendido'
-                        : apt.status === 'NOT_ATTENDED'
+                        : apt.status === 'CANCELED'
                         ? 'Não atendido'
                         : 'Cancelado'}
                     </span>
@@ -233,7 +239,7 @@ const DoctorAgenda = ({ doctorId, clinicId, onSelectPatient }) => {
                         </>
                       )}
 
-                      {(apt.status === 'COMPLETED' || apt.status === 'NOT_ATTENDED') && (
+                      {(apt.status === 'COMPLETED' || apt.status === 'CANCELED') && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -251,7 +257,7 @@ const DoctorAgenda = ({ doctorId, clinicId, onSelectPatient }) => {
                       </div>
                     )}
 
-                    {apt.status === 'NOT_ATTENDED' && (
+                    {apt.status === 'CANCELED' && (
                       <div className="flex items-center text-red-700 font-medium text-sm mt-1">
                         <XCircle className="w-4 h-4 mr-1" /> Não atendido
                       </div>
@@ -286,7 +292,7 @@ const DoctorAgenda = ({ doctorId, clinicId, onSelectPatient }) => {
       {showSearchReports && selectedPatientForPrescription && (
         <SearchReportsModal
           clinicId={clinicId}
-
+          preselectedPatient={selectedPatientForPrescription}
           onClose={() => setShowSearchReports(false)}
         />
       )}
