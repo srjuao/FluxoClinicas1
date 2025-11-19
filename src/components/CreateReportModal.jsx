@@ -31,7 +31,7 @@ const CreateReportModal = ({ doctorId, clinicId, defaultPatient, onClose, onSucc
 
   // 🔹 Restaurar rascunho ao abrir
   useEffect(() => {
-    const saved = localStorage.getItem('reportDraft');
+    const saved = localStorage.getItem(`reportDraft-${selectedPatient?.id}`);
     if (saved) {
       const { patient, title, content } = JSON.parse(saved);
       if (patient) {
@@ -49,11 +49,11 @@ const CreateReportModal = ({ doctorId, clinicId, defaultPatient, onClose, onSucc
 
     // se mudou de paciente, limpa o rascunho antigo
     if (lastSavedPatientId.current && lastSavedPatientId.current !== selectedPatient.id) {
-      localStorage.removeItem('reportDraft');
+      localStorage.removeItem(`reportDraft-${lastSavedPatientId.current}`);
     }
 
     localStorage.setItem(
-      'reportDraft',
+      `reportDraft-${selectedPatient.id}`,
       JSON.stringify({
         patient: selectedPatient,
         title,
@@ -97,7 +97,7 @@ const CreateReportModal = ({ doctorId, clinicId, defaultPatient, onClose, onSucc
     toast({ title: 'Anamnese registrada com sucesso! 🎉' });
 
     // limpa rascunho depois de salvar
-    localStorage.removeItem('reportDraft');
+    localStorage.removeItem(`reportDraft-${selectedPatient.id}`);
     onSuccess?.();
     onClose();
   };
