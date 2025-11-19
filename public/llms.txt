@@ -1,0 +1,6 @@
+## Pages
+- [Admin -](/clinicadmindashboard): Painel administrativo da clínica
+- [Login - Sistema de Gestão de Clínicas](/login): Faça login no sistema de gestão de clínicas médicas
+- [Médico -](/doctordashboard): Painel do médico
+- [Recepção -](/receptionistdashboard): Painel da recepção
+- [Super Admin - Gestão de Clínicas](/superadmindashboard): Painel do super administrador para gestão de clínicas
