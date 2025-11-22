@@ -25,6 +25,12 @@ const CreateUserModal = ({
   const [specialties, setSpecialties] = useState(
     doctorData?.specialties?.join(", ") || ""
   );
+  const [canPrescribeExams, setCanPrescribeExams] = useState(
+    doctorData?.can_prescribe_exams || false
+  );
+  const [canPrescribeLenses, setCanPrescribeLenses] = useState(
+    doctorData?.can_prescribe_lenses || false
+  );
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -34,6 +40,8 @@ const CreateUserModal = ({
       setRole(userToEdit.role || "RECEPTIONIST");
       setCrm(doctorData?.crm || "");
       setSpecialties(doctorData?.specialties?.join(", ") || "");
+      setCanPrescribeExams(doctorData?.can_prescribe_exams || false);
+      setCanPrescribeLenses(doctorData?.can_prescribe_lenses || false);
     }
   }, [userToEdit]);
 
@@ -65,6 +73,8 @@ const CreateUserModal = ({
             clinic_id: clinicId,
             crm,
             specialties: specialties.split(",").map((s) => s.trim()),
+            can_prescribe_exams: canPrescribeExams,
+            can_prescribe_lenses: canPrescribeLenses,
           },
           { onConflict: ["user_id"] }
         );
@@ -112,6 +122,8 @@ const CreateUserModal = ({
         clinic_id: clinicId,
         crm,
         specialties: specialties.split(",").map((s) => s.trim()),
+        can_prescribe_exams: canPrescribeExams,
+        can_prescribe_lenses: canPrescribeLenses,
       });
 
       if (doctorError) {
@@ -242,6 +254,44 @@ const CreateUserModal = ({
                   placeholder="Cardiologia, Clínico Geral"
                   required
                 />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  Permissões
+                </label>
+                
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="canPrescribeExams"
+                    checked={canPrescribeExams}
+                    onChange={(e) => setCanPrescribeExams(e.target.checked)}
+                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                  <label
+                    htmlFor="canPrescribeExams"
+                    className="text-sm text-gray-700 cursor-pointer"
+                  >
+                    Pode prescrever exames
+                  </label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="canPrescribeLenses"
+                    checked={canPrescribeLenses}
+                    onChange={(e) => setCanPrescribeLenses(e.target.checked)}
+                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                  <label
+                    htmlFor="canPrescribeLenses"
+                    className="text-sm text-gray-700 cursor-pointer"
+                  >
+                    Pode prescrever lentes
+                  </label>
+                </div>
               </div>
             </>
           )}

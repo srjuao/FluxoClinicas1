@@ -51,6 +51,7 @@ const CreatePrescriptionModal = ({
   });
   const [selectedExams, setSelectedExams] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [doctorData, setDoctorData] = useState(null);
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -63,6 +64,25 @@ const CreatePrescriptionModal = ({
     };
     fetchPatients();
   }, [clinicId]);
+
+  useEffect(() => {
+    const fetchDoctorData = async () => {
+      if (!doctorId) return;
+      
+      const { data, error } = await supabase
+        .from("doctors")
+        .select("can_prescribe_exams, can_prescribe_lenses")
+        .eq("id", doctorId)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching doctor data:", error);
+      } else {
+        setDoctorData(data);
+      }
+    };
+    fetchDoctorData();
+  }, [doctorId]);
 
   const toggleExam = (exam) => {
     setSelectedExams((prev) =>
@@ -240,26 +260,30 @@ const CreatePrescriptionModal = ({
               >
                 Medicamentos
               </button>
-              <button
-                className={`flex-1 p-2 ${
-                  subTab === "lentes"
-                    ? "border-b-2 border-blue-500 font-semibold"
-                    : ""
-                }`}
-                onClick={() => setSubTab("lentes")}
-              >
-                Lentes
-              </button>
-              <button
-                className={`flex-1 p-2 ${
-                  subTab === "exames"
-                    ? "border-b-2 border-blue-500 font-semibold"
-                    : ""
-                }`}
-                onClick={() => setSubTab("exames")}
-              >
-                Exames
-              </button>
+              {doctorData?.can_prescribe_lenses && (
+                <button
+                  className={`flex-1 p-2 ${
+                    subTab === "lentes"
+                      ? "border-b-2 border-blue-500 font-semibold"
+                      : ""
+                  }`}
+                  onClick={() => setSubTab("lentes")}
+                >
+                  Lentes
+                </button>
+              )}
+              {doctorData?.can_prescribe_exams && (
+                <button
+                  className={`flex-1 p-2 ${
+                    subTab === "exames"
+                      ? "border-b-2 border-blue-500 font-semibold"
+                      : ""
+                  }`}
+                  onClick={() => setSubTab("exames")}
+                >
+                  Exames
+                </button>
+              )}
             </div>
 
             {/* Subaba: Sem Lentes */}
@@ -286,7 +310,7 @@ const CreatePrescriptionModal = ({
             )}
 
             {/* Subaba: Lentes */}
-            {subTab === "lentes" && (
+            {subTab === "lentes" && doctorData?.can_prescribe_lenses && (
               <div>
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div>
@@ -369,7 +393,7 @@ const CreatePrescriptionModal = ({
             )}
 
             {/* Subaba: Exames */}
-            {subTab === "exames" && (
+            {subTab === "exames" && doctorData?.can_prescribe_exams && (
               <div>
                 <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto border p-3 rounded mb-4">
                   {examOptions.map((exam) => (
