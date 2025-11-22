@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import ReceptionistCalendar from '@/components/ReceptionistCalendar'; // agora Planner Semanal
 import CreateAppointmentModal from '@/components/CreateAppointmentModal';
+import PatientDetailsPage from '@/pages/PatientDetailsPage';
 import { supabase } from '@/lib/customSupabaseClient';
 
 // 🔹 Autocomplete de Médicos

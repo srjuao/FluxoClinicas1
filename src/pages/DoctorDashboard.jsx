@@ -11,6 +11,7 @@ import DoctorAgenda from '@/components/DoctorAgenda';
 import CreateReportModal from '@/components/CreateReportModal';
 import CreateCertificateModal from '@/components/CreateCertificateModal';
 import { SearchReportsModal } from '@/components/SearchReportsModal';
+import PatientDetailsPage from '@/pages/PatientDetailsPage';
 
 const DoctorDashboard = () => {
   const { signOut, profile, user } = useAuth();
@@ -25,6 +26,8 @@ const DoctorDashboard = () => {
 
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [openFromAgenda, setOpenFromAgenda] = useState(false);
+  const [showPatientDetails, setShowPatientDetails] = useState(false);
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
 
   // 🔹 Restaurar rascunho ao montar o dashboard
   useEffect(() => {
@@ -70,6 +73,19 @@ const DoctorDashboard = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
+    );
+  }
+
+  // Show patient details page if selected
+  if (showPatientDetails && selectedPatientId) {
+    return (
+      <PatientDetailsPage
+        patientId={selectedPatientId}
+        onBack={() => {
+          setShowPatientDetails(false);
+          setSelectedPatientId(null);
+        }}
+      />
     );
   }
 
@@ -133,9 +149,8 @@ const DoctorDashboard = () => {
                   doctorId={doctorData.id}
                   clinicId={clinicId}
                   onSelectPatient={(patient) => {
-                    setSelectedPatient(patient);
-                    setOpenFromAgenda(true);
-                    setShowCreateReport(true);
+                    setSelectedPatientId(patient.id);
+                    setShowPatientDetails(true);
                   }}
                 />
               )}
