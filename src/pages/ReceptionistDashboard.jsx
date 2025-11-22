@@ -1,19 +1,23 @@
 // ======================== ReceptionistDashboard.jsx ========================
 
-import React, { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet';
-import { Calendar, LogOut, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
-import ReceptionistCalendar from '@/components/ReceptionistCalendar'; // agora Planner Semanal
-import CreateAppointmentModal from '@/components/CreateAppointmentModal';
-import PatientDetailsPage from '@/pages/PatientDetailsPage';
-import { supabase } from '@/lib/customSupabaseClient';
+import React, { useState, useEffect } from "react";
+import { Helmet } from "react-helmet";
+import { Calendar, LogOut, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/SupabaseAuthContext";
+import ReceptionistCalendar from "@/components/ReceptionistCalendar"; // agora Planner Semanal
+import CreateAppointmentModal from "@/components/CreateAppointmentModal";
+import PatientDetailsPage from "@/pages/PatientDetailsPage";
+import { supabase } from "@/lib/customSupabaseClient";
 
 // 🔹 Autocomplete de Médicos
-const DoctorAutocomplete = ({ clinicId, selectedDoctor, setSelectedDoctor }) => {
+const DoctorAutocomplete = ({
+  clinicId,
+  selectedDoctor,
+  setSelectedDoctor,
+}) => {
   const [doctors, setDoctors] = useState([]);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [filteredDoctors, setFilteredDoctors] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -22,23 +26,23 @@ const DoctorAutocomplete = ({ clinicId, selectedDoctor, setSelectedDoctor }) => 
 
     const fetchDoctors = async () => {
       const { data: doctorsData, error: doctorsError } = await supabase
-        .from('doctors')
-        .select('user_id, crm')
-        .eq('clinic_id', clinicId);
+        .from("doctors")
+        .select("user_id, crm")
+        .eq("clinic_id", clinicId);
 
       if (doctorsError) return console.error(doctorsError);
 
-      const userIds = doctorsData.map(d => d.user_id);
+      const userIds = doctorsData.map((d) => d.user_id);
       if (!userIds.length) return setDoctors([]);
 
       const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, name')
-        .in('id', userIds);
+        .from("profiles")
+        .select("id, name")
+        .in("id", userIds);
 
-      const merged = doctorsData.map(d => {
-        const profile = profilesData.find(p => p.id === d.user_id);
-        return { ...d, name: profile?.name || 'Sem nome' };
+      const merged = doctorsData.map((d) => {
+        const profile = profilesData.find((p) => p.id === d.user_id);
+        return { ...d, name: profile?.name || "Sem nome" };
       });
 
       setDoctors(merged);
@@ -49,7 +53,7 @@ const DoctorAutocomplete = ({ clinicId, selectedDoctor, setSelectedDoctor }) => 
   }, [clinicId]);
 
   useEffect(() => {
-    const filtered = doctors.filter(d =>
+    const filtered = doctors.filter((d) =>
       d.name.toLowerCase().includes(query.toLowerCase())
     );
     setFilteredDoctors(filtered);
@@ -60,7 +64,10 @@ const DoctorAutocomplete = ({ clinicId, selectedDoctor, setSelectedDoctor }) => 
       <input
         type="text"
         value={query}
-        onChange={(e) => { setQuery(e.target.value); setShowDropdown(true); }}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setShowDropdown(true);
+        }}
         onFocus={() => setShowDropdown(true)}
         placeholder="Filtrar médico"
         className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none"
@@ -70,11 +77,15 @@ const DoctorAutocomplete = ({ clinicId, selectedDoctor, setSelectedDoctor }) => 
         <ul className="absolute z-10 bg-white border border-gray-200 w-full mt-1 max-h-40 overflow-y-auto rounded-lg shadow">
           <li
             className="px-3 py-2 hover:bg-purple-100 cursor-pointer"
-            onClick={() => { setSelectedDoctor(''); setQuery(''); setShowDropdown(false); }}
+            onClick={() => {
+              setSelectedDoctor("");
+              setQuery("");
+              setShowDropdown(false);
+            }}
           >
             Todos os médicos
           </li>
-          {filteredDoctors.map(d => (
+          {filteredDoctors.map((d) => (
             <li
               key={d.user_id}
               className="px-3 py-2 hover:bg-purple-100 cursor-pointer"
@@ -99,11 +110,11 @@ const ReceptionistDashboard = () => {
 
   const [showCreateAppointment, setShowCreateAppointment] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [selectedDoctor, setSelectedDoctor] = useState('');
+  const [selectedDoctor, setSelectedDoctor] = useState("");
 
   const handleSuccess = () => {
     setShowCreateAppointment(false);
-    setRefreshKey(prev => prev + 1); // Atualiza o planner
+    setRefreshKey((prev) => prev + 1); // Atualiza o planner
   };
 
   return (
@@ -122,8 +133,12 @@ const ReceptionistDashboard = () => {
                   <Calendar className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-900">{profile?.name}</h1>
-                  <p className="text-xs text-gray-600">Planner Semanal - {profile?.clinic?.name}</p>
+                  <h1 className="text-lg font-bold text-gray-900">
+                    {profile?.name}
+                  </h1>
+                  <p className="text-xs text-gray-600">
+                    Planner Semanal - {profile?.clinic?.name}
+                  </p>
                 </div>
               </div>
 
@@ -141,7 +156,9 @@ const ReceptionistDashboard = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Planner Semanal dos Médicos</h2>
+            <h2 className="text-2xl font-bold text-gray-900">
+              Planner Semanal dos Médicos
+            </h2>
 
             <div className="flex gap-2">
               <DoctorAutocomplete

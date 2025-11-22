@@ -1,14 +1,13 @@
-
-    import React, { useState, useEffect, useCallback } from 'react';
-import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
-import { Building2, Plus, Users, LogOut, UserPlus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/customSupabaseClient';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
-import CreateClinicModal from '@/components/CreateClinicModal';
-import CreateClinicAdminModal from '@/components/CreateClinicAdminModal';
+import React, { useState, useEffect, useCallback } from "react";
+import { Helmet } from "react-helmet";
+import { motion } from "framer-motion";
+import { Building2, Plus, Users, LogOut, UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/customSupabaseClient";
+import { useAuth } from "@/contexts/SupabaseAuthContext";
+import CreateClinicModal from "@/components/CreateClinicModal";
+import CreateClinicAdminModal from "@/components/CreateClinicAdminModal";
 
 const SuperAdminDashboard = () => {
   const { signOut, profile } = useAuth();
@@ -18,9 +17,13 @@ const SuperAdminDashboard = () => {
   const [selectedClinic, setSelectedClinic] = useState(null);
 
   const loadClinics = useCallback(async () => {
-    const { data, error } = await supabase.from('clinics').select('*');
+    const { data, error } = await supabase.from("clinics").select("*");
     if (error) {
-      toast({ title: 'Erro ao carregar clínicas', description: error.message, variant: 'destructive' });
+      toast({
+        title: "Erro ao carregar clínicas",
+        description: error.message,
+        variant: "destructive",
+      });
     } else {
       setClinics(data);
     }
@@ -46,7 +49,10 @@ const SuperAdminDashboard = () => {
     <>
       <Helmet>
         <title>Super Admin - Gestão de Clínicas</title>
-        <meta name="description" content="Painel do super administrador para gestão de clínicas" />
+        <meta
+          name="description"
+          content="Painel do super administrador para gestão de clínicas"
+        />
       </Helmet>
 
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
@@ -58,11 +64,13 @@ const SuperAdminDashboard = () => {
                   <Building2 className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-900">Super Admin</h1>
+                  <h1 className="text-lg font-bold text-gray-900">
+                    Super Admin
+                  </h1>
                   <p className="text-xs text-gray-600">{profile?.name}</p>
                 </div>
               </div>
-              
+
               <Button
                 onClick={signOut}
                 variant="outline"
@@ -78,10 +86,14 @@ const SuperAdminDashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">Clínicas Cadastradas</h2>
-              <p className="text-gray-600 mt-1">Gerencie todas as clínicas da plataforma</p>
+              <h2 className="text-3xl font-bold text-gray-900">
+                Clínicas Cadastradas
+              </h2>
+              <p className="text-gray-600 mt-1">
+                Gerencie todas as clínicas da plataforma
+              </p>
             </div>
-            
+
             <Button
               onClick={() => setShowCreateClinic(true)}
               className="gradient-primary text-white shadow-lg hover:shadow-xl transition-all"
@@ -109,8 +121,12 @@ const SuperAdminDashboard = () => {
                   </span>
                 </div>
 
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{clinic.name}</h3>
-                <p className="text-sm text-gray-600 mb-4">CNPJ: {clinic.cnpj}</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {clinic.name}
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  CNPJ: {clinic.cnpj}
+                </p>
 
                 <div className="space-y-2">
                   <Button
@@ -120,7 +136,7 @@ const SuperAdminDashboard = () => {
                     <Users className="w-4 h-4 mr-2" />
                     Acessar como Admin
                   </Button>
-                  
+
                   <Button
                     onClick={() => handleCreateAdmin(clinic)}
                     variant="outline"
@@ -137,7 +153,9 @@ const SuperAdminDashboard = () => {
           {clinics.length === 0 && (
             <div className="text-center py-12">
               <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">Nenhuma clínica cadastrada ainda. Crie uma para começar!</p>
+              <p className="text-gray-600">
+                Nenhuma clínica cadastrada ainda. Crie uma para começar!
+              </p>
             </div>
           )}
         </div>
@@ -171,4 +189,3 @@ const SuperAdminDashboard = () => {
 };
 
 export default SuperAdminDashboard;
-  
