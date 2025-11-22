@@ -1,30 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { X, UserPlus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/customSupabaseClient';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { X, UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/customSupabaseClient";
+import { useAuth } from "@/contexts/SupabaseAuthContext";
 
-const CreateUserModal = ({ clinicId, onClose, onSuccess, userToEdit = null }) => {
+const CreateUserModal = ({
+  clinicId,
+  onClose,
+  onSuccess,
+  userToEdit = null,
+}) => {
   const { createProfile } = useAuth();
   const isEdit = !!userToEdit;
 
-  const [name, setName] = useState(userToEdit?.name || '');
-  const [email, setEmail] = useState(userToEdit?.email || '');
-  const [password, setPassword] = useState('');
-  const [role, setRole] = useState(userToEdit?.role || 'RECEPTIONIST');
-  const [crm, setCrm] = useState(userToEdit?.doctor?.crm || '');
-  const [specialties, setSpecialties] = useState(userToEdit?.doctor?.specialties?.join(', ') || '');
+  const [name, setName] = useState(userToEdit?.name || "");
+  const [email, setEmail] = useState(userToEdit?.email || "");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState(userToEdit?.role || "RECEPTIONIST");
+  const [crm, setCrm] = useState(userToEdit?.doctor?.crm || "");
+  const [specialties, setSpecialties] = useState(
+    userToEdit?.doctor?.specialties?.join(", ") || ""
+  );
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (userToEdit) {
-      setName(userToEdit.name || '');
-      setEmail(userToEdit.email || '');
-      setRole(userToEdit.role || 'RECEPTIONIST');
-      setCrm(userToEdit?.doctor?.crm || '');
-      setSpecialties(userToEdit?.doctor?.specialties?.join(', ') || '');
+      setName(userToEdit.name || "");
+      setEmail(userToEdit.email || "");
+      setRole(userToEdit.role || "RECEPTIONIST");
+      setCrm(userToEdit?.doctor?.crm || "");
+      setSpecialties(userToEdit?.doctor?.specialties?.join(", ") || "");
     }
   }, [userToEdit]);
 
@@ -35,34 +42,43 @@ const CreateUserModal = ({ clinicId, onClose, onSuccess, userToEdit = null }) =>
     if (isEdit) {
       // Atualizar usuário existente
       const { error: updateError } = await supabase
-        .from('profiles')
+        .from("profiles")
         .update({ name, email, role })
-        .eq('id', userToEdit.id);
+        .eq("id", userToEdit.id);
 
       if (updateError) {
-        toast({ title: 'Erro ao atualizar usuário', description: updateError.message, variant: 'destructive' });
+        toast({
+          title: "Erro ao atualizar usuário",
+          description: updateError.message,
+          variant: "destructive",
+        });
         setLoading(false);
         return;
       }
 
-      if (role === 'DOCTOR') {
-        const { error: doctorError } = await supabase
-          .from('doctors')
-          .upsert({
+      if (role === "DOCTOR") {
+        const { error: doctorError } = await supabase.from("doctors").upsert(
+          {
             user_id: userToEdit.id,
             clinic_id: clinicId,
             crm,
-            specialties: specialties.split(',').map(s => s.trim())
-          }, { onConflict: ['user_id'] });
+            specialties: specialties.split(",").map((s) => s.trim()),
+          },
+          { onConflict: ["user_id"] }
+        );
 
         if (doctorError) {
-          toast({ title: "Erro ao atualizar dados do médico", description: doctorError.message, variant: "destructive" });
+          toast({
+            title: "Erro ao atualizar dados do médico",
+            description: doctorError.message,
+            variant: "destructive",
+          });
           setLoading(false);
           return;
         }
       }
 
-      toast({ title: 'Usuário atualizado com sucesso!' });
+      toast({ title: "Usuário atualizado com sucesso!" });
       onSuccess();
       setLoading(false);
       return;
@@ -72,30 +88,45 @@ const CreateUserModal = ({ clinicId, onClose, onSuccess, userToEdit = null }) =>
     const trimmedEmail = email.trim();
     const profileData = { name, clinic_id: clinicId, role };
 
-    const { user, error: signUpError } = await createProfile(trimmedEmail, password, profileData);
+    const { user, error: signUpError } = await createProfile(
+      trimmedEmail,
+      password,
+      profileData
+    );
 
     if (signUpError) {
-      toast({ title: 'Erro ao criar usuário', description: signUpError.message, variant: 'destructive' });
+      toast({
+        title: "Erro ao criar usuário",
+        description: signUpError.message,
+        variant: "destructive",
+      });
       setLoading(false);
       return;
     }
 
-    if (user && role === 'DOCTOR') {
-      const { error: doctorError } = await supabase.from('doctors').insert({
+    if (user && role === "DOCTOR") {
+      const { error: doctorError } = await supabase.from("doctors").insert({
         user_id: user.id,
         clinic_id: clinicId,
         crm,
-        specialties: specialties.split(',').map(s => s.trim())
+        specialties: specialties.split(",").map((s) => s.trim()),
       });
 
       if (doctorError) {
-        toast({ title: "Erro ao criar dados do médico", description: doctorError.message, variant: "destructive" });
+        toast({
+          title: "Erro ao criar dados do médico",
+          description: doctorError.message,
+          variant: "destructive",
+        });
         setLoading(false);
         return;
       }
     }
 
-    toast({ title: "Usuário criado com sucesso! 🎉", description: `${name} foi adicionado à equipe` });
+    toast({
+      title: "Usuário criado com sucesso! 🎉",
+      description: `${name} foi adicionado à equipe`,
+    });
     onSuccess();
     setLoading(false);
   };
@@ -112,16 +143,23 @@ const CreateUserModal = ({ clinicId, onClose, onSuccess, userToEdit = null }) =>
             <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center">
               <UserPlus className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900">{isEdit ? 'Editar Usuário' : 'Novo Usuário'}</h2>
+            <h2 className="text-xl font-bold text-gray-900">
+              {isEdit ? "Editar Usuário" : "Novo Usuário"}
+            </h2>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Nome Completo</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nome Completo
+            </label>
             <input
               type="text"
               value={name}
@@ -132,7 +170,9 @@ const CreateUserModal = ({ clinicId, onClose, onSuccess, userToEdit = null }) =>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email
+            </label>
             <input
               type="email"
               value={email}
@@ -145,7 +185,9 @@ const CreateUserModal = ({ clinicId, onClose, onSuccess, userToEdit = null }) =>
 
           {!isEdit && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Senha (mínimo 6 caracteres)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Senha (mínimo 6 caracteres)
+              </label>
               <input
                 type="password"
                 value={password}
@@ -157,7 +199,9 @@ const CreateUserModal = ({ clinicId, onClose, onSuccess, userToEdit = null }) =>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Função</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Função
+            </label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
@@ -168,10 +212,12 @@ const CreateUserModal = ({ clinicId, onClose, onSuccess, userToEdit = null }) =>
             </select>
           </div>
 
-          {role === 'DOCTOR' && (
+          {role === "DOCTOR" && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">CRM</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  CRM
+                </label>
                 <input
                   type="text"
                   value={crm}
@@ -183,7 +229,9 @@ const CreateUserModal = ({ clinicId, onClose, onSuccess, userToEdit = null }) =>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Especialidades (separadas por vírgula)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Especialidades (separadas por vírgula)
+                </label>
                 <input
                   type="text"
                   value={specialties}
@@ -197,11 +245,27 @@ const CreateUserModal = ({ clinicId, onClose, onSuccess, userToEdit = null }) =>
           )}
 
           <div className="flex space-x-3 pt-4">
-            <Button type="button" onClick={onClose} variant="outline" className="flex-1" disabled={loading}>
+            <Button
+              type="button"
+              onClick={onClose}
+              variant="outline"
+              className="flex-1"
+              disabled={loading}
+            >
               Cancelar
             </Button>
-            <Button type="submit" className="flex-1 gradient-primary text-white" disabled={loading}>
-              {loading ? (isEdit ? 'Atualizando...' : 'Criando...') : (isEdit ? 'Atualizar Usuário' : 'Criar Usuário')}
+            <Button
+              type="submit"
+              className="flex-1 gradient-primary text-white"
+              disabled={loading}
+            >
+              {loading
+                ? isEdit
+                  ? "Atualizando..."
+                  : "Criando..."
+                : isEdit
+                ? "Atualizar Usuário"
+                : "Criar Usuário"}
             </Button>
           </div>
         </form>
