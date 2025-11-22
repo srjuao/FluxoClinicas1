@@ -1,14 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet';
-import { motion } from 'framer-motion';
-import { ArrowLeft, FileText, Stethoscope, MessageSquare, Plus, Calendar } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { supabase } from '@/lib/customSupabaseClient';
-import { toast } from '@/components/ui/use-toast';
-import CreateReportModal from '@/components/CreateReportModal';
+import { useState, useEffect } from "react";
+import { Helmet } from "react-helmet";
+import { motion } from "framer-motion";
+import { ArrowLeft, FileText, Stethoscope, Plus, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/SupabaseAuthContext";
+import { supabase } from "@/lib/customSupabaseClient";
+import { toast } from "@/components/ui/use-toast";
+import CreateReportModal from "@/components/CreateReportModal";
+import CreateCertificateModal from "@/components/CreateCertificateModal";
+import CreatePrescriptionModal from "@/components/CreatePrescriptionModal";
 
-const PatientDetailsPage = ({ patientId, onBack }) => {
+import { calculateAge, formatDate } from "@/utils";
+
+const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
   const { profile } = useAuth();
   const [patient, setPatient] = useState(null);
   const [reports, setReports] = useState([]);
@@ -16,27 +20,30 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateReport, setShowCreateReport] = useState(false);
+  const [showCreateCertificate, setShowCreateCertificate] = useState(false);
+  const [showCreatePrescription, setShowCreatePrescription] = useState(false);
   const [doctorData, setDoctorData] = useState(null);
+  const [appointments, setAppointments] = useState([]);
 
   // Fetch patient data
   useEffect(() => {
     const fetchPatientData = async () => {
       if (!patientId) return;
-      
+
       setLoading(true);
 
       // Fetch patient info
       const { data: patientData, error: patientError } = await supabase
-        .from('patients')
-        .select('*')
-        .eq('id', patientId)
+        .from("patients")
+        .select("*")
+        .eq("id", patientId)
         .single();
 
       if (patientError) {
         toast({
-          title: 'Erro ao carregar paciente',
+          title: "Erro ao carregar paciente",
           description: patientError.message,
-          variant: 'destructive',
+          variant: "destructive",
         });
         setLoading(false);
         return;
@@ -46,10 +53,10 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
 
       // Fetch medical reports
       const { data: reportsData, error: reportsError } = await supabase
-        .from('medical_reports')
-        .select('*, doctor:doctors(*, profile:profiles(name))')
-        .eq('patient_id', patientId)
-        .order('created_at', { ascending: false });
+        .from("medical_reports")
+        .select("*, doctor:doctors(*, profile:profiles(name))")
+        .eq("patient_id", patientId)
+        .order("created_at", { ascending: false });
 
       if (!reportsError) {
         setReports(reportsData || []);
@@ -67,12 +74,12 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
   // Fetch doctor data if user is a doctor
   useEffect(() => {
     const fetchDoctorData = async () => {
-      if (profile?.role !== 'DOCTOR') return;
-      
+      if (profile?.role !== "DOCTOR") return;
+
       const { data, error } = await supabase
-        .from('doctors')
-        .select('*')
-        .eq('user_id', profile.id)
+        .from("doctors")
+        .select("*")
+        .eq("user_id", profile.id)
         .single();
 
       if (!error) {
@@ -83,21 +90,139 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
     fetchDoctorData();
   }, [profile]);
 
-  const calculateAge = (birthDate) => {
-    if (!birthDate) return '';
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
+  const fetchAppointments = async () => {
+    if (!patientId) return;
+
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("*")
+      .eq("patient_id", patientId)
+      .order("scheduled_start", { ascending: false });
+
+    if (!error) {
+      setAppointments(data || []);
     }
-    return age;
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('pt-BR');
+  // Fetch patient appointments
+  useEffect(() => {
+    fetchAppointments();
+  }, [patientId]);
+
+  // Refresh reports after creating new one
+  const refreshReports = async () => {
+    const { data } = await supabase
+      .from("medical_reports")
+      .select("*, doctor:doctors(*, profile:profiles(name))")
+      .eq("patient_id", patientId)
+      .order("created_at", { ascending: false });
+    if (data) setReports(data);
+  };
+
+  // Handler: Mark patient as attended
+  const handleMarkAsAttended = async () => {
+    if (!appointments.length) {
+      toast({
+        title: "Nenhum agendamento encontrado",
+        description: "Este paciente não possui agendamentos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Find today's appointment or the most recent one
+    const today = new Date().toISOString().split("T")[0];
+    const todayAppointment = appointments.find(
+      (apt) =>
+        apt.scheduled_start.startsWith(today) && apt.status === "SCHEDULED"
+    );
+
+    const appointmentToUpdate =
+      todayAppointment ||
+      appointments.find((apt) => apt.status === "SCHEDULED");
+
+    if (!appointmentToUpdate) {
+      toast({
+        title: "Nenhum agendamento pendente",
+        description: "Não há agendamentos para marcar como atendido.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("appointments")
+      .update({ status: "COMPLETED" })
+      .eq("id", appointmentToUpdate.id);
+
+    if (error) {
+      toast({
+        title: "Erro ao marcar como atendido",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Paciente marcado como atendido! ✅" });
+      // Refresh appointments
+      fetchAppointments();
+    }
+  };
+
+  // Handler: Mark patient as not attended
+  const handleMarkAsNotAttended = async () => {
+    const appointmentToUpdate = appointment;
+
+    if (!appointmentToUpdate) {
+      toast({
+        title: "Nenhum agendamento pendente",
+        description: "Não há agendamentos para marcar como não atendido.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("appointments")
+      .update({ status: "CANCELED" })
+      .eq("id", appointmentToUpdate.id);
+
+    if (error) {
+      toast({
+        title: "Erro ao marcar como não atendido",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Paciente marcado como não atendido" });
+      // Refresh appointments
+      fetchAppointments();
+    }
+  };
+
+  const handleRevertToScheduled = async () => {
+    const { error } = await supabase
+      .from("appointments")
+      .update({ status: "SCHEDULED" })
+      .eq("id", appointment.id);
+
+    if (error) {
+      toast({
+        title: "Erro ao reverter atendimento",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Paciente revertido para agendado!" });
+      fetchAppointments();
+    }
+  };
+
+  // Handler: Request exam (placeholder)
+  const handleRequestExam = () => {
+    toast({
+      title: "🚧 Funcionalidade em desenvolvimento",
+      description: "A solicitação de exames será implementada em breve.",
+    });
   };
 
   if (loading) {
@@ -119,6 +244,9 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
     );
   }
 
+  const currentAppointment =
+    appointments.find((app) => app.id === appointment.id) || appointment;
+
   return (
     <>
       <Helmet>
@@ -130,11 +258,7 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
         {/* Header */}
         <div className="glass-effect border-b border-white/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <Button
-              onClick={onBack}
-              variant="outline"
-              className="mb-4"
-            >
+            <Button onClick={onBack} variant="outline" className="mb-4">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar
             </Button>
@@ -145,11 +269,14 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
                 {patient.name.charAt(0).toUpperCase()}
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{patient.name}</h1>
-                <p className='text-gray-600'>CPF: {patient.cpf}</p>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {patient.name}
+                </h1>
+                <p className="text-gray-600">CPF: {patient.cpf}</p>
                 <p className="text-gray-600">
                   {formatDate(patient.birth_date)}
-                  {patient.birth_date && ` (${calculateAge(patient.birth_date)} anos)`}
+                  {patient.birth_date &&
+                    ` (${calculateAge(patient.birth_date)} anos)`}
                 </p>
               </div>
             </div>
@@ -166,10 +293,12 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
               className="glass-effect rounded-2xl p-6 h-fit"
             >
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900">Anamneses Anteriores</h2>
+                <h2 className="text-lg font-bold text-gray-900">
+                  Anamneses Anteriores
+                </h2>
                 <FileText className="w-5 h-5 text-purple-600" />
               </div>
-              
+
               <div className="space-y-3 max-h-[600px] overflow-y-auto">
                 {reports.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center py-8">
@@ -182,18 +311,18 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="p-4 bg-red-200/50 rounded-xl hover:bg-white/80 transition-all cursor-pointer"
+                      className="p-4 bg-red-200/50 rounded-xl"
                     >
                       <h3 className="font-semibold text-gray-900 text-sm mb-1">
                         {report.title}
                       </h3>
                       <p className="text-xs text-gray-700 mb-2">
-                        Dr(a). {report.doctor?.profile?.name || 'N/A'}
+                        Dr(a). {report.doctor?.profile?.name || "N/A"}
                       </p>
                       <p className="text-xs text-gray-500">
                         {formatDate(report.created_at)}
                       </p>
-                      <p className="text-xs text-gray-800 mt-2 line-clamp-4">
+                      <p className="text-sm text-gray-800 mt-2">
                         {report.content}
                       </p>
                     </motion.div>
@@ -213,7 +342,7 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
                 <h2 className="text-lg font-bold text-gray-900">Exames</h2>
                 <Stethoscope className="w-5 h-5 text-purple-600" />
               </div>
-              
+
               <div className="space-y-3 max-h-[600px] overflow-y-auto">
                 {exams.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center py-8">
@@ -295,6 +424,8 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
                 </Button>
 
                 <Button
+                  onClick={() => setShowCreateCertificate(true)}
+                  disabled={!doctorData}
                   variant="outline"
                   className="w-full bg-purple-100 hover:bg-purple-200 text-purple-700 border-purple-300"
                 >
@@ -303,6 +434,8 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
                 </Button>
 
                 <Button
+                  onClick={() => setShowCreatePrescription(true)}
+                  disabled={!doctorData}
                   variant="outline"
                   className="w-full bg-purple-100 hover:bg-purple-200 text-purple-700 border-purple-300"
                 >
@@ -311,14 +444,7 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
                 </Button>
 
                 <Button
-                  variant="outline"
-                  className="w-full bg-green-100 hover:bg-green-200 text-green-700 border-green-300"
-                >
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Paciente Atendido
-                </Button>
-
-                <Button
+                  onClick={handleRequestExam}
                   variant="outline"
                   className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300"
                 >
@@ -326,12 +452,36 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
                   Pedido de Exame
                 </Button>
 
-                <Button
-                  variant="outline"
-                  className="w-full bg-red-100 hover:bg-red-200 text-red-700 border-red-300"
-                >
-                  Paciente não Atendido
-                </Button>
+                {currentAppointment.status === "SCHEDULED" && (
+                  <>
+                    <Button
+                      onClick={handleMarkAsAttended}
+                      variant="outline"
+                      className="w-full bg-green-100 hover:bg-green-200 text-green-700 border-green-300"
+                    >
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Paciente Atendido
+                    </Button>
+
+                    <Button
+                      onClick={handleMarkAsNotAttended}
+                      variant="outline"
+                      className="w-full bg-red-100 hover:bg-red-200 text-red-700 border-red-300"
+                    >
+                      Paciente não compareceu
+                    </Button>
+                  </>
+                )}
+                {(currentAppointment.status === "COMPLETED" ||
+                  currentAppointment.status === "CANCELED") && (
+                  <Button
+                    onClick={handleRevertToScheduled}
+                    variant="outline"
+                    className="w-full bg-black-100 hover:bg-black-200 text-black-700 border-black-300"
+                  >
+                    Reverter para não atendido
+                  </Button>
+                )}
               </motion.div>
             </div>
           </div>
@@ -347,16 +497,32 @@ const PatientDetailsPage = ({ patientId, onBack }) => {
           onClose={() => setShowCreateReport(false)}
           onSuccess={() => {
             setShowCreateReport(false);
-            // Refresh reports
-            const fetchReports = async () => {
-              const { data } = await supabase
-                .from('medical_reports')
-                .select('*, doctor:doctors(*, profile:profiles(name))')
-                .eq('patient_id', patientId)
-                .order('created_at', { ascending: false });
-              if (data) setReports(data);
-            };
-            fetchReports();
+            refreshReports();
+          }}
+        />
+      )}
+
+      {showCreateCertificate && doctorData && (
+        <CreateCertificateModal
+          doctorId={doctorData.id}
+          clinicId={profile?.clinic_id}
+          onClose={() => setShowCreateCertificate(false)}
+          onSuccess={() => {
+            setShowCreateCertificate(false);
+            toast({ title: "Atestado criado com sucesso! 🎉" });
+          }}
+        />
+      )}
+
+      {showCreatePrescription && doctorData && (
+        <CreatePrescriptionModal
+          doctorId={doctorData.id}
+          clinicId={profile?.clinic_id}
+          preselectedPatient={patient}
+          onClose={() => setShowCreatePrescription(false)}
+          onSuccess={() => {
+            setShowCreatePrescription(false);
+            toast({ title: "Receita criada com sucesso! 🎉" });
           }}
         />
       )}

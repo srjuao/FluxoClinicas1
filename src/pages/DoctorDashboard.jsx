@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Helmet } from 'react-helmet';
-import { Calendar, FileText, LogOut, Plus, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { supabase } from '@/lib/customSupabaseClient';
-import { toast } from '@/components/ui/use-toast';
+import React, { useState, useEffect, useCallback } from "react";
+import { Helmet } from "react-helmet";
+import { Calendar, FileText, LogOut, Plus, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/SupabaseAuthContext";
+import { supabase } from "@/lib/customSupabaseClient";
+import { toast } from "@/components/ui/use-toast";
 
-import DoctorAgenda from '@/components/DoctorAgenda';
-import CreateReportModal from '@/components/CreateReportModal';
-import CreateCertificateModal from '@/components/CreateCertificateModal';
-import { SearchReportsModal } from '@/components/SearchReportsModal';
-import PatientDetailsPage from '@/pages/PatientDetailsPage';
+import DoctorAgenda from "@/components/DoctorAgenda";
+import CreateReportModal from "@/components/CreateReportModal";
+import CreateCertificateModal from "@/components/CreateCertificateModal";
+import { SearchReportsModal } from "@/components/SearchReportsModal";
+import PatientDetailsPage from "@/pages/PatientDetailsPage";
 
 const DoctorDashboard = () => {
   const { signOut, profile, user } = useAuth();
@@ -28,10 +28,11 @@ const DoctorDashboard = () => {
   const [openFromAgenda, setOpenFromAgenda] = useState(false);
   const [showPatientDetails, setShowPatientDetails] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
 
   // 🔹 Restaurar rascunho ao montar o dashboard
   useEffect(() => {
-    const saved = localStorage.getItem('reportDraft');
+    const saved = localStorage.getItem("reportDraft");
     if (saved) {
       const { patient } = JSON.parse(saved);
       if (patient) {
@@ -47,16 +48,16 @@ const DoctorDashboard = () => {
     if (!user) return;
     setLoading(true);
     const { data, error } = await supabase
-      .from('doctors')
-      .select('*')
-      .eq('user_id', user.id)
+      .from("doctors")
+      .select("*")
+      .eq("user_id", user.id)
       .single();
 
     if (error) {
       toast({
-        title: 'Erro ao buscar dados do médico',
+        title: "Erro ao buscar dados do médico",
         description: error.message,
-        variant: 'destructive',
+        variant: "destructive",
       });
     } else {
       setDoctorData(data);
@@ -81,9 +82,11 @@ const DoctorDashboard = () => {
     return (
       <PatientDetailsPage
         patientId={selectedPatientId}
+        appointment={selectedAppointment}
         onBack={() => {
           setShowPatientDetails(false);
           setSelectedPatientId(null);
+          setSelectedAppointment(null);
         }}
       />
     );
@@ -109,7 +112,9 @@ const DoctorDashboard = () => {
                   <h1 className="text-lg font-bold text-gray-900">
                     Bem-vindo Dr(a). {profile?.name}
                   </h1>
-                  <p className="text-xs text-gray-600">CRM: {doctorData?.crm}</p>
+                  <p className="text-xs text-gray-600">
+                    CRM: {doctorData?.crm}
+                  </p>
                 </div>
               </div>
               <Button
@@ -148,8 +153,9 @@ const DoctorDashboard = () => {
                 <DoctorAgenda
                   doctorId={doctorData.id}
                   clinicId={clinicId}
-                  onSelectPatient={(patient) => {
+                  onSelectPatient={(patient, appointment) => {
                     setSelectedPatientId(patient.id);
+                    setSelectedAppointment(appointment);
                     setShowPatientDetails(true);
                   }}
                 />
@@ -160,7 +166,9 @@ const DoctorDashboard = () => {
             <TabsContent value="reports">
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold text-gray-900">Anamneses</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Anamneses
+                  </h2>
                   <div className="flex space-x-3">
                     <Button
                       onClick={() => setShowSearchReports(true)}
