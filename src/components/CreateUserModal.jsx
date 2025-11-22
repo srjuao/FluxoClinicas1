@@ -11,17 +11,19 @@ const CreateUserModal = ({
   onClose,
   onSuccess,
   userToEdit = null,
+  doctorData = null
 }) => {
   const { createProfile } = useAuth();
   const isEdit = !!userToEdit;
+  console.log(userToEdit, doctorData)
 
   const [name, setName] = useState(userToEdit?.name || "");
   const [email, setEmail] = useState(userToEdit?.email || "");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState(userToEdit?.role || "RECEPTIONIST");
-  const [crm, setCrm] = useState(userToEdit?.doctor?.crm || "");
+  const [crm, setCrm] = useState(doctorData?.crm || "");
   const [specialties, setSpecialties] = useState(
-    userToEdit?.doctor?.specialties?.join(", ") || ""
+    doctorData?.specialties?.join(", ") || ""
   );
   const [loading, setLoading] = useState(false);
 
@@ -30,8 +32,8 @@ const CreateUserModal = ({
       setName(userToEdit.name || "");
       setEmail(userToEdit.email || "");
       setRole(userToEdit.role || "RECEPTIONIST");
-      setCrm(userToEdit?.doctor?.crm || "");
-      setSpecialties(userToEdit?.doctor?.specialties?.join(", ") || "");
+      setCrm(doctorData?.crm || "");
+      setSpecialties(doctorData?.specialties?.join(", ") || "");
     }
   }, [userToEdit]);
 

@@ -240,6 +240,7 @@ const ClinicAdminDashboard = () => {
                           <Button
                             onClick={() => {
                               setSelectedUser(u);
+                              setSelectedDoctor(doctor);
                               setShowCreateUser(true);
                             }}
                             variant="outline"
@@ -272,6 +273,7 @@ const ClinicAdminDashboard = () => {
         <CreateUserModal
           clinicId={clinicId}
           userToEdit={selectedUser}
+          doctorData={selectedDoctor}
           onClose={() => {
             setShowCreateUser(false);
             setSelectedUser(null);
