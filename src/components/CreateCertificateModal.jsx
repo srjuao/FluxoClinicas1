@@ -11,9 +11,9 @@ const SEX_OPTIONS = [
   { value: 'O', label: 'Outro' },
 ];
 
-const CreateCertificateModal = ({ clinicId, doctorId, onClose }) => {
+const CreateCertificateModal = ({ clinicId, doctorId, preselectedPatient, onClose }) => {
   const [patients, setPatients] = useState([]);
-  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(preselectedPatient);
   const [showPatientForm, setShowPatientForm] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
   const [patientForm, setPatientForm] = useState({

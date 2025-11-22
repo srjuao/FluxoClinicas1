@@ -24,6 +24,8 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
   const [showCreatePrescription, setShowCreatePrescription] = useState(false);
   const [doctorData, setDoctorData] = useState(null);
   const [appointments, setAppointments] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [selectedDoctorFilter, setSelectedDoctorFilter] = useState(null);
 
   // Fetch patient data
   useEffect(() => {
@@ -60,6 +62,16 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
 
       if (!reportsError) {
         setReports(reportsData || []);
+      }
+
+      // Fetch doctors for filter
+      const { data: doctorsData } = await supabase
+        .from("doctors")
+        .select("id, profile:profiles(name)")
+        .eq("clinic_id", patientData.clinic_id);
+
+      if (doctorsData) {
+        setDoctors(doctorsData);
       }
 
       // TODO: Fetch exams when table is available
@@ -246,6 +258,10 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
 
   const currentAppointment =
     appointments.find((app) => app.id === appointment.id) || appointment;
+  const selectedReports = reports.filter(
+    (report) =>
+      !selectedDoctorFilter || report.doctor_id === selectedDoctorFilter
+  );
 
   return (
     <>
@@ -292,11 +308,27 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
               animate={{ opacity: 1, y: 0 }}
               className="glass-effect rounded-2xl p-6 h-fit"
             >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900">
-                  Anamneses Anteriores
-                </h2>
-                <FileText className="w-5 h-5 text-purple-600" />
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-lg font-bold text-gray-900">
+                    Anamneses Anteriores
+                  </h2>
+                  <FileText className="w-5 h-5 text-purple-600" />
+                </div>
+                <select
+                  value={selectedDoctorFilter || ""}
+                  onChange={(e) =>
+                    setSelectedDoctorFilter(e.target.value || null)
+                  }
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none bg-white"
+                >
+                  <option value="">Todos os médicos</option>
+                  {doctors.map((doctor) => (
+                    <option key={doctor.id} value={doctor.id}>
+                      Dr(a). {doctor.profile?.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-3 max-h-[600px] overflow-y-auto">
@@ -304,8 +336,12 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                   <p className="text-sm text-gray-500 text-center py-8">
                     Nenhuma anamnese registrada
                   </p>
+                ) : selectedReports.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-8">
+                    Nenhuma anamnese registrada para esse médico
+                  </p>
                 ) : (
-                  reports.map((report, index) => (
+                  selectedReports.map((report, index) => (
                     <motion.div
                       key={report.id}
                       initial={{ opacity: 0, x: -20 }}
@@ -506,6 +542,7 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
         <CreateCertificateModal
           doctorId={doctorData.id}
           clinicId={profile?.clinic_id}
+          preselectedPatient={patient}
           onClose={() => setShowCreateCertificate(false)}
           onSuccess={() => {
             setShowCreateCertificate(false);
