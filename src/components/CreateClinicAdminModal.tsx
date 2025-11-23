@@ -1,18 +1,19 @@
-import { useState } from "react";
+import React, { useState, FormEvent } from "react";
 import { motion } from "framer-motion";
 import { X, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
+import type { CreateClinicAdminModalProps } from "@/types/components.types";
 
-const CreateClinicAdminModal = ({ clinic, onClose, onSuccess }) => {
+const CreateClinicAdminModal: React.FC<CreateClinicAdminModalProps> = ({ clinic, onClose, onSuccess }) => {
   const { createProfile } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
@@ -20,7 +21,7 @@ const CreateClinicAdminModal = ({ clinic, onClose, onSuccess }) => {
     const profileData = {
       name,
       clinic_id: clinic.id,
-      role: "CLINIC_ADMIN",
+      role: "CLINIC_ADMIN" as const,
     };
 
     const { error } = await createProfile(trimmedEmail, password, profileData);

@@ -1,14 +1,24 @@
-import type { Patient, Doctor, Appointment, Clinic } from './database.types';
+import type { Patient, Doctor, Appointment, Clinic, Profile } from './database.types';
 
 export interface ModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
 
+export interface PatientFormData {
+  name: string;
+  cpf: string;
+  birth_date: string;
+  sexo: string;
+  telefone: string;
+  estado_civil: string;
+  endereco?: string;
+}
+
 export interface CreateUserModalProps extends ModalProps {
   clinicId: string;
-  userToEdit?: any;
-  doctorData?: any;
+  userToEdit?: Profile | null;
+  doctorData?: Doctor | null;
 }
 
 export interface CreateClinicModalProps extends ModalProps {}
@@ -28,9 +38,11 @@ export interface CreateReportModalProps extends ModalProps {
   defaultPatient?: Patient | null;
 }
 
-export interface CreateCertificateModalProps extends ModalProps {
+export interface CreateCertificateModalProps {
   doctorId: string;
   clinicId: string;
+  preselectedPatient?: Patient | null;
+  onClose: () => void;
 }
 
 export interface CreatePrescriptionModalProps extends ModalProps {

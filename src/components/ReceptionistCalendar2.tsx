@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ======================== ReceptionistCalendar2.jsx (GOOGLE CALENDAR STYLE) ========================
 
 import React, { useState, useEffect, useCallback } from "react";

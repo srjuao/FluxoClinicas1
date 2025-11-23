@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
 import { FileText, Edit } from "lucide-react";
 import jsPDF from "jspdf";
+import type { Patient } from "@/types/database.types";
+import type { CreateCertificateModalProps, PatientFormData } from "@/types/components.types";
 
 const SEX_OPTIONS = [
   { value: "M", label: "Masculino" },
@@ -11,17 +13,17 @@ const SEX_OPTIONS = [
   { value: "O", label: "Outro" },
 ];
 
-const CreateCertificateModal = ({
+const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
   clinicId,
-  doctorId,
+  doctorId: _doctorId,
   preselectedPatient,
   onClose,
 }) => {
-  const [patients, setPatients] = useState([]);
-  const [selectedPatient, setSelectedPatient] = useState(preselectedPatient);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(preselectedPatient || null);
   const [showPatientForm, setShowPatientForm] = useState(false);
-  const [editingPatient, setEditingPatient] = useState(null);
-  const [patientForm, setPatientForm] = useState({
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [patientForm, setPatientForm] = useState<Partial<PatientFormData>>({
     name: "",
     cpf: "",
     birth_date: "",
@@ -48,7 +50,7 @@ const CreateCertificateModal = ({
         description: error.message,
         variant: "destructive",
       });
-    else setPatients(data);
+    else setPatients(data || []);
   }, [clinicId]);
 
   useEffect(() => {
@@ -61,7 +63,7 @@ const CreateCertificateModal = ({
       (p.cpf && p.cpf.includes(searchTerm))
   );
 
-  const handleEditPatient = (patient) => {
+  const handleEditPatient = (patient: Patient) => {
     setEditingPatient(patient);
     setPatientForm({
       name: patient.name || "",
@@ -315,7 +317,7 @@ const CreateCertificateModal = ({
 
             <textarea
               className="w-full px-3 py-2 border rounded"
-              rows="3"
+              rows={3}
               placeholder="Observação do médico"
               value={doctorObs}
               onChange={(e) => setDoctorObs(e.target.value)}

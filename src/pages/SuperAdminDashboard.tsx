@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import { motion } from "framer-motion";
 import { Building2, Plus, Users, LogOut, UserPlus } from "lucide-react";
@@ -33,14 +33,14 @@ const SuperAdminDashboard = () => {
     loadClinics();
   }, [loadClinics]);
 
-  const handleImpersonate = async (clinic) => {
+  const handleImpersonate = async (_clinic: any) => {
     toast({
       title: "🚧 Funcionalidade em desenvolvimento",
       description: "Acessar como admin ainda não foi implementado.",
     });
   };
 
-  const handleCreateAdmin = (clinic) => {
+  const handleCreateAdmin = (clinic: any) => {
     setSelectedClinic(clinic);
     setShowCreateAdmin(true);
   };

@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, FormEvent } from "react";
 import { motion } from "framer-motion";
 import { X, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
+import type { UserRole } from "@/types/database.types";
+import type { CreateUserModalProps } from "@/types/components.types";
 
-const CreateUserModal = ({
+const CreateUserModal: React.FC<CreateUserModalProps> = ({
   clinicId,
   onClose,
   onSuccess,
@@ -20,7 +22,7 @@ const CreateUserModal = ({
   const [name, setName] = useState(userToEdit?.name || "");
   const [email, setEmail] = useState(userToEdit?.email || "");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState(userToEdit?.role || "RECEPTIONIST");
+  const [role, setRole] = useState<UserRole>(userToEdit?.role || "RECEPTIONIST");
   const [crm, setCrm] = useState(doctorData?.crm || "");
   const [specialties, setSpecialties] = useState(
     doctorData?.specialties?.join(", ") || ""
@@ -45,7 +47,7 @@ const CreateUserModal = ({
     }
   }, [userToEdit]);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
 
@@ -218,7 +220,7 @@ const CreateUserModal = ({
             </label>
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value)}
+              onChange={(e) => setRole(e.target.value as UserRole)}
               className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
             >
               <option value="RECEPTIONIST">Recepcionista</option>

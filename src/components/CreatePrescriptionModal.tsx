@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/customSupabaseClient";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
+import type { Patient, Doctor } from "@/types/database.types";
+import type { CreatePrescriptionModalProps } from "@/types/components.types";
 
 const examOptions = [
   "Consulta",
@@ -26,20 +28,20 @@ const examOptions = [
   "Outros",
 ];
 
-const CreatePrescriptionModal = ({
+const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
   doctorId,
   clinicId,
   onClose,
   onSuccess,
   preselectedPatient,
 }) => {
-  const [patients, setPatients] = useState([]);
-  const [selectedPatient, setSelectedPatient] = useState(
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<string>(
     preselectedPatient?.id || ""
   );
-  const [activeTab, setActiveTab] = useState("receita");
-  const [subTab, setSubTab] = useState("sem_lentes"); // 🔹 nova subaba
-  const [medicationContent, setMedicationContent] = useState("");
+  const [activeTab, setActiveTab] = useState<string>("receita");
+  const [subTab, setSubTab] = useState<string>("sem_lentes");
+  const [medicationContent, setMedicationContent] = useState<string>("");
   const [lensData, setLensData] = useState({
     od_esf: "",
     od_cil: "",
@@ -49,9 +51,9 @@ const CreatePrescriptionModal = ({
     oe_eixo: "",
     adicao: "",
   });
-  const [selectedExams, setSelectedExams] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [doctorData, setDoctorData] = useState(null);
+  const [selectedExams, setSelectedExams] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [doctorData, setDoctorData] = useState<Doctor | null>(null);
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -84,13 +86,13 @@ const CreatePrescriptionModal = ({
     fetchDoctorData();
   }, [doctorId]);
 
-  const toggleExam = (exam) => {
+  const toggleExam = (exam: string) => {
     setSelectedExams((prev) =>
       prev.includes(exam) ? prev.filter((e) => e !== exam) : [...prev, exam]
     );
   };
 
-  const handleSave = async (type) => {
+  const handleSave = async (type: string) => {
     setLoading(true);
 
     const hasMedication = medicationContent.trim() && type === "medication";
@@ -131,7 +133,7 @@ const CreatePrescriptionModal = ({
     }
   };
 
-  const handlePrint = (type, content) => {
+  const handlePrint = (type: string, content: string) => {
     const patientName =
       preselectedPatient?.name ||
       patients.find((p) => String(p.id) === String(selectedPatient))?.name ||
@@ -153,7 +155,7 @@ const CreatePrescriptionModal = ({
 
     if (type === "exams" && parsed.selectedExams?.length) {
       printContent += `<h3>Exames</h3><ul>${parsed.selectedExams
-        .map((e) => `<li>${e}</li>`)
+        .map((exam: string) => `<li>${exam}</li>`)
         .join("")}</ul>`;
     }
 
@@ -168,6 +170,7 @@ const CreatePrescriptionModal = ({
         </table>`;
     }
 
+    if (!printWindow) return;
     printWindow.document.write(`
       <html>
         <head>

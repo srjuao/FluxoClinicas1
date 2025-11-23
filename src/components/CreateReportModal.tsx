@@ -1,19 +1,21 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, FormEvent } from 'react';
 import { motion } from 'framer-motion';
 import { X, FileText, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
+import type { Patient } from '@/types/database.types';
+import type { CreateReportModalProps } from '@/types/components.types';
 
-const CreateReportModal = ({ doctorId, clinicId, defaultPatient, onClose, onSuccess }) => {
-  const [patients, setPatients] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState(defaultPatient || null);
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [loading, setLoading] = useState(false);
+const CreateReportModal: React.FC<CreateReportModalProps> = ({ doctorId, clinicId, defaultPatient, onClose, onSuccess }) => {
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(defaultPatient || null);
+  const [title, setTitle] = useState<string>('');
+  const [content, setContent] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const lastSavedPatientId = useRef(null); // para controlar troca de paciente
+  const lastSavedPatientId = useRef<string | null>(null); // para controlar troca de paciente
 
   // 🔹 Carregar pacientes
   const loadPatients = useCallback(async () => {
@@ -22,7 +24,7 @@ const CreateReportModal = ({ doctorId, clinicId, defaultPatient, onClose, onSucc
       .from('patients')
       .select('*')
       .eq('clinic_id', clinicId);
-    if (!error) setPatients(data);
+    if (!error) setPatients(data || []);
   }, [clinicId]);
 
   useEffect(() => {
@@ -70,7 +72,7 @@ const CreateReportModal = ({ doctorId, clinicId, defaultPatient, onClose, onSucc
       (p.cpf && p.cpf.includes(searchTerm))
   );
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedPatient)
       return toast({ title: 'Selecione um paciente!', variant: 'destructive' });

@@ -1,17 +1,23 @@
 // ======================== ReceptionistDashboard.jsx ========================
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { Calendar, LogOut, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
 import ReceptionistCalendar from "@/components/ReceptionistCalendar"; // agora Planner Semanal
 import CreateAppointmentModal from "@/components/CreateAppointmentModal";
-import PatientDetailsPage from "@/pages/PatientDetailsPage";
+// import PatientDetailsPage from "@/pages/PatientDetailsPage";
 import { supabase } from "@/lib/customSupabaseClient";
 
 // 🔹 Autocomplete de Médicos
-const DoctorAutocomplete = ({
+interface DoctorAutocompleteProps {
+  clinicId: string;
+  selectedDoctor: string | null;
+  setSelectedDoctor: (doctorId: string | null) => void;
+}
+
+const DoctorAutocomplete: React.FC<DoctorAutocompleteProps> = ({
   clinicId,
   selectedDoctor,
   setSelectedDoctor,

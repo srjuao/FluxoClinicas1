@@ -338,3 +338,15 @@ export type AppointmentWithRelations = Appointment & {
   patient?: Patient
   clinic?: Clinic
 }
+
+// Additional helper types for components
+export type DoctorWithProfileName = Doctor & {
+  profile: {
+    name: string
+  }
+}
+
+export type TimeSlot = {
+  time: string
+  available: boolean
+}

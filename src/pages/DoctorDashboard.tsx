@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import { Calendar, FileText, LogOut, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
 import { supabase } from "@/lib/customSupabaseClient";
 import { toast } from "@/components/ui/use-toast";
+import type { Doctor, Patient } from "@/types/database.types";
 
 import DoctorAgenda from "@/components/DoctorAgenda";
 import CreateReportModal from "@/components/CreateReportModal";
@@ -17,18 +18,18 @@ const DoctorDashboard = () => {
   const { signOut, profile, user } = useAuth();
   const clinicId = profile?.clinic_id;
 
-  const [doctorData, setDoctorData] = useState(null);
+  const [doctorData, setDoctorData] = useState<Doctor | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [showCreateReport, setShowCreateReport] = useState(false);
   const [showCreateCertificate, setShowCreateCertificate] = useState(false);
   const [showSearchReports, setShowSearchReports] = useState(false);
 
-  const [selectedPatient, setSelectedPatient] = useState(null);
-  const [openFromAgenda, setOpenFromAgenda] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [, setOpenFromAgenda] = useState(false);
   const [showPatientDetails, setShowPatientDetails] = useState(false);
-  const [selectedPatientId, setSelectedPatientId] = useState(null);
-  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
 
   // 🔹 Restaurar rascunho ao montar o dashboard
   useEffect(() => {
@@ -153,7 +154,7 @@ const DoctorDashboard = () => {
                 <DoctorAgenda
                   doctorId={doctorData.id}
                   clinicId={clinicId}
-                  onSelectPatient={(patient, appointment) => {
+                  onSelectPatient={(patient: any, appointment: any) => {
                     setSelectedPatientId(patient.id);
                     setSelectedAppointment(appointment);
                     setShowPatientDetails(true);
@@ -207,7 +208,7 @@ const DoctorDashboard = () => {
       </div>
 
       {/* Modais */}
-      {showCreateReport && doctorData && (
+      {showCreateReport && doctorData && clinicId && (
         <CreateReportModal
           doctorId={doctorData.id}
           clinicId={clinicId}
@@ -225,18 +226,18 @@ const DoctorDashboard = () => {
         />
       )}
 
-      {showCreateCertificate && doctorData && (
+      {showCreateCertificate && doctorData && clinicId && (
         <CreateCertificateModal
           doctorId={doctorData.id}
           clinicId={clinicId}
           onClose={() => setShowCreateCertificate(false)}
-          onSuccess={() => setShowCreateCertificate(false)}
         />
       )}
 
-      {showSearchReports && (
+      {showSearchReports && clinicId && (
         <SearchReportsModal
           clinicId={clinicId}
+          preselectedPatient={null}
           onClose={() => setShowSearchReports(false)}
         />
       )}

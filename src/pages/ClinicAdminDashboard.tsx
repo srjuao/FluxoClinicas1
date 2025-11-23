@@ -17,15 +17,16 @@ import { toast } from "@/components/ui/use-toast";
 import CreateUserModal from "@/components/CreateUserModal";
 import ManageWorkHoursModal from "@/components/ManageWorkHoursModal";
 import ClinicCalendar from "@/components/ClinicCalendar";
+import type { Profile, Doctor, DoctorWithProfileName } from "@/types/database.types";
 
 const ClinicAdminDashboard = () => {
   const { signOut, profile } = useAuth();
-  const [users, setUsers] = useState([]);
-  const [doctors, setDoctors] = useState([]);
+  const [users, setUsers] = useState<Profile[]>([]);
+  const [doctors, setDoctors] = useState<DoctorWithProfileName[]>([]);
   const [showCreateUser, setShowCreateUser] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [showWorkHours, setShowWorkHours] = useState(false);
-  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
 
   const clinicId = profile?.clinic_id;
 
@@ -44,7 +45,7 @@ const ClinicAdminDashboard = () => {
         variant: "destructive",
       });
     } else {
-      setUsers(usersData);
+      setUsers(usersData || []);
     }
 
     const { data: doctorsData, error: doctorsError } = await supabase
@@ -59,7 +60,7 @@ const ClinicAdminDashboard = () => {
         variant: "destructive",
       });
     } else {
-      setDoctors(doctorsData);
+      setDoctors((doctorsData as DoctorWithProfileName[]) || []);
     }
   }, [clinicId]);
 
@@ -67,12 +68,12 @@ const ClinicAdminDashboard = () => {
     loadData();
   }, [loadData]);
 
-  const handleManageWorkHours = (doctor) => {
+  const handleManageWorkHours = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     setShowWorkHours(true);
   };
 
-  const handleDeleteUser = async (user) => {
+  const handleDeleteUser = async (user: Profile) => {
     const confirmDelete = window.confirm(
       `Tem certeza que deseja excluir ${user.name}?`
     );
@@ -98,7 +99,7 @@ const ClinicAdminDashboard = () => {
     } catch (error) {
       toast({
         title: "Erro ao excluir usuário",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Erro desconhecido',
         variant: "destructive",
       });
     }
@@ -161,7 +162,7 @@ const ClinicAdminDashboard = () => {
             </TabsList>
 
             <TabsContent value="calendar">
-              <ClinicCalendar clinicId={clinicId} />
+              {clinicId && <ClinicCalendar clinicId={clinicId} />}
             </TabsContent>
 
             <TabsContent value="users">
@@ -240,7 +241,7 @@ const ClinicAdminDashboard = () => {
                           <Button
                             onClick={() => {
                               setSelectedUser(u);
-                              setSelectedDoctor(doctor);
+                              if (doctor) setSelectedDoctor(doctor as Doctor);
                               setShowCreateUser(true);
                             }}
                             variant="outline"
@@ -269,7 +270,7 @@ const ClinicAdminDashboard = () => {
         </div>
       </div>
 
-      {showCreateUser && (
+      {showCreateUser && clinicId && (
         <CreateUserModal
           clinicId={clinicId}
           userToEdit={selectedUser}
