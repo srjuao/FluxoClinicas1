@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/use-toast";
 import CreateReportModal from "@/components/CreateReportModal";
 import CreateCertificateModal from "@/components/CreateCertificateModal";
 import CreatePrescriptionModal from "@/components/CreatePrescriptionModal";
+import AddExamModal from "@/components/AddExamModal";
 
 import { calculateAge, formatDate } from "@/utils";
 
@@ -23,6 +24,7 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
   const [showCreateReport, setShowCreateReport] = useState(false);
   const [showCreateCertificate, setShowCreateCertificate] = useState(false);
   const [showCreatePrescription, setShowCreatePrescription] = useState(false);
+  const [showAddExam, setShowAddExam] = useState(false);
   const [doctorData, setDoctorData] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -34,7 +36,10 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (doctorDropdownRef.current && !doctorDropdownRef.current.contains(event.target)) {
+      if (
+        doctorDropdownRef.current &&
+        !doctorDropdownRef.current.contains(event.target)
+      ) {
         setShowDoctorDropdown(false);
       }
     };
@@ -245,12 +250,9 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
     }
   };
 
-  // Handler: Request exam (placeholder)
+  // Handler: Request exam
   const handleRequestExam = () => {
-    toast({
-      title: "🚧 Funcionalidade em desenvolvimento",
-      description: "A solicitação de exames será implementada em breve.",
-    });
+    setShowAddExam(true);
   };
 
   if (loading) {
@@ -343,7 +345,7 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                     placeholder="Buscar médico ou ver todos..."
                     className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none bg-white"
                   />
-                  
+
                   {showDoctorDropdown && (
                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                       <button
@@ -354,9 +356,11 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                         }}
                         className="w-full px-3 py-2 text-left text-sm hover:bg-purple-50 transition-colors border-b border-gray-100"
                       >
-                        <span className="font-medium text-purple-600">Todos os médicos</span>
+                        <span className="font-medium text-purple-600">
+                          Todos os médicos
+                        </span>
                       </button>
-                      
+
                       {doctors
                         .filter((doctor) =>
                           doctor.profile?.name
@@ -368,26 +372,31 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                             key={doctor.id}
                             onClick={() => {
                               setSelectedDoctorFilter(doctor.id);
-                              setDoctorSearchQuery(`Dr(a). ${doctor.profile?.name}`);
+                              setDoctorSearchQuery(
+                                `Dr(a). ${doctor.profile?.name}`
+                              );
                               setShowDoctorDropdown(false);
                             }}
                             className={`w-full px-3 py-2 text-left text-sm hover:bg-purple-50 transition-colors ${
-                              selectedDoctorFilter === doctor.id ? "bg-purple-100" : ""
+                              selectedDoctorFilter === doctor.id
+                                ? "bg-purple-100"
+                                : ""
                             }`}
                           >
                             Dr(a). {doctor.profile?.name}
                           </button>
                         ))}
-                      
+
                       {doctors.filter((doctor) =>
                         doctor.profile?.name
                           ?.toLowerCase()
                           .includes(doctorSearchQuery.toLowerCase())
-                      ).length === 0 && doctorSearchQuery && (
-                        <div className="px-3 py-2 text-sm text-gray-500 text-center">
-                          Nenhum médico encontrado
-                        </div>
-                      )}
+                      ).length === 0 &&
+                        doctorSearchQuery && (
+                          <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                            Nenhum médico encontrado
+                          </div>
+                        )}
                     </div>
                   )}
                 </div>
@@ -547,7 +556,7 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                   className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300"
                 >
                   <Stethoscope className="w-4 h-4 mr-2" />
-                  Pedido de Exame
+                  Anexar exames
                 </Button>
 
                 {currentAppointment.status === "SCHEDULED" && (
@@ -622,6 +631,29 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
           onSuccess={() => {
             setShowCreatePrescription(false);
             toast({ title: "Receita criada com sucesso! 🎉" });
+          }}
+        />
+      )}
+
+      {showAddExam && doctorData && patient && (
+        <AddExamModal
+          patientId={patient.id}
+          patientName={patient.name}
+          doctorId={doctorData.id}
+          clinicId={profile?.clinic_id}
+          onClose={() => setShowAddExam(false)}
+          onSuccess={() => {
+            setShowAddExam(false);
+            // Refresh exams list
+            const fetchExams = async () => {
+              const { data } = await supabase
+                .from("exams")
+                .select("*")
+                .eq("patient_id", patientId)
+                .order("exam_date", { ascending: false });
+              if (data) setExams(data);
+            };
+            fetchExams();
           }}
         />
       )}
