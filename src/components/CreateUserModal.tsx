@@ -17,7 +17,6 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
 }) => {
   const { createProfile } = useAuth();
   const isEdit = !!userToEdit;
-  console.log(userToEdit, doctorData);
 
   const [name, setName] = useState(userToEdit?.name || "");
   const [email, setEmail] = useState(userToEdit?.email || "");
