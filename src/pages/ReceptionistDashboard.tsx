@@ -5,7 +5,7 @@ import { Helmet } from "react-helmet";
 import { Calendar, LogOut, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
-import ReceptionistCalendar from "@/components/ReceptionistCalendar"; // agora Planner Semanal
+import DoctorMonthlyCalendar from "@/components/DoctorMonthlyCalendar";
 import CreateAppointmentModal from "@/components/CreateAppointmentModal";
 // import PatientDetailsPage from "@/pages/PatientDetailsPage";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -14,6 +14,7 @@ interface DoctorWithProfile {
   user_id: string;
   crm: string;
   name: string;
+  id: string;
 }
 
 // 🔹 Autocomplete de Médicos
@@ -41,7 +42,7 @@ const DoctorAutocomplete: React.FC<DoctorAutocompleteProps> = ({
     const fetchDoctors = async () => {
       const { data: doctorsData, error: doctorsError } = await supabase
         .from("doctors")
-        .select("user_id, crm")
+        .select("user_id, crm, id")
         .eq("clinic_id", clinicId);
 
       if (doctorsError) return console.error(doctorsError);
@@ -106,7 +107,7 @@ const DoctorAutocomplete: React.FC<DoctorAutocompleteProps> = ({
               key={d.user_id}
               className="px-3 py-2 hover:bg-purple-100 cursor-pointer"
               onClick={() => {
-                setSelectedDoctor(d.user_id);
+                setSelectedDoctor(d.id);
                 setQuery(d.name);
                 setShowDropdown(false);
               }}
@@ -125,12 +126,11 @@ const ReceptionistDashboard = () => {
   const clinicId = profile?.clinic_id;
 
   const [showCreateAppointment, setShowCreateAppointment] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [selectedDoctor, setSelectedDoctor] = useState<string | null>(null);
 
   const handleSuccess = () => {
     setShowCreateAppointment(false);
-    setRefreshKey((prev) => prev + 1); // Atualiza o planner
+    // Calendar will auto-refresh via useEffect
   };
 
   return (
@@ -194,10 +194,11 @@ const ReceptionistDashboard = () => {
             </div>
           </div>
 
-          {/* 🔹 Planner Semanal */}
-          {clinicId && (
-            <ReceptionistCalendar key={refreshKey} clinicId={clinicId} />
-          )}
+          {/* 🔹 Calendário Mensal */}
+          <DoctorMonthlyCalendar
+            clinicId={clinicId || ""}
+            doctorId={selectedDoctor}
+          />
         </div>
       </div>
 

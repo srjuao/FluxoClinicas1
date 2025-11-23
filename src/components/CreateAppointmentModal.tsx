@@ -249,7 +249,7 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
     const workHour = workHours[0];
     const slotMinutes = workHour.slot_minutes || 30;
     // Parse time slot for date construction
-    const [, ] = selectedSlot.split(":").map(Number);
+    const [,] = selectedSlot.split(":").map(Number);
     const startDate = new Date(`${selectedDate}T${selectedSlot}:00`);
     const endDate = new Date(startDate.getTime() + slotMinutes * 60000);
 
