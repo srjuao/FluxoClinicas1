@@ -5,6 +5,8 @@ import {
   ChevronRight,
   Clock,
   Calendar as CalendarIcon,
+  Edit,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -15,6 +17,8 @@ import {
   DayStatus,
   TimeSlot,
 } from "@/types/calendar";
+import QuickAppointmentModal from "./QuickAppointmentModal";
+import EditAppointmentModal from "./EditAppointmentModal";
 
 const monthNames = [
   "Janeiro",
@@ -57,6 +61,10 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
   >([]);
   const [workHours, setWorkHours] = useState<DoctorWorkHours[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showQuickAppointment, setShowQuickAppointment] = useState(false);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
+  const [editingAppointment, setEditingAppointment] =
+    useState<AppointmentWithPatientName | null>(null);
 
   // Memoize work hours map by weekday for faster lookups
   const workHoursMap = useMemo(() => {
@@ -312,6 +320,29 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
     }
   };
 
+  const handleTimeSlotClick = (time: string) => {
+    setSelectedTimeSlot(time);
+    setShowQuickAppointment(true);
+  };
+
+  const handleEditAppointment = (appointment: AppointmentWithPatientName) => {
+    setEditingAppointment(appointment);
+  };
+
+  const handleModalSuccess = () => {
+    loadMonthData();
+  };
+
+  const getCurrentSlotMinutes = () => {
+    if (!selectedDate || workHoursMap.size === 0) return 30;
+    const dateStr = selectedDate.toISOString().split("T")[0];
+    const dayOfWeek = selectedDate.getDay();
+    const workHour =
+      workHoursMap.get(`date-${dateStr}`) ||
+      workHoursMap.get(`weekday-${dayOfWeek}`);
+    return workHour?.slot_minutes || 30;
+  };
+
   const days = getDaysInMonth(currentDate);
   const timeSlots = generateTimeSlots;
   const selectedDateAppointments = useMemo(() => {
@@ -330,85 +361,86 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Calendar */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="glass-effect rounded-2xl p-6"
-      >
-        {/* Month Selector */}
-        <div className="flex items-center justify-between mb-6">
-          <Button
-            onClick={previousMonth}
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-
-          <h3 className="text-lg font-bold text-gray-900">
-            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-          </h3>
-
-          <Button
-            onClick={nextMonth}
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
-
-        {/* Legend */}
-        <div className="flex items-center justify-center gap-4 mb-4 text-xs">
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-gray-900"></div>
-            <span>fechado</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span>disponível</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-            <span>esgotado</span>
-          </div>
-        </div>
-
-        {/* Week Days */}
-        <div className="grid grid-cols-7 gap-2 mb-2">
-          {weekDays.map((day, index) => (
-            <div
-              key={index}
-              className="text-center text-sm font-semibold text-gray-600"
+    <>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Calendar */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-effect rounded-2xl p-6"
+        >
+          {/* Month Selector */}
+          <div className="flex items-center justify-between mb-6">
+            <Button
+              onClick={previousMonth}
+              variant="outline"
+              size="sm"
+              className="rounded-full"
             >
-              {day}
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+
+            <h3 className="text-lg font-bold text-gray-900">
+              {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </h3>
+
+            <Button
+              onClick={nextMonth}
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-4 mb-4 text-xs">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-full bg-gray-900"></div>
+              <span>fechado</span>
             </div>
-          ))}
-        </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <span>disponível</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+              <span>esgotado</span>
+            </div>
+          </div>
 
-        {/* Calendar Days */}
-        <div className="grid grid-cols-7 gap-2">
-          {days.map((dayInfo, index) => {
-            const status = dayInfo.isCurrentMonth
-              ? getDayStatus(dayInfo.date)
-              : "disabled";
-            const isSelected =
-              selectedDate?.toDateString() === dayInfo.date.toDateString();
-            const isToday =
-              new Date().toDateString() === dayInfo.date.toDateString();
-
-            return (
-              <button
+          {/* Week Days */}
+          <div className="grid grid-cols-7 gap-2 mb-2">
+            {weekDays.map((day, index) => (
+              <div
                 key={index}
-                onClick={() =>
-                  dayInfo.isCurrentMonth && handleDateClick(dayInfo.date)
-                }
-                disabled={!dayInfo.isCurrentMonth}
-                className={`
+                className="text-center text-sm font-semibold text-gray-600"
+              >
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar Days */}
+          <div className="grid grid-cols-7 gap-2">
+            {days.map((dayInfo, index) => {
+              const status = dayInfo.isCurrentMonth
+                ? getDayStatus(dayInfo.date)
+                : "disabled";
+              const isSelected =
+                selectedDate?.toDateString() === dayInfo.date.toDateString();
+              const isToday =
+                new Date().toDateString() === dayInfo.date.toDateString();
+
+              return (
+                <button
+                  key={index}
+                  onClick={() =>
+                    dayInfo.isCurrentMonth && handleDateClick(dayInfo.date)
+                  }
+                  disabled={!dayInfo.isCurrentMonth}
+                  className={`
                   aspect-square rounded-full flex items-center justify-center text-sm font-medium
                   transition-all
                   ${
@@ -418,125 +450,165 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
                   }
                   ${dayInfo.isCurrentMonth ? getStatusColor(status) : ""}
                   ${isSelected ? "ring-2 ring-purple-600 ring-offset-2" : ""}
-                  ${isToday && !isSelected ? "ring-1 ring-purple-300" : ""}
+                  ${isToday && !isSelected ? "ring-1 ring-purple-400" : ""}
                 `}
-              >
-                {dayInfo.day}
-              </button>
-            );
-          })}
-        </div>
-      </motion.div>
+                >
+                  {dayInfo.day}
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
 
-      {/* Appointments List */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="glass-effect rounded-2xl p-6"
-      >
-        <h3 className="text-lg font-bold text-gray-900 mb-4">
-          {selectedDate
-            ? `Agendamentos - ${selectedDate.toLocaleDateString("pt-BR")}`
-            : "Lista de Agendados"}
-        </h3>
+        {/* Appointments List */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="glass-effect rounded-2xl p-6"
+        >
+          <h3 className="text-lg font-bold text-gray-900 mb-4">
+            {selectedDate
+              ? `Agendamentos - ${selectedDate.toLocaleDateString("pt-BR")}`
+              : "Lista de Agendados"}
+          </h3>
 
-        {!selectedDate ? (
-          <p className="text-sm text-gray-500 text-center py-8">
-            Selecione um dia no calendário
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {/* Appointments */}
-            {selectedDateAppointments.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                  Agendamentos ({selectedDateAppointments.length})
-                </h4>
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {selectedDateAppointments.map((apt) => (
-                    <div
-                      key={apt.id}
-                      className="p-3 bg-purple-50 rounded-lg border border-purple-200"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900 text-sm">
-                            {apt.patient?.name || "Paciente"}
-                          </p>
-                          <p className="text-xs text-gray-600">
-                            ID: {apt.id.slice(0, 8)}...
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold text-purple-700">
-                            {new Date(apt.scheduled_start).toLocaleTimeString(
-                              "pt-BR",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              }
-                            )}
-                          </p>
-                          <span
-                            className={`text-xs px-2 py-1 rounded-full ${
-                              apt.status === "COMPLETED"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-purple-100 text-purple-700"
-                            }`}
-                          >
-                            {apt.status === "COMPLETED"
-                              ? "Concluído"
-                              : "Agendado"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Available Times */}
-            {timeSlots.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                  Horários Disponíveis
-                </h4>
-                <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
-                  {timeSlots
-                    .filter((slot) => !slot.isBooked)
-                    .map((slot) => (
+          {!selectedDate ? (
+            <p className="text-sm text-gray-500 text-center py-8">
+              Selecione um dia no calendário
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {/* Appointments */}
+              {selectedDateAppointments.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                    Agendamentos ({selectedDateAppointments.length})
+                  </h4>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {selectedDateAppointments.map((apt) => (
                       <div
-                        key={slot.time}
-                        className="p-2 bg-green-50 rounded-lg border border-green-200 text-center"
+                        key={apt.id}
+                        className="p-3 bg-purple-50 rounded-lg border border-purple-200 hover:border-purple-400 transition-all group"
                       >
-                        <div className="flex items-center justify-center gap-1">
-                          <Clock className="w-3 h-3 text-green-600" />
-                          <span className="text-xs font-medium text-green-700">
-                            {slot.time}
-                          </span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900 text-sm">
+                              {apt.patient?.name || "Paciente"}
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              ID: {apt.id.slice(0, 8)}...
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-right">
+                              <p className="text-sm font-semibold text-purple-700">
+                                {new Date(
+                                  apt.scheduled_start
+                                ).toLocaleTimeString("pt-BR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full ${
+                                  apt.status === "COMPLETED"
+                                    ? "bg-green-100 text-green-700"
+                                    : apt.status === "CANCELLED"
+                                    ? "bg-red-100 text-red-700"
+                                    : "bg-purple-100 text-purple-700"
+                                }`}
+                              >
+                                {apt.status === "COMPLETED"
+                                  ? "Concluído"
+                                  : apt.status === "CANCELLED"
+                                  ? "Cancelado"
+                                  : "Agendado"}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleEditAppointment(apt)}
+                              className="p-2 rounded-lg hover:bg-purple-100 transition-colors opacity-0 group-hover:opacity-100"
+                              title="Editar agendamento"
+                            >
+                              <Edit className="w-4 h-4 text-purple-600" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
+                  </div>
                 </div>
-                {timeSlots.filter((slot) => !slot.isBooked).length === 0 && (
-                  <p className="text-sm text-gray-500 text-center py-4">
-                    Sem horários disponíveis
-                  </p>
-                )}
-              </div>
-            )}
+              )}
 
-            {timeSlots.length === 0 && (
-              <p className="text-sm text-gray-500 text-center py-8">
-                Médico não trabalha neste dia
-              </p>
-            )}
-          </div>
-        )}
-      </motion.div>
-    </div>
+              {/* Available Times */}
+              {timeSlots.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                    Horários Disponíveis
+                  </h4>
+                  <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+                    {timeSlots
+                      .filter((slot) => !slot.isBooked)
+                      .map((slot) => (
+                        <button
+                          key={slot.time}
+                          onClick={() => handleTimeSlotClick(slot.time)}
+                          className="p-2 bg-green-50 rounded-lg border border-green-200 hover:bg-green-100 hover:border-green-400 transition-all group"
+                        >
+                          <div className="flex items-center justify-center gap-1">
+                            <Clock className="w-3 h-3 text-green-600" />
+                            <span className="text-xs font-medium text-green-700">
+                              {slot.time}
+                            </span>
+                            <Plus className="w-3 h-3 text-green-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </button>
+                      ))}
+                  </div>
+                  {timeSlots.filter((slot) => !slot.isBooked).length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      Sem horários disponíveis
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {timeSlots.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-8">
+                  Médico não trabalha neste dia
+                </p>
+              )}
+            </div>
+          )}
+        </motion.div>
+      </div>
+
+      {/* Quick Appointment Modal */}
+      {showQuickAppointment && selectedDate && selectedTimeSlot && doctorId && (
+        <QuickAppointmentModal
+          clinicId={clinicId}
+          doctorId={doctorId}
+          selectedDate={selectedDate.toISOString().split("T")[0]}
+          selectedTime={selectedTimeSlot}
+          slotMinutes={getCurrentSlotMinutes()}
+          onClose={() => {
+            setShowQuickAppointment(false);
+            setSelectedTimeSlot(null);
+          }}
+          onSuccess={handleModalSuccess}
+        />
+      )}
+
+      {/* Edit Appointment Modal */}
+      {editingAppointment && (
+        <EditAppointmentModal
+          appointment={editingAppointment}
+          onClose={() => setEditingAppointment(null)}
+          onSuccess={handleModalSuccess}
+        />
+      )}
+    </>
   );
 };
 
