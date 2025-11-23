@@ -8,6 +8,7 @@ import {
   LogOut,
   UserPlus,
   Clock,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,6 +32,7 @@ const ClinicAdminDashboard = () => {
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [showWorkHours, setShowWorkHours] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [userSearch, setUserSearch] = useState("");
 
   const clinicId = profile?.clinic_id;
 
@@ -177,6 +179,7 @@ const ClinicAdminDashboard = () => {
                   <h2 className="text-2xl font-bold text-gray-900">
                     Equipe da Clínica
                   </h2>
+
                   <Button
                     onClick={() => {
                       setSelectedUser(null);
@@ -189,86 +192,114 @@ const ClinicAdminDashboard = () => {
                   </Button>
                 </div>
 
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por nome, email ou perfil..."
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {users.map((u, index) => {
-                    const doctor = doctors.find((d) => d.user_id === u.id);
+                  {users
+                    .filter((u) => {
+                      if (!userSearch) return true;
+                      const search = userSearch.toLowerCase();
+                      const roleLabel =
+                        u.role === "DOCTOR"
+                          ? "médico"
+                          : u.role === "RECEPTIONIST"
+                          ? "recepção"
+                          : "admin";
+                      return (
+                        u.name.toLowerCase().includes(search) ||
+                        u.email.toLowerCase().includes(search) ||
+                        roleLabel.includes(search)
+                      );
+                    })
+                    .map((u, index) => {
+                      const doctor = doctors.find((d) => d.user_id === u.id);
 
-                    return (
-                      <motion.div
-                        key={u.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="glass-effect rounded-xl p-4"
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h3 className="font-semibold text-gray-900">
-                              {u.name}
-                            </h3>
-                            <p className="text-sm text-gray-600">{u.email}</p>
-                          </div>
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              u.role === "DOCTOR"
-                                ? "bg-blue-100 text-blue-700"
+                      return (
+                        <motion.div
+                          key={u.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="glass-effect rounded-xl p-4 flex flex-col"
+                        >
+                          <div className="flex flex-1 items-start justify-between mb-3">
+                            <div>
+                              <h3 className="font-semibold text-gray-900">
+                                {u.name}
+                              </h3>
+                              <p className="text-sm text-gray-600">{u.email}</p>
+                            </div>
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                u.role === "DOCTOR"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : u.role === "RECEPTIONIST"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-purple-100 text-purple-700"
+                              }`}
+                            >
+                              {u.role === "DOCTOR"
+                                ? "Médico"
                                 : u.role === "RECEPTIONIST"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-purple-100 text-purple-700"
-                            }`}
-                          >
-                            {u.role === "DOCTOR"
-                              ? "Médico"
-                              : u.role === "RECEPTIONIST"
-                              ? "Recepção"
-                              : "Admin"}
-                          </span>
-                        </div>
+                                ? "Recepção"
+                                : "Admin"}
+                            </span>
+                          </div>
 
-                        {doctor && (
-                          <p className="text-xs text-gray-600 mb-2">
-                            CRM: {doctor.crm}
-                          </p>
-                        )}
-
-                        <div className="flex space-x-2 mt-2">
                           {doctor && (
+                            <p className="text-xs text-gray-600 mb-2">
+                              CRM: {doctor.crm}
+                            </p>
+                          )}
+
+                          <div className="flex space-x-2 mt-2">
+                            {doctor && (
+                              <Button
+                                onClick={() => handleManageWorkHours(doctor, u)}
+                                variant="outline"
+                                size="sm"
+                                className="flex-1"
+                              >
+                                <Clock className="w-3 h-3 mr-2" />
+                                Horários
+                              </Button>
+                            )}
+
                             <Button
-                              onClick={() => handleManageWorkHours(doctor, u)}
+                              onClick={() => {
+                                setSelectedUser(u);
+                                if (doctor) setSelectedDoctor(doctor as Doctor);
+                                setShowCreateUser(true);
+                              }}
                               variant="outline"
                               size="sm"
                               className="flex-1"
                             >
-                              <Clock className="w-3 h-3 mr-2" />
-                              Horários
+                              Editar
                             </Button>
-                          )}
 
-                          <Button
-                            onClick={() => {
-                              setSelectedUser(u);
-                              if (doctor) setSelectedDoctor(doctor as Doctor);
-                              setShowCreateUser(true);
-                            }}
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                          >
-                            Editar
-                          </Button>
-
-                          <Button
-                            onClick={() => handleDeleteUser(u)}
-                            variant="destructive"
-                            size="sm"
-                            className="flex-1"
-                          >
-                            Excluir
-                          </Button>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
+                            <Button
+                              onClick={() => handleDeleteUser(u)}
+                              variant="destructive"
+                              size="sm"
+                              className="flex-1"
+                            >
+                              Excluir
+                            </Button>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
                 </div>
               </div>
             </TabsContent>
