@@ -22,7 +22,7 @@ const parseDate = (dateStr) => {
   return new Date(year, month - 1, day);
 };
 
-const ManageWorkHoursModal = ({ doctor, clinicId, onClose }) => {
+const ManageWorkHoursModal = ({ doctor, user, clinicId, onClose }) => {
   const [workHours, setWorkHours] = useState([]);
   const [loading, setLoading] = useState(false);
   const [newHour, setNewHour] = useState({
@@ -148,7 +148,9 @@ const ManageWorkHoursModal = ({ doctor, clinicId, onClose }) => {
               <h2 className="text-xl font-bold text-gray-900">
                 Horários de Trabalho
               </h2>
-              <p className="text-sm text-gray-600">CRM: {doctor.crm}</p>
+              <p className="text-sm text-gray-600">
+                {user.name} - CRM {doctor.crm}
+              </p>
             </div>
           </div>
           <button

@@ -17,7 +17,11 @@ import { toast } from "@/components/ui/use-toast";
 import CreateUserModal from "@/components/CreateUserModal";
 import ManageWorkHoursModal from "@/components/ManageWorkHoursModal";
 import ClinicCalendar from "@/components/ClinicCalendar";
-import type { Profile, Doctor, DoctorWithProfileName } from "@/types/database.types";
+import type {
+  Profile,
+  Doctor,
+  DoctorWithProfileName,
+} from "@/types/database.types";
 
 const ClinicAdminDashboard = () => {
   const { signOut, profile } = useAuth();
@@ -68,8 +72,9 @@ const ClinicAdminDashboard = () => {
     loadData();
   }, [loadData]);
 
-  const handleManageWorkHours = (doctor: Doctor) => {
+  const handleManageWorkHours = (doctor: Doctor, user: Profile) => {
     setSelectedDoctor(doctor);
+    setSelectedUser(user);
     setShowWorkHours(true);
   };
 
@@ -99,7 +104,8 @@ const ClinicAdminDashboard = () => {
     } catch (error) {
       toast({
         title: "Erro ao excluir usuário",
-        description: error instanceof Error ? error.message : 'Erro desconhecido',
+        description:
+          error instanceof Error ? error.message : "Erro desconhecido",
         variant: "destructive",
       });
     }
@@ -228,7 +234,7 @@ const ClinicAdminDashboard = () => {
                         <div className="flex space-x-2 mt-2">
                           {doctor && (
                             <Button
-                              onClick={() => handleManageWorkHours(doctor)}
+                              onClick={() => handleManageWorkHours(doctor, u)}
                               variant="outline"
                               size="sm"
                               className="flex-1"
@@ -290,6 +296,7 @@ const ClinicAdminDashboard = () => {
       {showWorkHours && selectedDoctor && (
         <ManageWorkHoursModal
           doctor={selectedDoctor}
+          user={selectedUser}
           clinicId={clinicId}
           onClose={() => {
             setShowWorkHours(false);
