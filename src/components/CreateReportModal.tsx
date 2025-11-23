@@ -1,18 +1,32 @@
-import React, { useState, useEffect, useCallback, useRef, FormEvent } from 'react';
-import { motion } from 'framer-motion';
-import { X, FileText, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { toast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/customSupabaseClient';
-import type { Patient } from '@/types/database.types';
-import type { CreateReportModalProps } from '@/types/components.types';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  FormEvent,
+} from "react";
+import { motion } from "framer-motion";
+import { X, FileText, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/customSupabaseClient";
+import type { Patient } from "@/types/database.types";
+import type { CreateReportModalProps } from "@/types/components.types";
 
-const CreateReportModal: React.FC<CreateReportModalProps> = ({ doctorId, clinicId, defaultPatient, onClose, onSuccess }) => {
+const CreateReportModal: React.FC<CreateReportModalProps> = ({
+  doctorId,
+  clinicId,
+  defaultPatient,
+  onClose,
+  onSuccess,
+}) => {
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(defaultPatient || null);
-  const [title, setTitle] = useState<string>('');
-  const [content, setContent] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(
+    defaultPatient || null
+  );
+  const [title, setTitle] = useState<string>("");
+  const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
 
   const lastSavedPatientId = useRef<string | null>(null); // para controlar troca de paciente
@@ -21,9 +35,9 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({ doctorId, clinicI
   const loadPatients = useCallback(async () => {
     if (!clinicId) return;
     const { data, error } = await supabase
-      .from('patients')
-      .select('*')
-      .eq('clinic_id', clinicId);
+      .from("patients")
+      .select("*")
+      .eq("clinic_id", clinicId);
     if (!error) setPatients(data || []);
   }, [clinicId]);
 
@@ -50,7 +64,10 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({ doctorId, clinicI
     if (!selectedPatient) return;
 
     // se mudou de paciente, limpa o rascunho antigo
-    if (lastSavedPatientId.current && lastSavedPatientId.current !== selectedPatient.id) {
+    if (
+      lastSavedPatientId.current &&
+      lastSavedPatientId.current !== selectedPatient.id
+    ) {
       localStorage.removeItem(`reportDraft-${lastSavedPatientId.current}`);
     }
 
@@ -75,12 +92,15 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({ doctorId, clinicI
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!selectedPatient)
-      return toast({ title: 'Selecione um paciente!', variant: 'destructive' });
+      return toast({ title: "Selecione um paciente!", variant: "destructive" });
     if (!title || !content)
-      return toast({ title: 'Preencha todos os campos!', variant: 'destructive' });
+      return toast({
+        title: "Preencha todos os campos!",
+        variant: "destructive",
+      });
 
     setLoading(true);
-    const { error } = await supabase.from('medical_reports').insert({
+    const { error } = await supabase.from("medical_reports").insert({
       doctor_id: doctorId,
       clinic_id: clinicId,
       patient_id: selectedPatient.id,
@@ -91,12 +111,12 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({ doctorId, clinicI
 
     if (error)
       return toast({
-        title: 'Erro ao salvar anamnese!',
+        title: "Erro ao salvar anamnese!",
         description: error.message,
-        variant: 'destructive',
+        variant: "destructive",
       });
 
-    toast({ title: 'Anamnese registrada com sucesso! 🎉' });
+    toast({ title: "Anamnese registrada com sucesso! 🎉" });
 
     // limpa rascunho depois de salvar
     localStorage.removeItem(`reportDraft-${selectedPatient.id}`);
@@ -116,7 +136,10 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({ doctorId, clinicI
             <FileText className="w-5 h-5 text-purple-600" />
             <h2 className="text-xl font-bold">Nova Anamnese</h2>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
             <X />
           </button>
         </div>
@@ -159,7 +182,9 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({ doctorId, clinicI
           ) : (
             <div className="p-3 border rounded-lg bg-gray-50">
               <p className="font-semibold">{selectedPatient.name}</p>
-              <p className="text-sm text-gray-600">CPF: {selectedPatient.cpf}</p>
+              <p className="text-sm text-gray-600">
+                CPF: {selectedPatient.cpf}
+              </p>
               <button
                 onClick={() => setSelectedPatient(null)}
                 type="button"
@@ -191,7 +216,7 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({ doctorId, clinicI
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Salvando...' : 'Salvar Anamnese'}
+            {loading ? "Salvando..." : "Salvar Anamnese"}
           </Button>
         </form>
       </motion.div>

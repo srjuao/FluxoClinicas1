@@ -2,7 +2,14 @@
 import { useState, useEffect, useRef } from "react";
 import { Helmet } from "react-helmet";
 import { motion } from "framer-motion";
-import { ArrowLeft, FileText, Stethoscope, Plus, Calendar } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  Stethoscope,
+  Plus,
+  Calendar,
+  Paperclip,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -95,7 +102,19 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
         setDoctors(doctorsData);
       }
 
-      // TODO: Fetch exams when table is available
+      // Fetch exams
+      const { data: examsData, error: examsError } = await supabase
+        .from("exams")
+        .select("*, doctor:doctors(*, profile:profiles(name))")
+        .eq("patient_id", patientId)
+        .order("exam_date", { ascending: false });
+
+      if (examsError) {
+        console.error("Error fetching exams:", examsError);
+      } else {
+        setExams(examsData || []);
+      }
+
       // TODO: Fetch internal notes when table is available
 
       setLoading(false);
@@ -462,14 +481,51 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="p-4 bg-white/50 rounded-xl hover:bg-white/80 transition-all cursor-pointer"
+                      className="p-4 bg-blue-50/50 rounded-xl hover:bg-blue-50 transition-all border border-blue-100"
                     >
-                      <h3 className="font-semibold text-gray-900 text-sm mb-1">
-                        {exam.title}
-                      </h3>
-                      <p className="text-xs text-gray-500">
-                        {formatDate(exam.date)}
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="font-semibold text-gray-900 text-sm">
+                          {exam.exam_name}
+                        </h3>
+                        {exam.file_url && (
+                          <a
+                            href={exam.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-purple-600 hover:text-purple-700"
+                            title="Ver arquivo anexo"
+                          >
+                            <Paperclip className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-gray-600 mb-1">
+                        📅 {formatDate(exam.exam_date)}
                       </p>
+
+                      {exam.doctor?.profile?.name && (
+                        <p className="text-xs text-gray-500 mb-2">
+                          👨‍⚕️ Dr(a). {exam.doctor.profile.name}
+                        </p>
+                      )}
+
+                      {exam.description && (
+                        <p className="text-xs text-gray-700 mt-2 italic">
+                          {exam.description}
+                        </p>
+                      )}
+
+                      {exam.results && (
+                        <details className="mt-2">
+                          <summary className="text-xs text-purple-600 cursor-pointer hover:text-purple-700 font-medium">
+                            Ver resultados
+                          </summary>
+                          <pre className="text-xs text-gray-700 mt-2 p-2 bg-white rounded border border-gray-200 whitespace-pre-wrap font-mono">
+                            {exam.results}
+                          </pre>
+                        </details>
+                      )}
                     </motion.div>
                   ))
                 )}
