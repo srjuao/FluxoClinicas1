@@ -10,6 +10,12 @@ import CreateAppointmentModal from "@/components/CreateAppointmentModal";
 // import PatientDetailsPage from "@/pages/PatientDetailsPage";
 import { supabase } from "@/lib/customSupabaseClient";
 
+interface DoctorWithProfile {
+  user_id: string;
+  crm: string;
+  name: string;
+}
+
 // 🔹 Autocomplete de Médicos
 interface DoctorAutocompleteProps {
   clinicId: string;
@@ -22,9 +28,11 @@ const DoctorAutocomplete: React.FC<DoctorAutocompleteProps> = ({
   selectedDoctor,
   setSelectedDoctor,
 }) => {
-  const [doctors, setDoctors] = useState([]);
+  const [doctors, setDoctors] = useState<DoctorWithProfile[]>([]);
   const [query, setQuery] = useState("");
-  const [filteredDoctors, setFilteredDoctors] = useState([]);
+  const [filteredDoctors, setFilteredDoctors] = useState<DoctorWithProfile[]>(
+    []
+  );
   const [showDropdown, setShowDropdown] = useState(false);
 
   useEffect(() => {
@@ -38,7 +46,7 @@ const DoctorAutocomplete: React.FC<DoctorAutocompleteProps> = ({
 
       if (doctorsError) return console.error(doctorsError);
 
-      const userIds = doctorsData.map((d) => d.user_id);
+      const userIds = doctorsData.map((d: { user_id: string }) => d.user_id);
       if (!userIds.length) return setDoctors([]);
 
       const { data: profilesData } = await supabase
@@ -46,8 +54,10 @@ const DoctorAutocomplete: React.FC<DoctorAutocompleteProps> = ({
         .select("id, name")
         .in("id", userIds);
 
-      const merged = doctorsData.map((d) => {
-        const profile = profilesData.find((p) => p.id === d.user_id);
+      const merged = doctorsData.map((d: { user_id: string; crm: string }) => {
+        const profile = profilesData?.find(
+          (p: { id: string; name: string }) => p.id === d.user_id
+        );
         return { ...d, name: profile?.name || "Sem nome" };
       });
 
@@ -84,7 +94,7 @@ const DoctorAutocomplete: React.FC<DoctorAutocompleteProps> = ({
           <li
             className="px-3 py-2 hover:bg-purple-100 cursor-pointer"
             onClick={() => {
-              setSelectedDoctor("");
+              setSelectedDoctor(null);
               setQuery("");
               setShowDropdown(false);
             }}
@@ -116,7 +126,7 @@ const ReceptionistDashboard = () => {
 
   const [showCreateAppointment, setShowCreateAppointment] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [selectedDoctor, setSelectedDoctor] = useState("");
+  const [selectedDoctor, setSelectedDoctor] = useState<string | null>(null);
 
   const handleSuccess = () => {
     setShowCreateAppointment(false);
@@ -167,12 +177,13 @@ const ReceptionistDashboard = () => {
             </h2>
 
             <div className="flex gap-2">
-              <DoctorAutocomplete
-                clinicId={clinicId}
-                selectedDoctor={selectedDoctor}
-                setSelectedDoctor={setSelectedDoctor}
-              />
-
+              {clinicId && (
+                <DoctorAutocomplete
+                  clinicId={clinicId}
+                  selectedDoctor={selectedDoctor}
+                  setSelectedDoctor={setSelectedDoctor}
+                />
+              )}
               <Button
                 onClick={() => setShowCreateAppointment(true)}
                 className="gradient-primary text-white"
@@ -183,16 +194,14 @@ const ReceptionistDashboard = () => {
             </div>
           </div>
 
-          {/* 🔹 Passa o filtro de médico para o Planner Semanal */}
-          <ReceptionistCalendar
-            key={refreshKey}
-            clinicId={clinicId}
-            doctorId={selectedDoctor}
-          />
+          {/* 🔹 Planner Semanal */}
+          {clinicId && (
+            <ReceptionistCalendar key={refreshKey} clinicId={clinicId} />
+          )}
         </div>
       </div>
 
-      {showCreateAppointment && (
+      {showCreateAppointment && clinicId && (
         <CreateAppointmentModal
           clinicId={clinicId}
           onClose={() => setShowCreateAppointment(false)}
