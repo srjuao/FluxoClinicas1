@@ -1,0 +1,352 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type AppointmentStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
+export type UserRole = 'SUPER_ADMIN' | 'CLINIC_ADMIN' | 'DOCTOR' | 'RECEPTIONIST'
+
+export interface Database {
+  public: {
+    Tables: {
+      appointments: {
+        Row: {
+          id: string
+          clinic_id: string
+          doctor_id: string
+          patient_id: string
+          scheduled_start: string
+          scheduled_end: string
+          status: AppointmentStatus
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          doctor_id: string
+          patient_id: string
+          scheduled_start: string
+          scheduled_end: string
+          status?: AppointmentStatus
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          doctor_id?: string
+          patient_id?: string
+          scheduled_start?: string
+          scheduled_end?: string
+          status?: AppointmentStatus
+          created_at?: string
+        }
+      }
+      clinics: {
+        Row: {
+          id: string
+          name: string
+          cnpj: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          cnpj?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          cnpj?: string | null
+          created_at?: string
+        }
+      }
+      doctor_work_hours: {
+        Row: {
+          id: string
+          clinic_id: string
+          doctor_id: string
+          weekday: number | null
+          start_time: string
+          end_time: string
+          slot_minutes: number
+          created_at: string
+          specific_date: string | null
+          lunch_start: string | null
+          lunch_end: string | null
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          doctor_id: string
+          weekday?: number | null
+          start_time: string
+          end_time: string
+          slot_minutes?: number
+          created_at?: string
+          specific_date?: string | null
+          lunch_start?: string | null
+          lunch_end?: string | null
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          doctor_id?: string
+          weekday?: number | null
+          start_time?: string
+          end_time?: string
+          slot_minutes?: number
+          created_at?: string
+          specific_date?: string | null
+          lunch_start?: string | null
+          lunch_end?: string | null
+        }
+      }
+      doctors: {
+        Row: {
+          id: string
+          user_id: string
+          clinic_id: string
+          crm: string
+          specialties: string[] | null
+          created_at: string
+          can_prescribe_exams: boolean
+          can_prescribe_lenses: boolean
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          clinic_id: string
+          crm: string
+          specialties?: string[] | null
+          created_at?: string
+          can_prescribe_exams?: boolean
+          can_prescribe_lenses?: boolean
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          clinic_id?: string
+          crm?: string
+          specialties?: string[] | null
+          created_at?: string
+          can_prescribe_exams?: boolean
+          can_prescribe_lenses?: boolean
+        }
+      }
+      medical_certificates: {
+        Row: {
+          id: string
+          clinic_id: string
+          doctor_id: string
+          patient_id: string
+          description: string
+          start_date: string
+          end_date: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          doctor_id: string
+          patient_id: string
+          description: string
+          start_date: string
+          end_date: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          doctor_id?: string
+          patient_id?: string
+          description?: string
+          start_date?: string
+          end_date?: string
+          created_at?: string
+        }
+      }
+      medical_reports: {
+        Row: {
+          id: string
+          clinic_id: string
+          doctor_id: string
+          patient_id: string
+          title: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          doctor_id: string
+          patient_id: string
+          title: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          doctor_id?: string
+          patient_id?: string
+          title?: string
+          content?: string
+          created_at?: string
+        }
+      }
+      patients: {
+        Row: {
+          id: string
+          clinic_id: string
+          name: string
+          cpf: string | null
+          birth_date: string | null
+          created_at: string
+          telefone: string | null
+          endereco: string | null
+          sexo: string | null
+          estado_civil: string | null
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          name: string
+          cpf?: string | null
+          birth_date?: string | null
+          created_at?: string
+          telefone?: string | null
+          endereco?: string | null
+          sexo?: string | null
+          estado_civil?: string | null
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          name?: string
+          cpf?: string | null
+          birth_date?: string | null
+          created_at?: string
+          telefone?: string | null
+          endereco?: string | null
+          sexo?: string | null
+          estado_civil?: string | null
+        }
+      }
+      prescriptions: {
+        Row: {
+          id: string
+          doctor_id: string
+          clinic_id: string
+          title: string
+          content: string
+          created_at: string
+          is_template: boolean
+        }
+        Insert: {
+          id?: string
+          doctor_id: string
+          clinic_id: string
+          title: string
+          content: string
+          created_at?: string
+          is_template?: boolean
+        }
+        Update: {
+          id?: string
+          doctor_id?: string
+          clinic_id?: string
+          title?: string
+          content?: string
+          created_at?: string
+          is_template?: boolean
+        }
+      }
+      profiles: {
+        Row: {
+          id: string
+          name: string
+          email: string
+          clinic_id: string | null
+          role: UserRole
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id: string
+          name: string
+          email: string
+          clinic_id?: string | null
+          role: UserRole
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string
+          clinic_id?: string | null
+          role?: UserRole
+          created_at?: string
+          updated_at?: string | null
+        }
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      appointment_status: AppointmentStatus
+      user_role: UserRole
+    }
+  }
+}
+
+// Helper types for easier usage
+export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
+export type Inserts<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert']
+export type Updates<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update']
+
+// Specific table types
+export type Appointment = Tables<'appointments'>
+export type Clinic = Tables<'clinics'>
+export type DoctorWorkHours = Tables<'doctor_work_hours'>
+export type Doctor = Tables<'doctors'>
+export type MedicalCertificate = Tables<'medical_certificates'>
+export type MedicalReport = Tables<'medical_reports'>
+export type Patient = Tables<'patients'>
+export type Prescription = Tables<'prescriptions'>
+export type Profile = Tables<'profiles'>
+
+// Extended types with relations
+export type ProfileWithClinic = Profile & {
+  clinic: Clinic | null
+}
+
+export type DoctorWithProfile = Doctor & {
+  profile: Profile
+}
+
+export type AppointmentWithRelations = Appointment & {
+  doctor?: Doctor
+  patient?: Patient
+  clinic?: Clinic
+}
+
+// Additional helper types for components
+export type DoctorWithProfileName = Doctor & {
+  profile: {
+    name: string
+  }
+}
+
+export type TimeSlot = {
+  time: string
+  available: boolean
+}
