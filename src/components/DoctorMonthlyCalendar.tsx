@@ -348,7 +348,13 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
   const selectedDateAppointments = useMemo(() => {
     if (!selectedDate) return [];
     const dateStr = selectedDate.toISOString().split("T")[0];
-    return appointmentsByDate.get(dateStr) || [];
+    const appointments = appointmentsByDate.get(dateStr) || [];
+    // Sort by scheduled_start time
+    return [...appointments].sort(
+      (a, b) =>
+        new Date(a.scheduled_start).getTime() -
+        new Date(b.scheduled_start).getTime()
+    );
   }, [selectedDate, appointmentsByDate]);
 
   if (!doctorId) {
