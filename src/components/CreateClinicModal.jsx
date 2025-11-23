@@ -1,201 +1,98 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+
+    import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, FileText, Search } from 'lucide-react';
+import { X, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/customSupabaseClient';
 
-const CreateReportModal = ({ doctorId, clinicId, defaultPatient, onClose, onSuccess }) => {
-  const [patients, setPatients] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState(defaultPatient || null);
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+const CreateClinicModal = ({ onClose, onSuccess }) => {
+  const [name, setName] = useState('');
+  const [cnpj, setCnpj] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // evita salvar durante o carregamento inicial
-  const isRestoring = useRef(true);
-
-  // 🔹 Carregar pacientes
-  const loadPatients = useCallback(async () => {
-    if (!clinicId) return;
-    const { data, error } = await supabase
-      .from('patients')
-      .select('*')
-      .eq('clinic_id', clinicId);
-    if (!error) setPatients(data);
-  }, [clinicId]);
-
-  useEffect(() => {
-    loadPatients();
-  }, [loadPatients]);
-
-  // 🔹 Restaurar rascunho do localStorage depois que pacientes forem carregados
-  useEffect(() => {
-    const saved = localStorage.getItem('reportDraft');
-    if (!saved || patients.length === 0) return;
-
-    const { patient, title, content } = JSON.parse(saved);
-
-    if (patient) {
-      const found = patients.find((p) => p.id === patient.id);
-      if (found) setSelectedPatient(found);
-      else setSelectedPatient(patient); // fallback caso o paciente tenha sido removido
-    }
-
-    if (title) setTitle(title);
-    if (content) setContent(content);
-
-    // marca como finalizado o carregamento inicial
-    setTimeout(() => (isRestoring.current = false), 300);
-  }, [patients]);
-
-  // 🔹 Salvar rascunho no localStorage sempre que algo mudar
-  useEffect(() => {
-    if (isRestoring.current) return; // impede sobrescrita ao restaurar
-    localStorage.setItem(
-      'reportDraft',
-      JSON.stringify({
-        patient: selectedPatient,
-        title,
-        content,
-      })
-    );
-  }, [selectedPatient, title, content]);
-
-  const filteredPatients = patients.filter((p) =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.cpf && p.cpf.includes(searchTerm))
-  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedPatient)
-      return toast({ title: 'Selecione um paciente!', variant: 'destructive' });
-    if (!title || !content)
-      return toast({ title: 'Preencha todos os campos!', variant: 'destructive' });
-
     setLoading(true);
-    const { error } = await supabase.from('medical_reports').insert({
-      doctor_id: doctorId,
-      clinic_id: clinicId,
-      patient_id: selectedPatient.id,
-      title,
-      content,
-    });
 
-    setLoading(false);
-    if (error)
-      return toast({
-        title: 'Erro ao salvar anamnese!',
+    const { error } = await supabase.from('clinics').insert({ name, cnpj });
+    
+    if (error) {
+      toast({
+        title: "Erro ao criar clínica",
         description: error.message,
-        variant: 'destructive',
+        variant: "destructive",
       });
-
-    toast({ title: 'Anamnese registrada com sucesso! 🎉' });
-
-    // 🔹 Limpa o rascunho depois de salvar
-    localStorage.removeItem('reportDraft');
-    onSuccess?.();
-    onClose();
+    } else {
+      toast({
+        title: "Clínica criada com sucesso! 🎉",
+        description: `${name} foi adicionada à plataforma`,
+      });
+      onSuccess();
+    }
+    setLoading(false);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto"
+        className="glass-effect rounded-2xl p-6 w-full max-w-md"
       >
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center space-x-2">
-            <FileText className="w-5 h-5 text-purple-600" />
-            <h2 className="text-xl font-bold">Nova Anamnese</h2>
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-white" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900">Nova Clínica</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <X />
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {!selectedPatient ? (
-            <>
-              <div>
-                <label className="text-sm font-medium">Buscar Paciente</label>
-                <div className="relative mt-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <input
-                    className="w-full pl-10 pr-3 py-2 border rounded-lg"
-                    placeholder="Nome ou CPF"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {searchTerm && (
-                <div className="border rounded-lg max-h-48 overflow-auto">
-                  {filteredPatients.map((p) => (
-                    <div
-                      key={p.id}
-                      className="p-2 hover:bg-gray-50 cursor-pointer"
-                      onClick={() => setSelectedPatient(p)}
-                    >
-                      {p.name} — {p.cpf}
-                    </div>
-                  ))}
-                  {filteredPatients.length === 0 && (
-                    <p className="p-2 text-gray-500 text-sm text-center">
-                      Nenhum paciente encontrado
-                    </p>
-                  )}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="p-3 border rounded-lg bg-gray-50">
-              <p className="font-semibold">{selectedPatient.name}</p>
-              <p className="text-sm text-gray-600">CPF: {selectedPatient.cpf}</p>
-              <button
-                onClick={() => setSelectedPatient(null)}
-                type="button"
-                className="text-xs text-blue-600 mt-1"
-              >
-                Trocar paciente
-              </button>
-            </div>
-          )}
-
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-sm font-medium">Título</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Nome da Clínica
+            </label>
             <input
-              className="w-full border rounded-lg p-2 mt-1"
-              placeholder="Ex: Consulta inicial"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+              required
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium">Anamnese</label>
-            <textarea
-              className="w-full border rounded-lg p-2 h-40 mt-1"
-              placeholder="Digite a anamnese..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              CNPJ
+            </label>
+            <input
+              type="text"
+              value={cnpj}
+              onChange={(e) => setCnpj(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+              placeholder="00.000.000/0000-00"
+              required
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Salvando...' : 'Salvar Anamnese'}
-          </Button>
+          <div className="flex space-x-3 pt-4">
+            <Button type="button" onClick={onClose} variant="outline" className="flex-1" disabled={loading}>
+              Cancelar
+            </Button>
+            <Button type="submit" className="flex-1 gradient-primary text-white" disabled={loading}>
+              {loading ? 'Criando...' : 'Criar Clínica'}
+            </Button>
+          </div>
         </form>
       </motion.div>
     </div>
   );
 };
 
-export default CreateReportModal;
+export default CreateClinicModal;
+  
