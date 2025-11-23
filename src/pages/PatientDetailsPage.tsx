@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Helmet } from "react-helmet";
 import { motion } from "framer-motion";
 import { ArrowLeft, FileText, Stethoscope, Plus, Calendar } from "lucide-react";
@@ -27,6 +27,21 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
   const [appointments, setAppointments] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctorFilter, setSelectedDoctorFilter] = useState(null);
+  const [doctorSearchQuery, setDoctorSearchQuery] = useState("");
+  const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
+  const doctorDropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (doctorDropdownRef.current && !doctorDropdownRef.current.contains(event.target)) {
+        setShowDoctorDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Fetch patient data
   useEffect(() => {
@@ -316,20 +331,66 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                   </h2>
                   <FileText className="w-5 h-5 text-purple-600" />
                 </div>
-                <select
-                  value={selectedDoctorFilter || ""}
-                  onChange={(e) =>
-                    setSelectedDoctorFilter(e.target.value || null)
-                  }
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none bg-white"
-                >
-                  <option value="">Todos os médicos</option>
-                  {doctors.map((doctor) => (
-                    <option key={doctor.id} value={doctor.id}>
-                      Dr(a). {doctor.profile?.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative" ref={doctorDropdownRef}>
+                  <input
+                    type="text"
+                    value={doctorSearchQuery}
+                    onChange={(e) => {
+                      setDoctorSearchQuery(e.target.value);
+                      setShowDoctorDropdown(true);
+                    }}
+                    onFocus={() => setShowDoctorDropdown(true)}
+                    placeholder="Buscar médico ou ver todos..."
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none bg-white"
+                  />
+                  
+                  {showDoctorDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      <button
+                        onClick={() => {
+                          setSelectedDoctorFilter(null);
+                          setDoctorSearchQuery("");
+                          setShowDoctorDropdown(false);
+                        }}
+                        className="w-full px-3 py-2 text-left text-sm hover:bg-purple-50 transition-colors border-b border-gray-100"
+                      >
+                        <span className="font-medium text-purple-600">Todos os médicos</span>
+                      </button>
+                      
+                      {doctors
+                        .filter((doctor) =>
+                          doctor.profile?.name
+                            ?.toLowerCase()
+                            .includes(doctorSearchQuery.toLowerCase())
+                        )
+                        .map((doctor) => (
+                          <button
+                            key={doctor.id}
+                            onClick={() => {
+                              setSelectedDoctorFilter(doctor.id);
+                              setDoctorSearchQuery(`Dr(a). ${doctor.profile?.name}`);
+                              setShowDoctorDropdown(false);
+                            }}
+                            className={`w-full px-3 py-2 text-left text-sm hover:bg-purple-50 transition-colors ${
+                              selectedDoctorFilter === doctor.id ? "bg-purple-100" : ""
+                            }`}
+                          >
+                            Dr(a). {doctor.profile?.name}
+                          </button>
+                        ))}
+                      
+                      {doctors.filter((doctor) =>
+                        doctor.profile?.name
+                          ?.toLowerCase()
+                          .includes(doctorSearchQuery.toLowerCase())
+                      ).length === 0 && doctorSearchQuery && (
+                        <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                          Nenhum médico encontrado
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-3 max-h-[600px] overflow-y-auto">
