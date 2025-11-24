@@ -58,8 +58,10 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
     loadPatients();
   }, [loadPatients]);
 
-  const filteredPatients = patients.filter((p) =>
-    p.name.toLowerCase().includes(patientSearch.toLowerCase())
+  const filteredPatients = patients.filter(
+    (p) =>
+      p.name.toLowerCase().includes(patientSearch.toLowerCase()) ||
+      (p.cpf && p.cpf.includes(patientSearch))
   );
 
   const handleSubmit = async () => {
@@ -157,7 +159,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
               </label>
               <input
                 type="text"
-                placeholder="Buscar paciente..."
+                placeholder="Buscar por nome ou CPF..."
                 value={patientSearch}
                 onChange={(e) => setPatientSearch(e.target.value)}
                 className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"

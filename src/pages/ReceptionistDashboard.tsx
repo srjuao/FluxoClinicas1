@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
-import { Calendar, LogOut, Plus } from "lucide-react";
+import { Calendar, LogOut, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
 import DoctorMonthlyCalendar from "@/components/DoctorMonthlyCalendar";
-import CreateAppointmentModal from "@/components/CreateAppointmentModal";
+import PatientManagementModal from "@/components/PatientManagementModal";
 // import PatientDetailsPage from "@/pages/PatientDetailsPage";
 import { supabase } from "@/lib/customSupabaseClient";
 
@@ -125,13 +125,8 @@ const ReceptionistDashboard = () => {
   const { signOut, profile } = useAuth();
   const clinicId = profile?.clinic_id;
 
-  const [showCreateAppointment, setShowCreateAppointment] = useState(false);
+  const [showPatientManagement, setShowPatientManagement] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<string | null>(null);
-
-  const handleSuccess = () => {
-    setShowCreateAppointment(false);
-    // Calendar will auto-refresh via useEffect
-  };
 
   return (
     <>
@@ -185,11 +180,12 @@ const ReceptionistDashboard = () => {
                 />
               )}
               <Button
-                onClick={() => setShowCreateAppointment(true)}
-                className="gradient-primary text-white"
+                onClick={() => setShowPatientManagement(true)}
+                variant="outline"
+                className="bg-purple-100 hover:bg-purple-200 text-purple-700 border-purple-300"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Novo Agendamento
+                <Users className="w-4 h-4 mr-2" />
+                Gerenciar Pacientes
               </Button>
             </div>
           </div>
@@ -202,11 +198,10 @@ const ReceptionistDashboard = () => {
         </div>
       </div>
 
-      {showCreateAppointment && clinicId && (
-        <CreateAppointmentModal
+      {showPatientManagement && clinicId && (
+        <PatientManagementModal
           clinicId={clinicId}
-          onClose={() => setShowCreateAppointment(false)}
-          onSuccess={handleSuccess}
+          onClose={() => setShowPatientManagement(false)}
         />
       )}
     </>
