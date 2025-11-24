@@ -39,8 +39,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
       .from("patients")
       .select("*")
       .eq("clinic_id", clinicId)
-      .order("name")
-      .limit(100);
+      .order("name");
 
     if (error) {
       toast({
