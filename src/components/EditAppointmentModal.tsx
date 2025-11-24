@@ -31,6 +31,15 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Convert reason text back to value for select
+  const getReasonValue = (reasonText?: string) => {
+    if (reasonText === "Primeira Consulta") return "primeira_consulta";
+    if (reasonText === "Retorno") return "retorno";
+    return "";
+  };
+
+  const [reason, setReason] = useState(getReasonValue(appointment.reason));
+
   // Load available slots when editing date/time
   const loadAvailableSlots = useCallback(async () => {
     if (!editingDateTime || !selectedDate) return;
@@ -161,7 +170,15 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
     setSubmitting(true);
 
     try {
-      const updates: any = { status };
+      // Convert reason value to text
+      const reasonText =
+        reason === "primeira_consulta"
+          ? "Primeira Consulta"
+          : reason === "retorno"
+          ? "Retorno"
+          : null;
+
+      const updates: any = { status, reason: reasonText };
 
       // If editing date/time, update scheduled times
       if (editingDateTime && selectedSlot) {
@@ -394,6 +411,22 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
                 )}
               </div>
             )}
+          </div>
+
+          {/* Reason Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Motivo da Consulta
+            </label>
+            <select
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+            >
+              <option value="">Selecione o motivo...</option>
+              <option value="primeira_consulta">Primeira Consulta</option>
+              <option value="retorno">Retorno</option>
+            </select>
           </div>
 
           {/* Status Selection */}

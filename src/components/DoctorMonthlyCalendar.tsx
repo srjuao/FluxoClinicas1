@@ -503,7 +503,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
                               {apt.patient?.name || "Paciente"}
                             </p>
                             <p className="text-xs text-gray-600">
-                              ID: {apt.id.slice(0, 8)}...
+                              {apt.reason}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">

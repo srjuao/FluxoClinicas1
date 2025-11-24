@@ -11,6 +11,7 @@ export interface Appointment {
   scheduled_end: string; // ISO timestamp
   status: AppointmentStatus;
   created_at: string;
+  reason?: string;
 }
 
 export interface DoctorWorkHours {

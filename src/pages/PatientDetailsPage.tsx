@@ -324,6 +324,9 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
                   {patient.name}
+                  {appointment.reason && (
+                    <span className="font-normal">{` - ${appointment.reason}`}</span>
+                  )}
                 </h1>
                 <p className="text-gray-600">CPF: {patient.cpf}</p>
                 <p className="text-gray-600">

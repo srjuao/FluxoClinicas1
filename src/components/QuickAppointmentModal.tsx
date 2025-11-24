@@ -28,6 +28,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientSearch, setPatientSearch] = useState("");
+  const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -78,6 +79,14 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
       const startDate = new Date(`${selectedDate}T${selectedTime}:00`);
       const endDate = new Date(startDate.getTime() + slotMinutes * 60000);
 
+      // Convert reason value to text
+      const reasonText =
+        reason === "primeira_consulta"
+          ? "Primeira Consulta"
+          : reason === "retorno"
+          ? "Retorno"
+          : null;
+
       const { error } = await supabase.from("appointments").insert({
         clinic_id: clinicId,
         doctor_id: doctorId,
@@ -85,6 +94,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
         scheduled_start: startDate.toISOString(),
         scheduled_end: endDate.toISOString(),
         status: "SCHEDULED",
+        reason: reasonText,
       });
 
       if (error) throw error;
@@ -165,6 +175,22 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
               />
             </div>
 
+            {/* Reason */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Motivo da Consulta
+              </label>
+              <select
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+              >
+                <option value="">Selecione o motivo...</option>
+                <option value="primeira_consulta">Primeira Consulta</option>
+                <option value="retorno">Retorno</option>
+              </select>
+            </div>
+
             {/* Patient List */}
             {loading ? (
               <div className="text-center py-8 text-gray-500">
@@ -221,7 +247,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
           <Button
             onClick={handleSubmit}
             className="flex-1 gradient-primary text-white"
-            disabled={!selectedPatient || submitting}
+            disabled={!selectedPatient || !reason || submitting}
           >
             {submitting ? "Agendando..." : "Confirmar Agendamento"}
           </Button>

@@ -161,11 +161,12 @@ const DoctorAgenda = ({ doctorId, clinicId, onSelectPatient }) => {
                           "pt-BR",
                           { hour: "2-digit", minute: "2-digit" }
                         )}{" "}
-                        -
+                        -{" "}
                         {new Date(apt.scheduled_end).toLocaleTimeString(
                           "pt-BR",
                           { hour: "2-digit", minute: "2-digit" }
                         )}
+                        {apt.reason && ` - ${apt.reason}`}
                       </span>
                     </div>
 
