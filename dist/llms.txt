@@ -1,7 +1,0 @@
-## Pages
-- [Admin -](/clinicadmindashboard): Painel administrativo da clínica
-- [Detalhes do Paciente -](/patientdetails): Detalhes do paciente
-- [Login - Sistema de Gestão de Clínicas](/login): Faça login no sistema de gestão de clínicas médicas
-- [Médico -](/doctordashboard): Painel do médico
-- [Planner Semanal -](/receptionistdashboard): Planner semanal da recepção
-- [Super Admin - Gestão de Clínicas](/superadmindashboard): Painel do super administrador para gestão de clínicas
