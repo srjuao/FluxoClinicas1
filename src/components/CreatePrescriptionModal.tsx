@@ -149,55 +149,75 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
 
     let printContent = "";
 
+    // Para 'medication' não mostramos o título "Receita Médica" na impressão
     if (type === "medication" && parsed.medicationContent?.trim()) {
-      printContent += `<h3>Receita Médica</h3><p style="white-space: pre-line;">${parsed.medicationContent}</p>`;
+      printContent += `<div class="content"><p style="white-space: pre-line; text-align:left;">${parsed.medicationContent}</p></div>`;
     }
 
     if (type === "exams" && parsed.selectedExams?.length) {
-      printContent += `<h3>Exames</h3><ul>${parsed.selectedExams
+      printContent += `<div class="content"><h3>Exames</h3><ul>${parsed.selectedExams
         .map((exam: string) => `<li>${exam}</li>`)
-        .join("")}</ul>`;
+        .join("")}</ul></div>`;
     }
 
     if (type === "lenses" && Object.values(parsed.lensData).some((v) => v)) {
       printContent += `
-        <h3>Lentes</h3>
-        <table>
-          <tr><th></th><th>ESF</th><th>CIL</th><th>EIXO</th></tr>
-          <tr><td>OD</td><td>${parsed.lensData.od_esf}</td><td>${parsed.lensData.od_cil}</td><td>${parsed.lensData.od_eixo}</td></tr>
-          <tr><td>OE</td><td>${parsed.lensData.oe_esf}</td><td>${parsed.lensData.oe_cil}</td><td>${parsed.lensData.oe_eixo}</td></tr>
-          <tr><td>Adição</td><td colspan="3">${parsed.lensData.adicao}</td></tr>
-        </table>`;
+        <div class="content">
+          <h3>Lentes</h3>
+          <table>
+            <tr><th></th><th>ESF</th><th>CIL</th><th>EIXO</th></tr>
+            <tr><td>OD</td><td>${parsed.lensData.od_esf}</td><td>${parsed.lensData.od_cil}</td><td>${parsed.lensData.od_eixo}</td></tr>
+            <tr><td>OE</td><td>${parsed.lensData.oe_esf}</td><td>${parsed.lensData.oe_cil}</td><td>${parsed.lensData.oe_eixo}</td></tr>
+            <tr><td>Adição</td><td colspan="3">${parsed.lensData.adicao}</td></tr>
+          </table>
+        </div>`;
     }
 
     if (!printWindow) return;
     printWindow.document.write(`
       <html>
         <head>
-          <title></title>
+          <title>Prescrição</title>
           <style>
-            body { font-family: Arial, sans-serif; padding-top: 170px; text-align: center; position: relative; min-height: 100vh; }
-            .patient { font-weight: bold; margin-bottom: 20px; }
-            table { border-collapse: collapse; margin: 15px auto; width: 80%; }
-            td, th { border: 1px solid #ccc; padding: 8px; text-align: center; }
-            ul { list-style: none; padding: 0; margin-top: 10px; }
-            li { margin: 4px 0; }
-            .footer { position: absolute; bottom: 80px; right: 60px; font-size: 14px; color: #555; display: flex; gap: 12px; }
-            h3 { margin-top: 20px; margin-bottom: 8px; }
+            @page { size: A4; margin: 20mm; }
+            html, body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+            body { padding: 20mm; box-sizing: border-box; }
+            .print-wrapper { width: 100%; max-width: 210mm; margin: 0 auto; }
+            .patient { font-weight: bold; margin-bottom: 8px; text-align: left; }
+            table { border-collapse: collapse; margin: 8px 0; width: 100%; }
+            td, th { border: 1px solid #ccc; padding: 6px; text-align: center; }
+            ul { list-style: none; padding: 0; margin-top: 6px; text-align: left; }
+            li { margin: 2px 0; }
+            .footer { position: fixed; bottom: 12mm; right: 20mm; font-size: 12px; color: #555; display: flex; gap: 12px; }
+            h3 { margin-top: 12px; margin-bottom: 6px; text-align: left; }
+            /* Evita quebra dentro dos blocos e tenta manter o conteúdo em uma única página */
+            .content { page-break-inside: avoid; break-inside: avoid; -webkit-column-break-inside: avoid; }
+            @media print {
+              body { padding: 10mm; }
+              .footer { position: fixed; bottom: 12mm; }
+            }
           </style>
         </head>
         <body>
-          <p class="patient">Paciente: ${patientName}</p>
-          ${printContent || "<p>Nada para imprimir.</p>"}
-          <div class="footer">
+          <div class="print-wrapper">
+            <p class="patient">Paciente: ${patientName}</p>
+            ${printContent || "<p>Nada para imprimir.</p>"}
+            <div class="footer">
+              <span>Cidade:________ UF:_____</span>
+              <span>${formattedDate}</span>
+            </div>
           </div>
         </body>
       </html>
     `);
 
     printWindow.document.close();
-    printWindow.print();
-    printWindow.onafterprint = () => printWindow.close();
+    printWindow.focus();
+    // Dar um pequeno atraso para o conteúdo renderizar antes de abrir diálogo de impressão
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.onafterprint = () => printWindow.close();
+    }, 200);
   };
 
   return (
@@ -241,7 +261,7 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
             }`}
             onClick={() => setActiveTab("receita")}
           >
-            
+            Receita Médica
           </button>
         </div>
 
