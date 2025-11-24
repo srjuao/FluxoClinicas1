@@ -174,7 +174,7 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
     printWindow.document.write(`
       <html>
         <head>
-          <title>Prescrição</title>
+          <title></title>
           <style>
             body { font-family: Arial, sans-serif; padding-top: 170px; text-align: center; position: relative; min-height: 100vh; }
             .patient { font-weight: bold; margin-bottom: 20px; }
@@ -190,8 +190,6 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
           <p class="patient">Paciente: ${patientName}</p>
           ${printContent || "<p>Nada para imprimir.</p>"}
           <div class="footer">
-            <span>Cidade:________ UF:_____</span>
-            <span>${formattedDate}</span>
           </div>
         </body>
       </html>
@@ -243,7 +241,7 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
             }`}
             onClick={() => setActiveTab("receita")}
           >
-            Receita Médica
+            
           </button>
         </div>
 
