@@ -203,7 +203,6 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
             <p class="patient">Paciente: ${patientName}</p>
             ${printContent || "<p>Nada para imprimir.</p>"}
             <div class="footer">
-              <span>Cidade:________ UF:_____</span>
               <span>${formattedDate}</span>
             </div>
           </div>

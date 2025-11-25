@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
 import { FileText, Edit } from "lucide-react";
-import jsPDF from "jspdf";
 import type { Patient } from "@/types/database.types";
 import type { CreateCertificateModalProps, PatientFormData } from "@/types/components.types";
 
@@ -111,6 +110,9 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
     }
   };
 
+  // ------------------------------------------------------------------
+  // 🚀 NOVA FUNÇÃO DE IMPRESSÃO HTML
+  // ------------------------------------------------------------------
   const handleGeneratePDF = () => {
     if (!selectedPatient) {
       toast({ title: "Selecione o paciente", variant: "destructive" });
@@ -126,45 +128,81 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + Number(days));
 
-    const doc = new jsPDF();
+    const printWindow = window.open("", "_blank");
 
-    // Espaço para logo/timbre do hospital
-    const startY = 80;
-
-    doc.setFontSize(18);
-    doc.text("ATESTADO MÉDICO", 70, startY);
-
-    doc.setFontSize(12);
-
-    const contentY = startY + 15;
-
-    doc.text(`Paciente: ${selectedPatient.name}`, 20, contentY);
-    doc.text(`CPF: ${selectedPatient.cpf || "-"}`, 20, contentY + 10);
-    doc.text(`CID: ${cid || "-"}`, 20, contentY + 20);
-    doc.text(
-      `O(a) paciente acima está inapto(a) para atividades pelo período de ${days} dia(s).`,
-      20,
-      contentY + 30
-    );
-    doc.text(
-      `Retorno previsto: ${endDate.toLocaleDateString()}`,
-      20,
-      contentY + 40
-    );
-
-    if (doctorObs) {
-      doc.text(`Observação: ${doctorObs}`, 20, contentY + 55);
+    if (!printWindow) {
+      toast({
+        title: "Erro",
+        description: "Permita pop-ups para gerar a impressão",
+        variant: "destructive",
+      });
+      return;
     }
 
-    doc.text(`Data: ${startDate.toLocaleDateString()}`, 20, contentY + 75);
-    doc.text(
-      "Assinatura do médico: ____________________________",
-      20,
-      contentY + 100
-    );
+    const html = `
+      <html>
+        <head>
+          <title>Atestado Médico</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 40px;
+              line-height: 1.6;
+              font-size: 16px;
+            }
 
-    doc.save(`Atestado_${selectedPatient.name}.pdf`);
-    toast({ title: "PDF gerado com sucesso!" });
+            h1 {
+              text-align: center;
+              margin-bottom: 40px;
+              font-size: 28px;
+            }
+
+            .line {
+              margin-bottom: 12px;
+            }
+
+            .signature {
+              margin-top: 80px;
+            }
+          </style>
+        </head>
+
+        <body>
+          <h1>ATESTADO MÉDICO</h1>
+
+          <div class="line"><strong>Paciente:</strong> ${selectedPatient.name}</div>
+          <div class="line"><strong>CPF:</strong> ${selectedPatient.cpf || "-"}</div>
+          <div class="line"><strong>CID:</strong> ${cid || "-"}</div>
+
+          <div class="line">
+            O(a) paciente acima está inapto(a) para atividades pelo período de 
+            <strong>${days} dia(s)</strong>.
+          </div>
+
+          <div class="line"><strong>Retorno previsto:</strong> ${endDate.toLocaleDateString()}</div>
+
+          ${
+            doctorObs
+              ? `<div class="line"><strong>Observação:</strong> ${doctorObs}</div>`
+              : ""
+          }
+
+          <div class="line"><strong>Data:</strong> ${startDate.toLocaleDateString()}</div>
+
+          <div class="signature">Assinatura do médico: _______________________________</div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    printWindow.onload = () => {
+      printWindow.print();
+      printWindow.close();
+    };
+
+    toast({ title: "Documento pronto para impressão!" });
   };
 
   return (
@@ -324,7 +362,7 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
             />
 
             <Button className="w-full" onClick={handleGeneratePDF}>
-              Gerar PDF
+              Imprimir Atestado
             </Button>
             <Button
               variant="outline"
