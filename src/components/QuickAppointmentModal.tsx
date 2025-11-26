@@ -81,8 +81,8 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
 
       // Convert reason value to text
       const reasonText =
-        reason === "primeira_consulta"
-          ? "Primeira Consulta"
+        reason === "consulta"
+          ? "Consulta"
           : reason === "retorno"
           ? "Retorno"
           : null;
@@ -186,7 +186,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
                 className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
               >
                 <option value="">Selecione o motivo...</option>
-                <option value="primeira_consulta">Primeira Consulta</option>
+                <option value="consulta">Consulta</option>
                 <option value="retorno">Retorno</option>
               </select>
             </div>
