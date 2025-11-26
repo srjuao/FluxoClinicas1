@@ -6,7 +6,7 @@ import React, {
   FormEvent,
 } from "react";
 import { motion } from "framer-motion";
-import { X, FileText, Search } from "lucide-react";
+import { X, FileText, Search, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -28,8 +28,86 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
   const [title, setTitle] = useState<string>("");
   const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const [isListening, setIsListening] = useState<boolean>(false);
 
   const lastSavedPatientId = useRef<string | null>(null); // para controlar troca de paciente
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  // 🔹 Inicializar reconhecimento de voz
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = "pt-BR";
+
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let finalTranscript = "";
+        let interimTranscript = "";
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + " ";
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          setContent((prev: string) => prev + finalTranscript);
+        }
+      };
+
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        console.error("Erro no reconhecimento de voz:", event.error);
+        setIsListening(false);
+        toast({
+          title: "Erro no reconhecimento de voz",
+          description: `Ocorreu um erro: ${event.error}`,
+          variant: "destructive",
+        });
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  // 🔹 Função para iniciar/parar transcrição
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      toast({
+        title: "Navegador não suportado",
+        description: "Seu navegador não suporta reconhecimento de voz.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+      toast({
+        title: "🎤 Escutando...",
+        description: "Fale agora para transcrever a anamnese.",
+      });
+    }
+  };
 
   // 🔹 Carregar pacientes
   const loadPatients = useCallback(async () => {
@@ -206,13 +284,44 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
           </div>
 
           <div>
-            <label className="text-sm font-medium">Anamnese</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium">Anamnese</label>
+              <button
+                type="button"
+                onClick={toggleListening}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  isListening
+                    ? "bg-red-100 text-red-600 hover:bg-red-200 animate-pulse"
+                    : "bg-purple-100 text-purple-600 hover:bg-purple-200"
+                }`}
+              >
+                {isListening ? (
+                  <>
+                    <MicOff className="w-4 h-4" />
+                    Parar
+                  </>
+                ) : (
+                  <>
+                    <Mic className="w-4 h-4" />
+                    Transcrever Voz
+                  </>
+                )}
+              </button>
+            </div>
             <textarea
-              className="w-full border rounded-lg p-2 h-40 mt-1"
-              placeholder="Digite a anamnese..."
+              className={`w-full border rounded-lg p-2 h-40 transition-all ${
+                isListening ? "border-red-400 ring-2 ring-red-200" : ""
+              }`}
+              placeholder="Digite a anamnese ou use o botão de transcrição de voz..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
             />
+            {isListening && (
+              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                Gravando... Fale agora
+              </p>
+            )}
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
