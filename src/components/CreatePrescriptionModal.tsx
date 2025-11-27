@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, KeyboardEvent } from "react";
 import { supabase } from "@/lib/customSupabaseClient";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
@@ -54,6 +54,27 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [doctorData, setDoctorData] = useState<Doctor | null>(null);
+
+  // Refs para navegação com Enter nos campos de lentes
+  const odEsfRef = useRef<HTMLInputElement>(null);
+  const odCilRef = useRef<HTMLInputElement>(null);
+  const odEixoRef = useRef<HTMLInputElement>(null);
+  const oeEsfRef = useRef<HTMLInputElement>(null);
+  const oeCilRef = useRef<HTMLInputElement>(null);
+  const oeEixoRef = useRef<HTMLInputElement>(null);
+  const adicaoRef = useRef<HTMLInputElement>(null);
+
+  const handleLensKeyDown = (
+    e: KeyboardEvent<HTMLInputElement>,
+    nextRef: React.RefObject<HTMLInputElement> | null
+  ) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (nextRef?.current) {
+        nextRef.current.focus();
+      }
+    }
+  };
 
   useEffect(() => {
     const fetchPatients = async () => {
@@ -334,65 +355,79 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
                   <div>
                     <h3>Olho Direito (OD)</h3>
                     <input
+                      ref={odEsfRef}
                       placeholder="ESF"
                       className="border rounded p-2 w-full mb-2"
                       value={lensData.od_esf}
                       onChange={(e) =>
                         setLensData({ ...lensData, od_esf: e.target.value })
                       }
+                      onKeyDown={(e) => handleLensKeyDown(e, odCilRef)}
                     />
                     <input
+                      ref={odCilRef}
                       placeholder="CIL"
                       className="border rounded p-2 w-full mb-2"
                       value={lensData.od_cil}
                       onChange={(e) =>
                         setLensData({ ...lensData, od_cil: e.target.value })
                       }
+                      onKeyDown={(e) => handleLensKeyDown(e, odEixoRef)}
                     />
                     <input
+                      ref={odEixoRef}
                       placeholder="EIXO"
                       className="border rounded p-2 w-full"
                       value={lensData.od_eixo}
                       onChange={(e) =>
                         setLensData({ ...lensData, od_eixo: e.target.value })
                       }
+                      onKeyDown={(e) => handleLensKeyDown(e, oeEsfRef)}
                     />
                   </div>
                   <div>
                     <h3>Olho Esquerdo (OE)</h3>
                     <input
+                      ref={oeEsfRef}
                       placeholder="ESF"
                       className="border rounded p-2 w-full mb-2"
                       value={lensData.oe_esf}
                       onChange={(e) =>
                         setLensData({ ...lensData, oe_esf: e.target.value })
                       }
+                      onKeyDown={(e) => handleLensKeyDown(e, oeCilRef)}
                     />
                     <input
+                      ref={oeCilRef}
                       placeholder="CIL"
                       className="border rounded p-2 w-full mb-2"
                       value={lensData.oe_cil}
                       onChange={(e) =>
                         setLensData({ ...lensData, oe_cil: e.target.value })
                       }
+                      onKeyDown={(e) => handleLensKeyDown(e, oeEixoRef)}
                     />
                     <input
+                      ref={oeEixoRef}
                       placeholder="EIXO"
                       className="border rounded p-2 w-full"
                       value={lensData.oe_eixo}
                       onChange={(e) =>
                         setLensData({ ...lensData, oe_eixo: e.target.value })
                       }
+                      onKeyDown={(e) => handleLensKeyDown(e, adicaoRef)}
                     />
                   </div>
                   <div className="col-span-2">
                     <input
+                      ref={adicaoRef}
                       placeholder="Adição"
                       className="border rounded p-2 w-full"
                       value={lensData.adicao}
                       onChange={(e) =>
                         setLensData({ ...lensData, adicao: e.target.value })
                       }
+                      onKeyDown={(e) => handleLensKeyDown(e, null)}
                     />
                   </div>
                 </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, FormEvent } from "react";
 import { motion } from "framer-motion";
-import { X, UserPlus, Key } from "lucide-react";
+import { X, UserPlus, Key, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -36,6 +36,8 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   const [showPasswordEdit, setShowPasswordEdit] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [userLimitReached, setUserLimitReached] = useState(false);
+  const [userLimitInfo, setUserLimitInfo] = useState<{ current: number; max: number | null } | null>(null);
 
   useEffect(() => {
     if (userToEdit) {
@@ -48,6 +50,38 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
       setCanPrescribeLenses(doctorData?.can_prescribe_lenses || false);
     }
   }, [userToEdit]);
+
+  // Verificar limite de usuários da clínica
+  useEffect(() => {
+    const checkUserLimit = async () => {
+      if (isEdit || !clinicId) return;
+
+      // Buscar dados da clínica
+      const { data: clinic } = await supabase
+        .from("clinics")
+        .select("max_users")
+        .eq("id", clinicId)
+        .single();
+
+      if (!clinic?.max_users) {
+        setUserLimitReached(false);
+        setUserLimitInfo(null);
+        return;
+      }
+
+      // Contar usuários atuais
+      const { count } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true })
+        .eq("clinic_id", clinicId);
+
+      const currentCount = count || 0;
+      setUserLimitInfo({ current: currentCount, max: clinic.max_users });
+      setUserLimitReached(currentCount >= clinic.max_users);
+    };
+
+    checkUserLimit();
+  }, [clinicId, isEdit]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -134,6 +168,17 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
     }
 
     // Criar novo usuário
+    // Verificar limite novamente antes de criar
+    if (userLimitReached) {
+      toast({
+        title: "Limite de usuários atingido",
+        description: "Esta clínica atingiu o limite máximo de usuários permitidos.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
     const trimmedEmail = email.trim();
     const profileData = { name, clinic_id: clinicId, role };
 
@@ -205,6 +250,31 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Aviso de limite de usuários */}
+        {!isEdit && userLimitReached && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-red-700">
+                Limite de usuários atingido
+              </p>
+              <p className="text-xs text-red-600">
+                Esta clínica já possui {userLimitInfo?.current}/{userLimitInfo?.max} usuários.
+                Entre em contato com o administrador para aumentar o limite.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Info de limite (quando não atingido) */}
+        {!isEdit && userLimitInfo && !userLimitReached && (
+          <div className="mb-4 p-2 bg-blue-50 rounded-lg">
+            <p className="text-xs text-blue-600 text-center">
+              {userLimitInfo.current}/{userLimitInfo.max} usuários cadastrados
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -390,7 +460,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
             <Button
               type="submit"
               className="flex-1 gradient-primary text-white"
-              disabled={loading}
+              disabled={loading || (!isEdit && userLimitReached)}
             >
               {loading
                 ? isEdit

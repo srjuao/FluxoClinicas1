@@ -1,20 +1,27 @@
 import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import { motion } from "framer-motion";
-import { Building2, Plus, Users, LogOut, UserPlus } from "lucide-react";
+import { Building2, Plus, Users, LogOut, UserPlus, Settings, AlertCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
 import CreateClinicModal from "@/components/CreateClinicModal";
 import CreateClinicAdminModal from "@/components/CreateClinicAdminModal";
+import EditClinicModal from "@/components/EditClinicModal";
+import type { Clinic } from "@/types/database.types";
+
+interface ClinicWithUserCount extends Clinic {
+  user_count?: number;
+}
 
 const SuperAdminDashboard = () => {
   const { signOut, profile } = useAuth();
-  const [clinics, setClinics] = useState([]);
+  const [clinics, setClinics] = useState<ClinicWithUserCount[]>([]);
   const [showCreateClinic, setShowCreateClinic] = useState(false);
   const [showCreateAdmin, setShowCreateAdmin] = useState(false);
-  const [selectedClinic, setSelectedClinic] = useState(null);
+  const [showEditClinic, setShowEditClinic] = useState(false);
+  const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null);
 
   const loadClinics = useCallback(async () => {
     const { data, error } = await supabase.from("clinics").select("*");
@@ -25,7 +32,17 @@ const SuperAdminDashboard = () => {
         variant: "destructive",
       });
     } else {
-      setClinics(data);
+      // Carregar contagem de usuários por clínica
+      const clinicsWithCount = await Promise.all(
+        (data || []).map(async (clinic) => {
+          const { count } = await supabase
+            .from("profiles")
+            .select("*", { count: "exact", head: true })
+            .eq("clinic_id", clinic.id);
+          return { ...clinic, user_count: count || 0 };
+        })
+      );
+      setClinics(clinicsWithCount);
     }
   }, []);
 
@@ -40,9 +57,74 @@ const SuperAdminDashboard = () => {
     });
   };
 
-  const handleCreateAdmin = (clinic: any) => {
+  const handleCreateAdmin = (clinic: Clinic) => {
     setSelectedClinic(clinic);
     setShowCreateAdmin(true);
+  };
+
+  const handleEditClinic = (clinic: Clinic) => {
+    setSelectedClinic(clinic);
+    setShowEditClinic(true);
+  };
+
+  const handleDeleteClinic = async (clinic: ClinicWithUserCount) => {
+    // Verificar se tem usuários
+    if (clinic.user_count && clinic.user_count > 0) {
+      const confirmWithUsers = window.confirm(
+        `⚠️ ATENÇÃO: A clínica "${clinic.name}" possui ${clinic.user_count} usuário(s) cadastrado(s).\n\nTodos os usuários, médicos, pacientes, consultas e dados relacionados serão PERMANENTEMENTE excluídos.\n\nTem certeza que deseja continuar?`
+      );
+      if (!confirmWithUsers) return;
+    }
+
+    const confirmDelete = window.confirm(
+      `Tem certeza que deseja excluir a clínica "${clinic.name}"?\n\nEsta ação não pode ser desfeita.`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      // Excluir dados relacionados em ordem (devido às foreign keys)
+      // 1. Excluir consultas
+      await supabase.from("appointments").delete().eq("clinic_id", clinic.id);
+      
+      // 2. Excluir prescrições
+      await supabase.from("prescriptions").delete().eq("clinic_id", clinic.id);
+      
+      // 3. Excluir atestados
+      await supabase.from("medical_certificates").delete().eq("clinic_id", clinic.id);
+      
+      // 4. Excluir laudos
+      await supabase.from("medical_reports").delete().eq("clinic_id", clinic.id);
+      
+      // 5. Excluir horários dos médicos
+      await supabase.from("doctor_work_hours").delete().eq("clinic_id", clinic.id);
+      
+      // 6. Excluir médicos
+      await supabase.from("doctors").delete().eq("clinic_id", clinic.id);
+      
+      // 7. Excluir pacientes
+      await supabase.from("patients").delete().eq("clinic_id", clinic.id);
+      
+      // 8. Excluir perfis/usuários
+      await supabase.from("profiles").delete().eq("clinic_id", clinic.id);
+      
+      // 9. Finalmente excluir a clínica
+      const { error } = await supabase.from("clinics").delete().eq("id", clinic.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Clínica excluída com sucesso!",
+        description: `${clinic.name} foi removida da plataforma.`,
+      });
+      
+      loadClinics();
+    } catch (error) {
+      toast({
+        title: "Erro ao excluir clínica",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -110,28 +192,83 @@ const SuperAdminDashboard = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="glass-effect rounded-2xl p-6 hover:shadow-2xl transition-all"
+                className={`glass-effect rounded-2xl p-6 hover:shadow-2xl transition-all ${
+                  !clinic.is_active ? "opacity-60" : ""
+                }`}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="w-12 h-12 rounded-xl gradient-secondary flex items-center justify-center">
                     <Building2 className="w-6 h-6 text-white" />
                   </div>
-                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                    Ativa
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        clinic.is_active
+                          ? "bg-green-100 text-green-700"
+                          : "bg-red-100 text-red-700"
+                      }`}
+                    >
+                      {clinic.is_active ? "Ativa" : "Inativa"}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleEditClinic(clinic)}
+                        className="p-1 text-gray-400 hover:text-purple-600 transition-colors"
+                        title="Editar clínica"
+                      >
+                        <Settings className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClinic(clinic)}
+                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                        title="Excluir clínica"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <h3 className="text-xl font-bold text-gray-900 mb-2">
                   {clinic.name}
                 </h3>
-                <p className="text-sm text-gray-600 mb-4">
-                  CNPJ: {clinic.cnpj}
+                <p className="text-sm text-gray-600 mb-2">
+                  CNPJ: {clinic.cnpj || "Não informado"}
                 </p>
+
+                {/* Info de usuários */}
+                <div className="flex items-center gap-2 mb-4">
+                  <Users className="w-4 h-4 text-gray-500" />
+                  <span className="text-sm text-gray-600">
+                    {clinic.user_count} usuário(s)
+                    {clinic.max_users && (
+                      <span
+                        className={
+                          clinic.user_count && clinic.user_count >= clinic.max_users
+                            ? "text-red-600 font-medium"
+                            : ""
+                        }
+                      >
+                        {" "}
+                        / {clinic.max_users} máx.
+                      </span>
+                    )}
+                    {!clinic.max_users && (
+                      <span className="text-gray-400"> (ilimitado)</span>
+                    )}
+                  </span>
+                  {clinic.max_users &&
+                    clinic.user_count &&
+                    clinic.user_count >= clinic.max_users && (
+                      <AlertCircle className="w-4 h-4 text-red-500" title="Limite atingido" />
+                    )}
+                </div>
 
                 <div className="space-y-2">
                   <Button
                     onClick={() => handleImpersonate(clinic)}
                     className="w-full gradient-primary text-white"
+                    disabled={!clinic.is_active}
                   >
                     <Users className="w-4 h-4 mr-2" />
                     Acessar como Admin
@@ -180,6 +317,21 @@ const SuperAdminDashboard = () => {
           }}
           onSuccess={() => {
             setShowCreateAdmin(false);
+            setSelectedClinic(null);
+          }}
+        />
+      )}
+
+      {showEditClinic && selectedClinic && (
+        <EditClinicModal
+          clinic={selectedClinic}
+          onClose={() => {
+            setShowEditClinic(false);
+            setSelectedClinic(null);
+          }}
+          onSuccess={() => {
+            loadClinics();
+            setShowEditClinic(false);
             setSelectedClinic(null);
           }}
         />

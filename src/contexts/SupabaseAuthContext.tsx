@@ -29,6 +29,10 @@ interface AuthContextType {
     password: string,
     profileData: CreateProfileData
   ) => Promise<{ user: User | null; error: AuthError | Error | null }>;
+  updateUserPassword: (
+    userId: string,
+    newPassword: string
+  ) => Promise<{ error: AuthError | Error | null }>;
   signIn: (
     email: string,
     password: string
@@ -178,6 +182,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     [toast]
   );
 
+  const updateUserPassword = useCallback(
+    async (
+      userId: string,
+      newPassword: string
+    ): Promise<{ error: AuthError | Error | null }> => {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password: newPassword,
+      });
+
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Erro ao atualizar senha",
+          description: error.message,
+        });
+        return { error };
+      }
+
+      return { error: null };
+    },
+    [toast]
+  );
+
   const signIn = useCallback(
     async (
       email: string,
@@ -237,6 +264,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       profile,
       loading,
       createProfile,
+      updateUserPassword,
       signIn,
       signOut,
       fetchProfile,
@@ -248,6 +276,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       profile,
       loading,
       createProfile,
+      updateUserPassword,
       signIn,
       signOut,
       fetchProfile,

@@ -50,18 +50,24 @@ export interface Database {
           name: string
           cnpj: string | null
           created_at: string
+          is_active: boolean
+          max_users: number | null
         }
         Insert: {
           id?: string
           name: string
           cnpj?: string | null
           created_at?: string
+          is_active?: boolean
+          max_users?: number | null
         }
         Update: {
           id?: string
           name?: string
           cnpj?: string | null
           created_at?: string
+          is_active?: boolean
+          max_users?: number | null
         }
       }
       doctor_work_hours: {
