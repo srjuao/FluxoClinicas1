@@ -7,6 +7,7 @@ import {
   Calendar as CalendarIcon,
   Edit,
   Plus,
+  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -65,6 +66,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
   const [editingAppointment, setEditingAppointment] =
     useState<AppointmentWithPatientName | null>(null);
+  const [doctorName, setDoctorName] = useState<string>("");
 
   // Memoize work hours map by weekday for faster lookups
   const workHoursMap = useMemo(() => {
@@ -106,6 +108,17 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
     const month = currentDate.getMonth();
     const firstDay = new Date(year, month, 1).toISOString().split("T")[0];
     const lastDay = new Date(year, month + 1, 0).toISOString().split("T")[0];
+
+    // Load doctor name
+    const { data: doctorData } = await supabase
+      .from("doctors")
+      .select("*, profile:profiles(name)")
+      .eq("id", doctorId)
+      .single();
+
+    if (doctorData?.profile?.name) {
+      setDoctorName(doctorData.profile.name);
+    }
 
     // Load appointments with patient name
     const { data: appointmentsData } = await supabase
@@ -333,6 +346,239 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
     loadMonthData();
   };
 
+  const handlePrintDailyAgenda = () => {
+    if (!selectedDate || selectedDateAppointments.length === 0) return;
+
+    const formattedDate = selectedDate.toLocaleDateString("pt-BR", {
+      weekday: "long",
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const appointmentsHtml = selectedDateAppointments
+      .map((apt, index) => {
+        const time = new Date(apt.scheduled_start).toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        const statusText =
+          apt.status === "COMPLETED"
+            ? "Concluído"
+            : apt.status === "CANCELLED"
+            ? "Cancelado"
+            : "Agendado";
+        const statusClass =
+          apt.status === "COMPLETED"
+            ? "status-completed"
+            : apt.status === "CANCELLED"
+            ? "status-cancelled"
+            : "status-scheduled";
+
+        return `
+          <tr>
+            <td class="order">${index + 1}</td>
+            <td class="time">${time}</td>
+            <td class="patient">${apt.patient?.name || "Paciente não informado"}</td>
+            <td class="reason">${apt.reason || "-"}</td>
+            <td class="status ${statusClass}">${statusText}</td>
+            <td class="notes"></td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Agenda do Dia - ${doctorName}</title>
+          <style>
+            @page { 
+              size: A4 landscape; 
+              margin: 15mm; 
+            }
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              font-family: Arial, sans-serif;
+              font-size: 12px;
+              line-height: 1.4;
+              color: #333;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 20px;
+              padding-bottom: 15px;
+              border-bottom: 2px solid #7c3aed;
+            }
+            .header h1 {
+              font-size: 20px;
+              color: #7c3aed;
+              margin-bottom: 5px;
+            }
+            .header .subtitle {
+              font-size: 14px;
+              color: #666;
+            }
+            .header .date {
+              font-size: 16px;
+              font-weight: bold;
+              margin-top: 8px;
+              color: #333;
+            }
+            .summary {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 15px;
+              padding: 10px;
+              background: #f3f4f6;
+              border-radius: 8px;
+            }
+            .summary-item {
+              text-align: center;
+            }
+            .summary-item .number {
+              font-size: 18px;
+              font-weight: bold;
+              color: #7c3aed;
+            }
+            .summary-item .label {
+              font-size: 10px;
+              color: #666;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 8px;
+              text-align: left;
+            }
+            th {
+              background: #7c3aed;
+              color: white;
+              font-weight: bold;
+              font-size: 11px;
+            }
+            tr:nth-child(even) {
+              background: #f9fafb;
+            }
+            tr:hover {
+              background: #f3f4f6;
+            }
+            .order {
+              width: 30px;
+              text-align: center;
+            }
+            .time {
+              width: 60px;
+              font-weight: bold;
+              text-align: center;
+            }
+            .patient {
+              width: 200px;
+            }
+            .reason {
+              width: 150px;
+            }
+            .status {
+              width: 80px;
+              text-align: center;
+              font-weight: bold;
+              border-radius: 4px;
+            }
+            .status-scheduled {
+              color: #7c3aed;
+            }
+            .status-completed {
+              color: #059669;
+            }
+            .status-cancelled {
+              color: #dc2626;
+            }
+            .notes {
+              width: auto;
+            }
+            .footer {
+              margin-top: 20px;
+              padding-top: 10px;
+              border-top: 1px solid #ddd;
+              font-size: 10px;
+              color: #666;
+              display: flex;
+              justify-content: space-between;
+            }
+            @media print {
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>📋 Agenda do Dia</h1>
+            <div class="subtitle">Dr(a). ${doctorName}</div>
+            <div class="date">${formattedDate}</div>
+          </div>
+
+          <div class="summary">
+            <div class="summary-item">
+              <div class="number">${selectedDateAppointments.length}</div>
+              <div class="label">Total de Consultas</div>
+            </div>
+            <div class="summary-item">
+              <div class="number">${selectedDateAppointments.filter(a => a.status === "SCHEDULED").length}</div>
+              <div class="label">Agendados</div>
+            </div>
+            <div class="summary-item">
+              <div class="number">${selectedDateAppointments.filter(a => a.status === "COMPLETED").length}</div>
+              <div class="label">Concluídos</div>
+            </div>
+            <div class="summary-item">
+              <div class="number">${selectedDateAppointments.filter(a => a.status === "CANCELLED").length}</div>
+              <div class="label">Cancelados</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th class="order">#</th>
+                <th class="time">Horário</th>
+                <th class="patient">Paciente</th>
+                <th class="reason">Motivo</th>
+                <th class="status">Status</th>
+                <th class="notes">Observações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${appointmentsHtml}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <span>Impresso em: ${new Date().toLocaleString("pt-BR")}</span>
+            <span>Sistema de Gestão de Clínicas</span>
+          </div>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.onafterprint = () => printWindow.close();
+    }, 200);
+  };
+
   const getCurrentSlotMinutes = () => {
     if (!selectedDate || workHoursMap.size === 0) return 30;
     const dateStr = selectedDate.toISOString().split("T")[0];
@@ -473,11 +719,24 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
           transition={{ delay: 0.1 }}
           className="glass-effect rounded-2xl p-6"
         >
-          <h3 className="text-lg font-bold text-gray-900 mb-4">
-            {selectedDate
-              ? `Agendamentos - ${selectedDate.toLocaleDateString("pt-BR")}`
-              : "Lista de Agendados"}
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-900">
+              {selectedDate
+                ? `Agendamentos - ${selectedDate.toLocaleDateString("pt-BR")}`
+                : "Lista de Agendados"}
+            </h3>
+            {selectedDate && selectedDateAppointments.length > 0 && (
+              <Button
+                onClick={handlePrintDailyAgenda}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 text-purple-600 border-purple-300 hover:bg-purple-50"
+              >
+                <Printer className="w-4 h-4" />
+                Imprimir Agenda
+              </Button>
+            )}
+          </div>
 
           {!selectedDate ? (
             <p className="text-sm text-gray-500 text-center py-8">

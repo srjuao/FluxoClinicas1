@@ -173,3 +173,5 @@ const EditClinicModal: React.FC<EditClinicModalProps> = ({ clinic, onClose, onSu
 
 export default EditClinicModal;
 
+
+

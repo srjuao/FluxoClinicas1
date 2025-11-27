@@ -6,12 +6,20 @@ import React, {
   FormEvent,
 } from "react";
 import { motion } from "framer-motion";
-import { X, FileText, Search, Mic, MicOff } from "lucide-react";
+import { X, FileText, Search, Mic, MicOff, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
 import type { Patient } from "@/types/database.types";
 import type { CreateReportModalProps } from "@/types/components.types";
+
+// Declaração para TypeScript reconhecer a Web Speech API
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 
 const CreateReportModal: React.FC<CreateReportModalProps> = ({
   doctorId,
@@ -27,11 +35,165 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
   );
   const [title, setTitle] = useState<string>("");
   const [content, setContent] = useState<string>("");
+  const [interimText, setInterimText] = useState<string>(""); // texto provisório enquanto fala
   const [loading, setLoading] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
 
   const lastSavedPatientId = useRef<string | null>(null); // para controlar troca de paciente
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const baseContentRef = useRef<string>(""); // guarda o conteúdo base antes de começar a falar
+
+  // Função para corrigir erros comuns de português e formatar texto
+  const correctAndFormatText = useCallback((text: string): string => {
+    if (!text) return "";
+
+    let corrected = text;
+
+    // Corrigir erros comuns de digitação por voz
+    const corrections: Record<string, string> = {
+      // Termos médicos comuns
+      "hiper tensão": "hipertensão",
+      "hiper tensao": "hipertensão",
+      "diabetis": "diabetes",
+      "diabete": "diabetes",
+      "colesterol": "colesterol",
+      "triglicerideos": "triglicerídeos",
+      "triglicerides": "triglicerídeos",
+      "ultra som": "ultrassom",
+      "ultra sonografia": "ultrassonografia",
+      "ressonancia": "ressonância",
+      "resonancia": "ressonância",
+      "tomografia": "tomografia",
+      "raio x": "raio-X",
+      "raio-x": "raio-X",
+      "rx": "RX",
+      "ecg": "ECG",
+      "ekg": "ECG",
+      "hemograma": "hemograma",
+      "glicemia": "glicemia",
+      "glicose": "glicose",
+      "creatinina": "creatinina",
+      "ureia": "ureia",
+      "uréia": "ureia",
+      // Anatomia
+      "figado": "fígado",
+      "vesicula": "vesícula",
+      "pancreas": "pâncreas",
+      "estomago": "estômago",
+      "intestino": "intestino",
+      "rim": "rim",
+      "rins": "rins",
+      "coracao": "coração",
+      "pulmao": "pulmão",
+      "pulmoes": "pulmões",
+      "tireoide": "tireoide",
+      "tireóide": "tireoide",
+      "cabeca": "cabeça",
+      "barriga": "abdômen",
+      "pescoco": "pescoço",
+      "joelho": "joelho",
+      "tornozelo": "tornozelo",
+      // Sintomas e termos clínicos
+      "dor de cabeca": "cefaleia",
+      "dor de cabeça": "cefaleia",
+      "febre": "febre",
+      "tosse": "tosse",
+      "nausea": "náusea",
+      "vomito": "vômito",
+      "diarreia": "diarreia",
+      "diarréia": "diarreia",
+      "constipacao": "constipação",
+      "prisao de ventre": "constipação",
+      "falta de ar": "dispneia",
+      "cansaco": "fadiga",
+      "cansaço": "fadiga",
+      "tontura": "tontura",
+      "vertigem": "vertigem",
+      "inchaço": "edema",
+      "inchaco": "edema",
+      // Termos gerais
+      "paciente": "paciente",
+      "exame": "exame",
+      "normal": "normal",
+      "alterado": "alterado",
+      "sem alteracoes": "sem alterações",
+      "sem alterações": "sem alterações",
+      "presenca": "presença",
+      "ausencia": "ausência",
+      "aumento": "aumento",
+      "diminuicao": "diminuição",
+      "diminuição": "diminuição",
+      "queixa": "queixa",
+      "historia": "história",
+      "historico": "histórico",
+      "antecedente": "antecedente",
+      "alergia": "alergia",
+      "medicacao": "medicação",
+      "medicamento": "medicamento",
+      "cirurgia": "cirurgia",
+      "internacao": "internação",
+      // Conectivos e palavras comuns
+      "nao": "não",
+      "entao": "então",
+      "tambem": "também",
+      "porem": "porém",
+      "atraves": "através",
+      "apos": "após",
+      "ate": "até",
+      "ja": "já",
+      "so": "só",
+      "esta": "está",
+      "sao": "são",
+      "estao": "estão",
+      "voce": "você",
+      "tambem": "também",
+      "necessario": "necessário",
+      "necessaria": "necessária",
+      "proximo": "próximo",
+      "proxima": "próxima",
+      "medico": "médico",
+      "medica": "médica",
+      "familia": "família",
+      "mamae": "mãe",
+      "papai": "pai",
+      "irmao": "irmão",
+      "irma": "irmã",
+    };
+
+    // Aplicar correções (case insensitive)
+    Object.entries(corrections).forEach(([wrong, right]) => {
+      const regex = new RegExp(`\\b${wrong}\\b`, "gi");
+      corrected = corrected.replace(regex, right);
+    });
+
+    // Primeira letra maiúscula após ponto, exclamação ou interrogação
+    corrected = corrected.replace(/([.!?]\s*)([a-záàâãéêíóôõúç])/gi, (match, p1, p2) => {
+      return p1 + p2.toUpperCase();
+    });
+
+    // Primeira letra do texto em maiúscula
+    corrected = corrected.charAt(0).toUpperCase() + corrected.slice(1);
+
+    // Remover espaços duplos
+    corrected = corrected.replace(/\s+/g, " ");
+
+    // Corrigir espaços antes de pontuação
+    corrected = corrected.replace(/\s+([.,;:!?])/g, "$1");
+
+    // Adicionar espaço após pontuação se não houver
+    corrected = corrected.replace(/([.,;:!?])([A-Za-záàâãéêíóôõúç])/g, "$1 $2");
+
+    return corrected.trim();
+  }, []);
+
+  // Função para aplicar correção manualmente
+  const applyCorrection = useCallback(() => {
+    setContent((prev) => correctAndFormatText(prev));
+    toast({
+      title: "✓ Texto corrigido",
+      description: "Correções ortográficas e de formatação aplicadas.",
+    });
+  }, [correctAndFormatText]);
 
   // 🔹 Inicializar reconhecimento de voz
   useEffect(() => {
@@ -43,7 +205,9 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
       recognition.interimResults = true;
       recognition.lang = "pt-BR";
 
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let accumulatedFinal = "";
+
+      recognition.onresult = (event: any) => {
         let finalTranscript = "";
         let interimTranscript = "";
 
@@ -56,14 +220,21 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
           }
         }
 
+        // Acumular texto final
         if (finalTranscript) {
-          setContent((prev: string) => prev + finalTranscript);
+          accumulatedFinal += finalTranscript;
+          // Atualizar o conteúdo com o texto final
+          setContent(baseContentRef.current + accumulatedFinal);
         }
+
+        // Mostrar texto provisório em tempo real
+        setInterimText(interimTranscript);
       };
 
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      recognition.onerror = (event: any) => {
         console.error("Erro no reconhecimento de voz:", event.error);
         setIsListening(false);
+        setInterimText("");
         toast({
           title: "Erro no reconhecimento de voz",
           description: `Ocorreu um erro: ${event.error}`,
@@ -73,6 +244,10 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
 
       recognition.onend = () => {
         setIsListening(false);
+        setInterimText("");
+        // Aplicar correção automática ao parar de gravar
+        setContent((prev) => correctAndFormatText(prev));
+        accumulatedFinal = "";
       };
 
       recognitionRef.current = recognition;
@@ -83,7 +258,7 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
         recognitionRef.current.stop();
       }
     };
-  }, []);
+  }, [correctAndFormatText]);
 
   // 🔹 Função para iniciar/parar transcrição
   const toggleListening = () => {
@@ -99,12 +274,15 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
     if (isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
+      setInterimText("");
     } else {
+      // Guardar o conteúdo atual como base
+      baseContentRef.current = content;
       recognitionRef.current.start();
       setIsListening(true);
       toast({
         title: "🎤 Escutando...",
-        description: "Fale agora para transcrever a anamnese.",
+        description: "Fale agora. O texto aparecerá em tempo real.",
       });
     }
   };
@@ -286,40 +464,74 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="text-sm font-medium">Anamnese</label>
-              <button
-                type="button"
-                onClick={toggleListening}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  isListening
-                    ? "bg-red-100 text-red-600 hover:bg-red-200 animate-pulse"
-                    : "bg-purple-100 text-purple-600 hover:bg-purple-200"
-                }`}
-              >
-                {isListening ? (
-                  <>
-                    <MicOff className="w-4 h-4" />
-                    Parar
-                  </>
-                ) : (
-                  <>
-                    <Mic className="w-4 h-4" />
-                    Transcrever Voz
-                  </>
+              <div className="flex items-center gap-2">
+                {content && (
+                  <button
+                    type="button"
+                    onClick={applyCorrection}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-green-100 text-green-600 hover:bg-green-200 transition-all"
+                    title="Corrigir erros de português"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Corrigir
+                  </button>
                 )}
-              </button>
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    isListening
+                      ? "bg-red-100 text-red-600 hover:bg-red-200 animate-pulse"
+                      : "bg-purple-100 text-purple-600 hover:bg-purple-200"
+                  }`}
+                >
+                  {isListening ? (
+                    <>
+                      <MicOff className="w-4 h-4" />
+                      Parar
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="w-4 h-4" />
+                      Ditar
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-            <textarea
-              className={`w-full border rounded-lg p-2 h-40 transition-all ${
-                isListening ? "border-red-400 ring-2 ring-red-200" : ""
-              }`}
-              placeholder="Digite a anamnese ou use o botão de transcrição de voz..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-            />
+            <div className="relative">
+              <textarea
+                className={`w-full border rounded-lg p-2 h-40 transition-all ${
+                  isListening ? "border-red-400 ring-2 ring-red-200 bg-red-50" : ""
+                }`}
+                placeholder="Digite a anamnese ou clique em 'Ditar' para transcrever por voz..."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                disabled={isListening}
+              />
+              {/* Mostrar texto provisório em tempo real */}
+              {isListening && interimText && (
+                <div className="absolute bottom-2 left-2 right-2 p-2 bg-yellow-100 border border-yellow-300 rounded-lg">
+                  <p className="text-sm text-yellow-800 italic">
+                    <span className="font-medium">Ouvindo:</span> {interimText}
+                  </p>
+                </div>
+              )}
+            </div>
             {isListening && (
-              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                Gravando... Fale agora
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-red-500 flex items-center gap-1">
+                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                  Gravando... O texto aparece em tempo real
+                </p>
+                <p className="text-xs text-gray-500">
+                  ✨ Correção automática ao parar
+                </p>
+              </div>
+            )}
+            {!isListening && content && (
+              <p className="text-xs text-gray-500 mt-1">
+                💡 Clique em "Corrigir" para aplicar correções ortográficas e de formatação.
               </p>
             )}
           </div>
