@@ -1,6 +1,6 @@
 import React, { useState, useEffect, FormEvent } from "react";
 import { motion } from "framer-motion";
-import { X, UserPlus } from "lucide-react";
+import { X, UserPlus, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -15,7 +15,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   userToEdit = null,
   doctorData = null,
 }) => {
-  const { createProfile } = useAuth();
+  const { createProfile, updateUserPassword } = useAuth();
   const isEdit = !!userToEdit;
 
   const [name, setName] = useState(userToEdit?.name || "");
@@ -33,6 +33,9 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
     doctorData?.can_prescribe_lenses || false
   );
   const [loading, setLoading] = useState(false);
+  const [showPasswordEdit, setShowPasswordEdit] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
     if (userToEdit) {
@@ -65,6 +68,39 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
         });
         setLoading(false);
         return;
+      }
+
+      // Atualizar senha se solicitado
+      if (showPasswordEdit && newPassword) {
+        if (newPassword !== confirmPassword) {
+          toast({
+            title: "Erro ao atualizar senha",
+            description: "As senhas não coincidem",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        if (newPassword.length < 6) {
+          toast({
+            title: "Erro ao atualizar senha",
+            description: "A senha deve ter no mínimo 6 caracteres",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        const { error: passwordError } = await updateUserPassword(
+          userToEdit.id,
+          newPassword
+        );
+
+        if (passwordError) {
+          setLoading(false);
+          return;
+        }
       }
 
       if (role === "DOCTOR") {
@@ -210,6 +246,50 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
                 required
               />
+            </div>
+          )}
+
+          {isEdit && (
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setShowPasswordEdit(!showPasswordEdit)}
+                className="flex items-center space-x-2 text-sm font-medium text-purple-600 hover:text-purple-700 transition-colors"
+              >
+                <Key className="w-4 h-4" />
+                <span>
+                  {showPasswordEdit ? "Cancelar alteração de senha" : "Alterar senha"}
+                </span>
+              </button>
+
+              {showPasswordEdit && (
+                <div className="space-y-3 p-3 rounded-lg bg-purple-50 border border-purple-100">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nova Senha (mínimo 6 caracteres)
+                    </label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                      placeholder="Digite a nova senha"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Confirmar Nova Senha
+                    </label>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                      placeholder="Confirme a nova senha"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
