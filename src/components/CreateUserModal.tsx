@@ -409,40 +409,57 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
 
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-gray-700">
-                  Permissões
+                  Especialidade
                 </label>
 
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="canPrescribeExams"
-                    checked={canPrescribeExams}
-                    onChange={(e) => setCanPrescribeExams(e.target.checked)}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <label
-                    htmlFor="canPrescribeExams"
-                    className="text-sm text-gray-700 cursor-pointer"
+                {/* Toggle Oftalmologista */}
+                <div 
+                  className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                    canPrescribeExams && canPrescribeLenses
+                      ? "border-purple-500 bg-purple-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                  onClick={() => {
+                    const newValue = !(canPrescribeExams && canPrescribeLenses);
+                    setCanPrescribeExams(newValue);
+                    setCanPrescribeLenses(newValue);
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">👁️</span>
+                    <div>
+                      <p className="font-medium text-gray-900">Oftalmologista</p>
+                      <p className="text-xs text-gray-500">
+                        Permite prescrever exames oftalmológicos e lentes
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Toggle Switch */}
+                  <div 
+                    className={`relative w-12 h-6 rounded-full transition-colors ${
+                      canPrescribeExams && canPrescribeLenses
+                        ? "bg-purple-600"
+                        : "bg-gray-300"
+                    }`}
                   >
-                    Pode prescrever exames
-                  </label>
+                    <div 
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                        canPrescribeExams && canPrescribeLenses
+                          ? "translate-x-7"
+                          : "translate-x-1"
+                      }`}
+                    />
+                  </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="canPrescribeLenses"
-                    checked={canPrescribeLenses}
-                    onChange={(e) => setCanPrescribeLenses(e.target.checked)}
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
-                  />
-                  <label
-                    htmlFor="canPrescribeLenses"
-                    className="text-sm text-gray-700 cursor-pointer"
-                  >
-                    Pode prescrever lentes
-                  </label>
-                </div>
+                {canPrescribeExams && canPrescribeLenses && (
+                  <div className="flex items-center gap-2 text-xs text-purple-600 pl-2">
+                    <span>✓ Exames oftalmológicos</span>
+                    <span>•</span>
+                    <span>✓ Prescrição de lentes</span>
+                  </div>
+                )}
               </div>
             </>
           )}
