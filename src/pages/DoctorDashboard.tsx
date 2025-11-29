@@ -13,6 +13,8 @@ import CreateReportModal from "@/components/CreateReportModal";
 import CreateCertificateModal from "@/components/CreateCertificateModal";
 import { SearchReportsModal } from "@/components/SearchReportsModal";
 import PatientDetailsPage from "@/pages/PatientDetailsPage";
+import ClinicAdminContent from "@/components/ClinicAdminContent";
+import { Shield } from "lucide-react";
 
 const DoctorDashboard = () => {
   const { signOut, profile, user } = useAuth();
@@ -146,6 +148,14 @@ const DoctorDashboard = () => {
               >
                 <FileText className="w-4 h-4 mr-2" /> Anamneses
               </TabsTrigger>
+              {profile?.is_admin && (
+                <TabsTrigger
+                  value="admin"
+                  className="data-[state=active]:gradient-primary data-[state=active]:text-white"
+                >
+                  <Shield className="w-4 h-4 mr-2" /> Administrador
+                </TabsTrigger>
+              )}
             </TabsList>
 
             {/* Agenda */}
@@ -203,6 +213,13 @@ const DoctorDashboard = () => {
                 </div>
               </div>
             </TabsContent>
+
+            {/* Administrador */}
+            {profile?.is_admin && (
+              <TabsContent value="admin">
+                <ClinicAdminContent />
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       </div>

@@ -17,6 +17,7 @@ interface CreateProfileData {
   name: string;
   clinic_id?: string;
   role: UserRole;
+  is_admin?: boolean;
 }
 
 interface AuthContextType {
@@ -135,7 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       password: string,
       profileData: CreateProfileData
     ): Promise<{ user: User | null; error: AuthError | Error | null }> => {
-      const { name, clinic_id, role } = profileData;
+      const { name, clinic_id, role, is_admin } = profileData;
 
       const { data: authData, error: authError } =
         await supabaseAdmin.auth.admin.createUser({
@@ -162,6 +163,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             name,
             role,
             clinic_id,
+            is_admin: is_admin || false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });

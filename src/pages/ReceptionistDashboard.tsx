@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
-import { Calendar, LogOut, Users } from "lucide-react";
+import { Calendar, LogOut, Users, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
 import DoctorMonthlyCalendar from "@/components/DoctorMonthlyCalendar";
 import PatientManagementModal from "@/components/PatientManagementModal";
+import ClinicAdminContent from "@/components/ClinicAdminContent";
 // import PatientDetailsPage from "@/pages/PatientDetailsPage";
 import { supabase } from "@/lib/customSupabaseClient";
 
@@ -166,35 +168,65 @@ const ReceptionistDashboard = () => {
         </nav>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              Planner Semanal dos Médicos
-            </h2>
-
-            <div className="flex gap-2">
-              {clinicId && (
-                <DoctorAutocomplete
-                  clinicId={clinicId}
-                  selectedDoctor={selectedDoctor}
-                  setSelectedDoctor={setSelectedDoctor}
-                />
-              )}
-              <Button
-                onClick={() => setShowPatientManagement(true)}
-                variant="outline"
-                className="bg-purple-100 hover:bg-purple-200 text-purple-700 border-purple-300"
+          <Tabs defaultValue="planner" className="space-y-6">
+            <TabsList className="glass-effect p-1">
+              <TabsTrigger
+                value="planner"
+                className="data-[state=active]:gradient-primary data-[state=active]:text-white"
               >
-                <Users className="w-4 h-4 mr-2" />
-                Gerenciar Pacientes
-              </Button>
-            </div>
-          </div>
+                <Calendar className="w-4 h-4 mr-2" /> Planner Semanal
+              </TabsTrigger>
+              {profile?.is_admin && (
+                <TabsTrigger
+                  value="admin"
+                  className="data-[state=active]:gradient-primary data-[state=active]:text-white"
+                >
+                  <Shield className="w-4 h-4 mr-2" /> Administrador
+                </TabsTrigger>
+              )}
+            </TabsList>
 
-          {/* 🔹 Calendário Mensal */}
-          <DoctorMonthlyCalendar
-            clinicId={clinicId || ""}
-            doctorId={selectedDoctor}
-          />
+            <TabsContent value="planner">
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Planner Semanal dos Médicos
+                  </h2>
+
+                  <div className="flex gap-2">
+                    {clinicId && (
+                      <DoctorAutocomplete
+                        clinicId={clinicId}
+                        selectedDoctor={selectedDoctor}
+                        setSelectedDoctor={setSelectedDoctor}
+                      />
+                    )}
+                    <Button
+                      onClick={() => setShowPatientManagement(true)}
+                      variant="outline"
+                      className="bg-purple-100 hover:bg-purple-200 text-purple-700 border-purple-300"
+                    >
+                      <Users className="w-4 h-4 mr-2" />
+                      Gerenciar Pacientes
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 🔹 Calendário Mensal */}
+                <DoctorMonthlyCalendar
+                  clinicId={clinicId || ""}
+                  doctorId={selectedDoctor}
+                />
+              </div>
+            </TabsContent>
+
+            {/* Administrador */}
+            {profile?.is_admin && (
+              <TabsContent value="admin">
+                <ClinicAdminContent />
+              </TabsContent>
+            )}
+          </Tabs>
         </div>
       </div>
 

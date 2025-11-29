@@ -1,6 +1,6 @@
 import React, { useState, useEffect, FormEvent } from "react";
 import { motion } from "framer-motion";
-import { X, UserPlus, Key, AlertCircle } from "lucide-react";
+import { X, UserPlus, Key, AlertCircle, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -32,6 +32,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   const [canPrescribeLenses, setCanPrescribeLenses] = useState(
     doctorData?.can_prescribe_lenses || false
   );
+  const [isAdmin, setIsAdmin] = useState(userToEdit?.is_admin || false);
   const [loading, setLoading] = useState(false);
   const [showPasswordEdit, setShowPasswordEdit] = useState(false);
   const [newPassword, setNewPassword] = useState("");
@@ -44,6 +45,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
       setName(userToEdit.name || "");
       setEmail(userToEdit.email || "");
       setRole(userToEdit.role || "RECEPTIONIST");
+      setIsAdmin(userToEdit.is_admin || false);
       setCrm(doctorData?.crm || "");
       setSpecialties(doctorData?.specialties?.join(", ") || "");
       setCanPrescribeExams(doctorData?.can_prescribe_exams || false);
@@ -91,7 +93,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
       // Atualizar usuário existente
       const { error: updateError } = await supabase
         .from("profiles")
-        .update({ name, email, role })
+        .update({ name, email, role, is_admin: isAdmin })
         .eq("id", userToEdit.id);
 
       if (updateError) {
@@ -180,7 +182,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
     }
 
     const trimmedEmail = email.trim();
-    const profileData = { name, clinic_id: clinicId, role };
+    const profileData = { name, clinic_id: clinicId, role, is_admin: isAdmin };
 
     const { user, error: signUpError } = await createProfile(
       trimmedEmail,
@@ -375,6 +377,50 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
               <option value="RECEPTIONIST">Recepcionista</option>
               <option value="DOCTOR">Médico</option>
             </select>
+          </div>
+
+          {/* Privilégios de Administrador */}
+          <div className="p-3 rounded-lg border-2 border-gray-200 hover:border-gray-300 transition-all">
+            <div 
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => setIsAdmin(!isAdmin)}
+            >
+              <div className="flex items-center gap-3">
+                <Shield className={`w-5 h-5 ${isAdmin ? "text-purple-600" : "text-gray-400"}`} />
+                <div>
+                  <p className="font-medium text-gray-900">Privilégios de Administrador</p>
+                  <p className="text-xs text-gray-500">
+                    Permite gerenciar usuários, horários e visualizar calendário da clínica
+                  </p>
+                </div>
+              </div>
+              
+              {/* Toggle Switch */}
+              <div 
+                className={`relative w-12 h-6 rounded-full transition-colors ${
+                  isAdmin
+                    ? "bg-purple-600"
+                    : "bg-gray-300"
+                }`}
+              >
+                <div 
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                    isAdmin
+                      ? "translate-x-7"
+                      : "translate-x-1"
+                  }`}
+                />
+              </div>
+            </div>
+
+            {isAdmin && (
+              <div className="mt-2 pl-8 text-xs text-purple-600 space-y-1">
+                <p>✓ Gerenciar usuários da clínica</p>
+                <p>✓ Configurar horários de trabalho</p>
+                <p>✓ Visualizar calendário completo</p>
+                <p>✓ Editar senhas de usuários</p>
+              </div>
+            )}
           </div>
 
           {role === "DOCTOR" && (

@@ -38,8 +38,10 @@ function App() {
           </div>
         );
       case "DOCTOR":
+        // Médicos sempre veem seu dashboard, mas podem ter aba de admin se is_admin = true
         return <DoctorDashboard />;
       case "RECEPTIONIST":
+        // Recepcionistas sempre veem seu dashboard, mas podem ter aba de admin se is_admin = true
         return <ReceptionistDashboard />;
       default:
         return <LoginPage />;
