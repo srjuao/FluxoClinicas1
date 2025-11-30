@@ -7,6 +7,7 @@ import {
   Clock,
   Search,
   Shield,
+  DollarSign,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,6 +17,7 @@ import { toast } from "@/components/ui/use-toast";
 import CreateUserModal from "@/components/CreateUserModal";
 import ManageWorkHoursModal from "@/components/ManageWorkHoursModal";
 import ClinicCalendar from "@/components/ClinicCalendar";
+import FinancialManagement from "@/components/FinancialManagement";
 import type {
   Profile,
   Doctor,
@@ -129,6 +131,13 @@ const ClinicAdminContent = () => {
           >
             <Users className="w-4 h-4 mr-2" />
             Usuários
+          </TabsTrigger>
+          <TabsTrigger
+            value="financial"
+            className="data-[state=active]:gradient-primary data-[state=active]:text-white"
+          >
+            <DollarSign className="w-4 h-4 mr-2" />
+            Financeiro
           </TabsTrigger>
         </TabsList>
 
@@ -280,6 +289,11 @@ const ClinicAdminContent = () => {
                 })}
             </div>
           </div>
+        </TabsContent>
+
+        {/* Financeiro */}
+        <TabsContent value="financial">
+          <FinancialManagement clinicId={clinicId || ""} />
         </TabsContent>
       </Tabs>
 

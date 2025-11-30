@@ -22,6 +22,15 @@ export interface Database {
           scheduled_end: string
           status: AppointmentStatus
           created_at: string
+          reason?: string | null
+          is_insurance?: boolean | null
+          insurance_plan_id?: string | null
+          consultation_value?: number | null
+          discount_amount?: number | null
+          final_value?: number | null
+          clinic_commission_percentage?: number | null
+          clinic_commission_amount?: number | null
+          doctor_amount?: number | null
         }
         Insert: {
           id?: string
@@ -32,6 +41,15 @@ export interface Database {
           scheduled_end: string
           status?: AppointmentStatus
           created_at?: string
+          reason?: string | null
+          is_insurance?: boolean | null
+          insurance_plan_id?: string | null
+          consultation_value?: number | null
+          discount_amount?: number | null
+          final_value?: number | null
+          clinic_commission_percentage?: number | null
+          clinic_commission_amount?: number | null
+          doctor_amount?: number | null
         }
         Update: {
           id?: string
@@ -42,6 +60,15 @@ export interface Database {
           scheduled_end?: string
           status?: AppointmentStatus
           created_at?: string
+          reason?: string | null
+          is_insurance?: boolean | null
+          insurance_plan_id?: string | null
+          consultation_value?: number | null
+          discount_amount?: number | null
+          final_value?: number | null
+          clinic_commission_percentage?: number | null
+          clinic_commission_amount?: number | null
+          doctor_amount?: number | null
         }
       }
       clinics: {
@@ -303,6 +330,87 @@ export interface Database {
           updated_at?: string | null
         }
       }
+      doctor_pricing: {
+        Row: {
+          id: string
+          doctor_id: string
+          clinic_id: string
+          consultation_value: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          doctor_id: string
+          clinic_id: string
+          consultation_value: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          doctor_id?: string
+          clinic_id?: string
+          consultation_value?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      clinic_commission: {
+        Row: {
+          id: string
+          doctor_id: string
+          clinic_id: string
+          commission_percentage: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          doctor_id: string
+          clinic_id: string
+          commission_percentage: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          doctor_id?: string
+          clinic_id?: string
+          commission_percentage?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      insurance_plans: {
+        Row: {
+          id: string
+          clinic_id: string
+          name: string
+          discount_percentage: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          name: string
+          discount_percentage: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          name?: string
+          discount_percentage?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -332,6 +440,9 @@ export type MedicalReport = Tables<'medical_reports'>
 export type Patient = Tables<'patients'>
 export type Prescription = Tables<'prescriptions'>
 export type Profile = Tables<'profiles'>
+export type DoctorPricing = Tables<'doctor_pricing'>
+export type ClinicCommission = Tables<'clinic_commission'>
+export type InsurancePlan = Tables<'insurance_plans'>
 
 // Extended types with relations
 export type ProfileWithClinic = Profile & {

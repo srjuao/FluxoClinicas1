@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { X, Calendar, Clock, User } from "lucide-react";
+import { X, Calendar, Clock, User, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
 import type { Patient } from "@/types/database";
+import type { InsurancePlan, DoctorPricing, ClinicCommission } from "@/types/database.types";
 
 interface QuickAppointmentModalProps {
   clinicId: string;
@@ -31,6 +32,19 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Estados para convênio
+  const [isInsurance, setIsInsurance] = useState(false);
+  const [insurancePlans, setInsurancePlans] = useState<InsurancePlan[]>([]);
+  const [selectedInsurancePlan, setSelectedInsurancePlan] = useState<string>("");
+  
+  // Estados para valores financeiros
+  const [consultationValue, setConsultationValue] = useState<number>(0);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [finalValue, setFinalValue] = useState<number>(0);
+  const [clinicCommissionPercentage, setClinicCommissionPercentage] = useState<number>(0);
+  const [clinicCommissionAmount, setClinicCommissionAmount] = useState<number>(0);
+  const [doctorAmount, setDoctorAmount] = useState<number>(0);
 
   const loadPatients = useCallback(async () => {
     if (!clinicId) return;
@@ -54,9 +68,98 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
     setLoading(false);
   }, [clinicId]);
 
+  const loadFinancialData = useCallback(async () => {
+    if (!clinicId || !doctorId) return;
+
+    try {
+      // Carregar convênios ativos
+      const { data: insuranceData, error: insuranceError } = await supabase
+        .from("insurance_plans")
+        .select("*")
+        .eq("clinic_id", clinicId)
+        .eq("is_active", true)
+        .order("name");
+
+      if (insuranceError) throw insuranceError;
+      setInsurancePlans(insuranceData || []);
+
+      // Carregar valor da consulta do médico
+      const { data: pricingData, error: pricingError } = await supabase
+        .from("doctor_pricing")
+        .select("consultation_value")
+        .eq("doctor_id", doctorId)
+        .eq("clinic_id", clinicId)
+        .single();
+
+      if (pricingError && pricingError.code !== "PGRST116") {
+        // PGRST116 = no rows returned, que é ok se não tiver preço definido
+        throw pricingError;
+      }
+
+      const value = pricingData?.consultation_value || 0;
+      setConsultationValue(value);
+
+      // Carregar comissão da clínica
+      const { data: commissionData, error: commissionError } = await supabase
+        .from("clinic_commission")
+        .select("commission_percentage")
+        .eq("doctor_id", doctorId)
+        .eq("clinic_id", clinicId)
+        .single();
+
+      if (commissionError && commissionError.code !== "PGRST116") {
+        throw commissionError;
+      }
+
+      const percentage = commissionData?.commission_percentage || 0;
+      setClinicCommissionPercentage(percentage);
+    } catch (error) {
+      console.error("Erro ao carregar dados financeiros:", error);
+      // Não mostrar erro para o usuário, apenas usar valores padrão
+    }
+  }, [clinicId, doctorId]);
+
   useEffect(() => {
     loadPatients();
   }, [loadPatients]);
+
+  useEffect(() => {
+    loadFinancialData();
+  }, [loadFinancialData]);
+
+  // Calcular valores quando mudar convênio ou valor da consulta
+  useEffect(() => {
+    if (consultationValue <= 0) {
+      setFinalValue(0);
+      setDiscountAmount(0);
+      setClinicCommissionAmount(0);
+      setDoctorAmount(0);
+      return;
+    }
+
+    let discount = 0;
+    if (isInsurance && selectedInsurancePlan) {
+      const plan = insurancePlans.find((p) => p.id === selectedInsurancePlan);
+      if (plan) {
+        discount = (consultationValue * plan.discount_percentage) / 100;
+      }
+    }
+
+    const final = consultationValue - discount;
+    const clinicCommission = (final * clinicCommissionPercentage) / 100;
+    const doctor = final - clinicCommission;
+
+    setDiscountAmount(discount);
+    setFinalValue(final);
+    setClinicCommissionAmount(clinicCommission);
+    setDoctorAmount(doctor);
+  }, [
+    consultationValue,
+    isInsurance,
+    selectedInsurancePlan,
+    insurancePlans,
+    clinicCommissionPercentage,
+  ]);
 
   const filteredPatients = patients.filter(
     (p) =>
@@ -95,6 +198,14 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
         scheduled_end: endDate.toISOString(),
         status: "SCHEDULED",
         reason: reasonText,
+        is_insurance: isInsurance,
+        insurance_plan_id: isInsurance && selectedInsurancePlan ? selectedInsurancePlan : null,
+        consultation_value: consultationValue > 0 ? consultationValue : null,
+        discount_amount: discountAmount > 0 ? discountAmount : null,
+        final_value: finalValue > 0 ? finalValue : null,
+        clinic_commission_percentage: clinicCommissionPercentage > 0 ? clinicCommissionPercentage : null,
+        clinic_commission_amount: clinicCommissionAmount > 0 ? clinicCommissionAmount : null,
+        doctor_amount: doctorAmount > 0 ? doctorAmount : null,
       });
 
       if (error) throw error;
@@ -190,6 +301,100 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
                 <option value="retorno">Retorno</option>
               </select>
             </div>
+
+            {/* Tipo de Pagamento */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <CreditCard className="w-4 h-4 inline mr-1" />
+                Tipo de Pagamento
+              </label>
+              <div className="space-y-3">
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="paymentType"
+                      checked={!isInsurance}
+                      onChange={() => {
+                        setIsInsurance(false);
+                        setSelectedInsurancePlan("");
+                      }}
+                      className="w-4 h-4 text-purple-600"
+                    />
+                    <span className="text-gray-700">Particular</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="paymentType"
+                      checked={isInsurance}
+                      onChange={() => setIsInsurance(true)}
+                      className="w-4 h-4 text-purple-600"
+                    />
+                    <span className="text-gray-700">Convênio</span>
+                  </label>
+                </div>
+
+                {isInsurance && (
+                  <div>
+                    <select
+                      value={selectedInsurancePlan}
+                      onChange={(e) => setSelectedInsurancePlan(e.target.value)}
+                      className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                    >
+                      <option value="">Selecione o convênio...</option>
+                      {insurancePlans.map((plan) => (
+                        <option key={plan.id} value={plan.id}>
+                          {plan.name} ({plan.discount_percentage.toFixed(2)}% desconto)
+                        </option>
+                      ))}
+                    </select>
+                    {insurancePlans.length === 0 && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Nenhum convênio cadastrado. Configure no módulo Financeiro.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Resumo Financeiro (se houver valores configurados) */}
+            {consultationValue > 0 && (
+              <div className="glass-effect rounded-lg p-4 space-y-2">
+                <h4 className="font-semibold text-gray-900 text-sm mb-2">
+                  Resumo Financeiro
+                </h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Valor da Consulta:</span>
+                    <span className="font-medium">R$ {consultationValue.toFixed(2)}</span>
+                  </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Desconto:</span>
+                      <span className="font-medium">- R$ {discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-gray-200 pt-1">
+                    <span className="text-gray-900 font-semibold">Valor Final:</span>
+                    <span className="text-purple-600 font-bold">R$ {finalValue.toFixed(2)}</span>
+                  </div>
+                  {clinicCommissionPercentage > 0 && (
+                    <>
+                      <div className="flex justify-between text-xs text-gray-500 pt-1">
+                        <span>Clínica ({clinicCommissionPercentage.toFixed(2)}%):</span>
+                        <span>R$ {clinicCommissionAmount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span>Médico:</span>
+                        <span>R$ {doctorAmount.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Patient List */}
             {loading ? (
