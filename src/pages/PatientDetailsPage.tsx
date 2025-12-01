@@ -451,7 +451,7 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                       <p className="text-xs text-gray-500">
                         {formatDate(report.created_at)}
                       </p>
-                      <p className="text-sm text-gray-800 mt-2 whitespace-pre-wrap">
+                      <p className="text-sm text-gray-800 mt-2 whitespace-pre-wrap break-words overflow-hidden">
                         {report.content}
                       </p>
                     </motion.div>
