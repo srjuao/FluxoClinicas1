@@ -8,6 +8,7 @@ import {
   Search,
   Shield,
   DollarSign,
+  Edit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -257,8 +258,8 @@ const ClinicAdminContent = () => {
                             size="sm"
                             className="flex-1"
                           >
-                            <Clock className="w-3 h-3 mr-2" />
-                            Horários
+                            <Edit className="w-3 h-3 mr-2" />
+                            Editar Horários
                           </Button>
                         )}
 
