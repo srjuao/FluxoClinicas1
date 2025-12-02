@@ -4,6 +4,7 @@ import { X, Calendar, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
+import { validateCPF, formatCPF, cleanCPF } from "@/utils";
 import type { Patient, DoctorWithProfileName } from "@/types/database.types";
 import type {
   CreateAppointmentModalProps,
@@ -51,6 +52,7 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
     estado_civil: "",
   });
   const [loading, setLoading] = useState(false);
+  const [cpfError, setCpfError] = useState<string | null>(null);
 
   // Carrega médicos e pacientes
   const loadInitialData = useCallback(async () => {
@@ -178,11 +180,31 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
   };
 
   const handleSavePatient = async () => {
+    if (!patientForm.cpf) {
+      setCpfError("CPF é obrigatório");
+      toast({ title: "CPF é obrigatório", variant: "destructive" });
+      return;
+    }
+
+    if (!validateCPF(patientForm.cpf)) {
+      setCpfError("CPF inválido");
+      toast({
+        title: "CPF inválido",
+        description: "Por favor, insira um CPF válido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCpfError(null);
     setLoading(true);
+
+    const dataToSave = { ...patientForm, cpf: cleanCPF(patientForm.cpf) };
+
     if (editingPatient) {
       const { error, data } = await supabase
         .from("patients")
-        .update(patientForm)
+        .update(dataToSave)
         .eq("id", editingPatient.id)
         .select()
         .single();
@@ -204,7 +226,7 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
     } else {
       const { data, error } = await supabase
         .from("patients")
-        .insert({ clinic_id: clinicId, ...patientForm })
+        .insert({ clinic_id: clinicId, ...dataToSave })
         .select()
         .single();
 
@@ -476,11 +498,19 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
                     type="text"
                     placeholder="CPF"
                     value={patientForm.cpf}
-                    onChange={(e) =>
-                      setPatientForm({ ...patientForm, cpf: e.target.value })
-                    }
-                    className="w-full px-3 py-2 rounded-lg border"
+                    onChange={(e) => {
+                      const formatted = formatCPF(e.target.value);
+                      setPatientForm({ ...patientForm, cpf: formatted });
+                      if (cpfError) setCpfError(null);
+                    }}
+                    maxLength={14}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      cpfError ? "border-red-500" : ""
+                    }`}
                   />
+                  {cpfError && (
+                    <p className="text-xs text-red-500">{cpfError}</p>
+                  )}
                   <input
                     type="date"
                     placeholder="Data de nascimento"

@@ -1,3 +1,5 @@
+export { validateCPF, formatCPF, cleanCPF } from "./cpf";
+
 export const calculateAge = (
   birthDate: string | null | undefined
 ): string | number => {

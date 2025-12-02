@@ -4,6 +4,7 @@ import { X, User, Search, Edit, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
+import { validateCPF, formatCPF, cleanCPF } from "@/utils";
 import type { Patient } from "@/types/database.types";
 
 const SEX_OPTIONS = [
@@ -52,6 +53,7 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
     estado_civil: "",
     endereco: "",
   });
+  const [cpfError, setCpfError] = useState<string | null>(null);
 
   const loadPatients = useCallback(async () => {
     if (!clinicId) return;
@@ -140,13 +142,38 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
 
   const handleSavePatient = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log(patientForm.cpf);
+
+    if (!patientForm.cpf) {
+      setCpfError("CPF é obrigatório");
+      toast({
+        title: "CPF é obrigatório",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateCPF(patientForm.cpf)) {
+      setCpfError("CPF inválido");
+      toast({
+        title: "CPF inválido",
+        description: "Por favor, insira um CPF válido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCpfError(null);
     setLoading(true);
+
+    const cleanedCPF = cleanCPF(patientForm.cpf);
+    const dataToSave = { ...patientForm, cpf: cleanedCPF };
 
     if (editingPatient) {
       // Update existing patient
       const { error } = await supabase
         .from("patients")
-        .update(patientForm)
+        .update(dataToSave)
         .eq("id", editingPatient.id);
 
       if (error) {
@@ -165,7 +192,7 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
       // Create new patient
       const { error } = await supabase
         .from("patients")
-        .insert({ clinic_id: clinicId, ...patientForm });
+        .insert({ clinic_id: clinicId, ...dataToSave });
 
       if (error) {
         toast({
@@ -311,17 +338,26 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  CPF
+                  CPF *
                 </label>
                 <input
                   type="text"
                   value={patientForm.cpf}
-                  onChange={(e) =>
-                    setPatientForm({ ...patientForm, cpf: e.target.value })
-                  }
-                  className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  onChange={(e) => {
+                    const formatted = formatCPF(e.target.value);
+                    setPatientForm({ ...patientForm, cpf: formatted });
+                    if (cpfError) setCpfError(null);
+                  }}
+                  className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                    cpfError ? "border-red-500" : "border-gray-200"
+                  }`}
                   placeholder="000.000.000-00"
+                  maxLength={14}
+                  required
                 />
+                {cpfError && (
+                  <p className="text-xs text-red-500 mt-1">{cpfError}</p>
+                )}
               </div>
 
               <div>
@@ -337,6 +373,7 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
                       birth_date: e.target.value,
                     })
                   }
+                  required
                   className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
               </div>

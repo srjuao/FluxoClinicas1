@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
+import { validateCPF, formatCPF, cleanCPF } from "@/utils";
 import { FileText, Edit } from "lucide-react";
 import type { Patient } from "@/types/database.types";
 import type { CreateCertificateModalProps, PatientFormData } from "@/types/components.types";
@@ -34,6 +35,7 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
   const [days, setDays] = useState("");
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [cpfError, setCpfError] = useState<string | null>(null);
 
   const loadPatients = useCallback(async () => {
     if (!clinicId) return;
@@ -74,20 +76,39 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
   };
 
   const handleSavePatient = async () => {
+    if (!patientForm.cpf) {
+      setCpfError("CPF é obrigatório");
+      toast({ title: "CPF é obrigatório", variant: "destructive" });
+      return;
+    }
+
+    if (!validateCPF(patientForm.cpf)) {
+      setCpfError("CPF inválido");
+      toast({
+        title: "CPF inválido",
+        description: "Por favor, insira um CPF válido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCpfError(null);
     setLoading(true);
     let data, error;
+
+    const dataToSave = { ...patientForm, cpf: cleanCPF(patientForm.cpf) };
 
     if (editingPatient) {
       ({ data, error } = await supabase
         .from("patients")
-        .update(patientForm)
+        .update(dataToSave)
         .eq("id", editingPatient.id)
         .select()
         .single());
     } else {
       ({ data, error } = await supabase
         .from("patients")
-        .insert({ clinic_id: clinicId, ...patientForm })
+        .insert({ clinic_id: clinicId, ...dataToSave })
         .select()
         .single());
     }
@@ -292,13 +313,21 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
               }
             />
             <input
-              className="w-full px-3 py-2 border rounded"
+              className={`w-full px-3 py-2 border rounded ${
+                cpfError ? "border-red-500" : ""
+              }`}
               placeholder="CPF"
               value={patientForm.cpf}
-              onChange={(e) =>
-                setPatientForm({ ...patientForm, cpf: e.target.value })
-              }
+              onChange={(e) => {
+                const formatted = formatCPF(e.target.value);
+                setPatientForm({ ...patientForm, cpf: formatted });
+                if (cpfError) setCpfError(null);
+              }}
+              maxLength={14}
             />
+            {cpfError && (
+              <p className="text-xs text-red-500">{cpfError}</p>
+            )}
             <input
               type="date"
               className="w-full px-3 py-2 border rounded"
