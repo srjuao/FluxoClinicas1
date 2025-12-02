@@ -151,6 +151,70 @@ WHERE clinic_id IS NOT NULL;
 --    → Concede privilégios de admin independente do role
 --
 -- ============================================
+-- 7. RLS POLICIES PARA DOCTOR_WORK_HOURS
+-- ============================================
+-- Permite que usuários com is_admin = true gerenciem horários de trabalho dos médicos
+
+-- Primeiro, habilitar RLS na tabela (se ainda não estiver)
+ALTER TABLE doctor_work_hours ENABLE ROW LEVEL SECURITY;
+
+-- Policy para SELECT: admins podem ver horários da sua clínica
+CREATE POLICY "Admins can view doctor_work_hours"
+ON doctor_work_hours FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE profiles.id = auth.uid() 
+    AND profiles.clinic_id = doctor_work_hours.clinic_id
+    AND (profiles.is_admin = true OR profiles.role IN ('CLINIC_ADMIN', 'SUPER_ADMIN'))
+  )
+);
+
+-- Policy para INSERT: admins podem inserir horários na sua clínica
+CREATE POLICY "Admins can insert doctor_work_hours"
+ON doctor_work_hours FOR INSERT
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE profiles.id = auth.uid() 
+    AND profiles.clinic_id = doctor_work_hours.clinic_id
+    AND (profiles.is_admin = true OR profiles.role IN ('CLINIC_ADMIN', 'SUPER_ADMIN'))
+  )
+);
+
+-- Policy para UPDATE: admins podem atualizar horários da sua clínica
+CREATE POLICY "Admins can update doctor_work_hours"
+ON doctor_work_hours FOR UPDATE
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE profiles.id = auth.uid() 
+    AND profiles.clinic_id = doctor_work_hours.clinic_id
+    AND (profiles.is_admin = true OR profiles.role IN ('CLINIC_ADMIN', 'SUPER_ADMIN'))
+  )
+)
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE profiles.id = auth.uid() 
+    AND profiles.clinic_id = doctor_work_hours.clinic_id
+    AND (profiles.is_admin = true OR profiles.role IN ('CLINIC_ADMIN', 'SUPER_ADMIN'))
+  )
+);
+
+-- Policy para DELETE: admins podem deletar horários da sua clínica
+CREATE POLICY "Admins can delete doctor_work_hours"
+ON doctor_work_hours FOR DELETE
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles 
+    WHERE profiles.id = auth.uid() 
+    AND profiles.clinic_id = doctor_work_hours.clinic_id
+    AND (profiles.is_admin = true OR profiles.role IN ('CLINIC_ADMIN', 'SUPER_ADMIN'))
+  )
+);
+
+-- ============================================
 -- COMO EXECUTAR
 -- ============================================
 -- 
