@@ -142,7 +142,6 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
 
   const handleSavePatient = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log(patientForm.cpf);
 
     if (!patientForm.cpf) {
       setCpfError("CPF é obrigatório");

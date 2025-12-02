@@ -89,7 +89,6 @@ const ReceptionistCalendar = ({ clinicId, doctorId }) => {
 
       const startStr = `${getLocalDateString(weekStart)}T00:00:00`;
       const endStr = `${getLocalDateString(weekEnd)}T23:59:59`;
-      console.log(startStr, endStr);
 
       const [{ data: appointmentsData }, { data: workHoursData }] =
         await Promise.all([
@@ -109,8 +108,6 @@ const ReceptionistCalendar = ({ clinicId, doctorId }) => {
             .eq("doctor_id", doctorId),
         ]);
 
-      console.log(appointmentsData, workHoursData);
-
       setAppointments(appointmentsData || []);
       setWorkHours(workHoursData || []);
 
@@ -122,7 +119,6 @@ const ReceptionistCalendar = ({ clinicId, doctorId }) => {
         }
       });
       setPatients(patientMap);
-      console.log(patientMap);
 
       setLoading(false);
     } catch (error) {
