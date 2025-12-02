@@ -9,7 +9,6 @@ import {
   Plus,
   Calendar,
   Paperclip,
-  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
@@ -172,31 +171,6 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
     if (data) setReports(data);
   };
 
-  // Delete report
-  const handleDeleteReport = async (reportId: string) => {
-    if (!window.confirm("Tem certeza que deseja apagar esta anamnese? Esta ação não pode ser desfeita.")) {
-      return;
-    }
-
-    const { error } = await supabase
-      .from("medical_reports")
-      .delete()
-      .eq("id", reportId);
-
-    if (error) {
-      toast({
-        title: "Erro ao apagar anamnese",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Anamnese apagada com sucesso",
-      });
-      // Refresh reports list
-      refreshReports();
-    }
-  };
 
   // Handler: Mark patient as attended
   const handleMarkAsAttended = async () => {
@@ -467,17 +441,8 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="p-4 bg-red-200/50 rounded-xl relative group"
+                      className="p-4 bg-red-200/50 rounded-xl"
                     >
-                      {doctorData && report.doctor_id === doctorData.id && (
-                        <button
-                          onClick={() => handleDeleteReport(report.id)}
-                          className="absolute top-2 right-2 p-1.5 rounded-lg bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                          title="Apagar anamnese"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
                       <h3 className="font-semibold text-gray-900 text-sm mb-1">
                         {report.title}
                       </h3>
