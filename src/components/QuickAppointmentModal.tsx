@@ -4,6 +4,7 @@ import { X, Calendar, Clock, User, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
+import { formatCPF } from "@/utils";
 import type { Patient } from "@/types/database";
 import type { InsurancePlan, DoctorPricing, ClinicCommission } from "@/types/database.types";
 
@@ -423,7 +424,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
                       </p>
                       {patient.cpf && (
                         <p className="text-sm text-gray-600">
-                          CPF: {patient.cpf}
+                          CPF: {formatCPF(patient.cpf)}
                         </p>
                       )}
                       {patient.telefone && (

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/customSupabaseClient";
+import { formatCPF } from "@/utils";
 
 const weekdays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const weekdaysFull = [
@@ -294,7 +295,7 @@ const ReceptionistCalendar = ({ clinicId, doctorId }) => {
             {patient?.cpf && (
               <div className="flex items-center gap-2 text-gray-700">
                 <span className="font-semibold">CPF:</span>
-                <span>{patient.cpf}</span>
+                <span>{formatCPF(patient.cpf)}</span>
               </div>
             )}
 

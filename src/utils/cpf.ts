@@ -34,14 +34,21 @@ export const validateCPF = (cpf: string): boolean => {
 
 /**
  * Formata CPF para exibição (000.000.000-00)
+ * Remove caracteres não numéricos, limita a 11 dígitos e aplica a máscara
  */
 export const formatCPF = (cpf: string): string => {
+  // Remove todos os caracteres não numéricos
   const cleaned = cpf.replace(/\D/g, "");
-  if (cleaned.length <= 3) return cleaned;
-  if (cleaned.length <= 6) return `${cleaned.slice(0, 3)}.${cleaned.slice(3)}`;
-  if (cleaned.length <= 9)
-    return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6)}`;
-  return `${cleaned.slice(0, 3)}.${cleaned.slice(3, 6)}.${cleaned.slice(6, 9)}-${cleaned.slice(9, 11)}`;
+  
+  // Limita a 11 dígitos (tamanho máximo de um CPF)
+  const limited = cleaned.slice(0, 11);
+  
+  // Aplica a máscara conforme o tamanho
+  if (limited.length <= 3) return limited;
+  if (limited.length <= 6) return `${limited.slice(0, 3)}.${limited.slice(3)}`;
+  if (limited.length <= 9)
+    return `${limited.slice(0, 3)}.${limited.slice(3, 6)}.${limited.slice(6)}`;
+  return `${limited.slice(0, 3)}.${limited.slice(3, 6)}.${limited.slice(6, 9)}-${limited.slice(9, 11)}`;
 };
 
 /**

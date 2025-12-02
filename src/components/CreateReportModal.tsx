@@ -10,6 +10,7 @@ import { X, FileText, Search, Mic, MicOff, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
+import { formatCPF } from "@/utils";
 import type { Patient } from "@/types/database.types";
 import type { CreateReportModalProps } from "@/types/components.types";
 
@@ -424,7 +425,7 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
                       className="p-2 hover:bg-gray-50 cursor-pointer"
                       onClick={() => setSelectedPatient(p)}
                     >
-                      {p.name} — {p.cpf}
+                      {p.name} — {formatCPF(p.cpf || "")}
                     </div>
                   ))}
                   {filteredPatients.length === 0 && (
@@ -439,7 +440,7 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
             <div className="p-3 border rounded-lg bg-gray-50">
               <p className="font-semibold">{selectedPatient.name}</p>
               <p className="text-sm text-gray-600">
-                CPF: {selectedPatient.cpf}
+                CPF: {formatCPF(selectedPatient.cpf || "")}
               </p>
               <button
                 onClick={() => setSelectedPatient(null)}

@@ -50,6 +50,7 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
     oe_cil: "",
     oe_eixo: "",
     adicao: "",
+    observacoes: "",
   });
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -190,8 +191,15 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
             <tr><td>OD</td><td>${parsed.lensData.od_esf}</td><td>${parsed.lensData.od_cil}</td><td>${parsed.lensData.od_eixo}</td></tr>
             <tr><td>OE</td><td>${parsed.lensData.oe_esf}</td><td>${parsed.lensData.oe_cil}</td><td>${parsed.lensData.oe_eixo}</td></tr>
             <tr><td>Adição</td><td colspan="3">${parsed.lensData.adicao}</td></tr>
-          </table>
-        </div>`;
+          </table>`;
+      if (parsed.lensData.observacoes?.trim()) {
+        printContent += `
+          <div style="margin-top: 12px;">
+            <p style="font-weight: bold; margin-bottom: 4px;">Observações:</p>
+            <p style="white-space: pre-line; text-align: left;">${parsed.lensData.observacoes}</p>
+          </div>`;
+      }
+      printContent += `</div>`;
     }
 
     if (!printWindow) return;
@@ -428,6 +436,19 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
                         setLensData({ ...lensData, adicao: e.target.value })
                       }
                       onKeyDown={(e) => handleLensKeyDown(e, null)}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Observações
+                    </label>
+                    <textarea
+                      placeholder="Digite observações sobre a prescrição de lentes..."
+                      className="border rounded p-2 w-full h-24 resize-none"
+                      value={lensData.observacoes}
+                      onChange={(e) =>
+                        setLensData({ ...lensData, observacoes: e.target.value })
+                      }
                     />
                   </div>
                 </div>

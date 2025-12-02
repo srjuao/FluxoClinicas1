@@ -277,7 +277,7 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
                         {patient.name}
                       </h3>
                       <div className="flex gap-4 text-sm text-gray-600 mt-1">
-                        <span>CPF: {patient.cpf || "N/A"}</span>
+                        <span>CPF: {patient.cpf ? formatCPF(patient.cpf) : "N/A"}</span>
                         {patient.telefone && (
                           <span>Tel: {patient.telefone}</span>
                         )}

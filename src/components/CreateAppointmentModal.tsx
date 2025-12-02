@@ -441,7 +441,7 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
                       <div>
                         <p className="font-medium">{patient.name}</p>
                         <p className="text-sm text-gray-600">
-                          CPF: {patient.cpf}
+                          CPF: {formatCPF(patient.cpf || "")}
                         </p>
                       </div>
                       <Edit
@@ -594,7 +594,7 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
                 <div>
                   <p className="font-semibold">{selectedPatient.name}</p>
                   <p className="text-sm text-gray-600">
-                    CPF: {selectedPatient.cpf}
+                    CPF: {formatCPF(selectedPatient.cpf || "")}
                   </p>
                 </div>
                 <Button

@@ -261,7 +261,7 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
                   >
                     <div onClick={() => setSelectedPatient(p)}>
                       <p className="font-medium">{p.name}</p>
-                      <p className="text-sm text-gray-600">CPF: {p.cpf}</p>
+                      <p className="text-sm text-gray-600">CPF: {formatCPF(p.cpf || "")}</p>
                     </div>
                     <Edit
                       className="cursor-pointer"
@@ -365,7 +365,7 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
         {selectedPatient && (
           <div className="glass-effect rounded-xl p-4 mb-4 space-y-2">
             <p className="font-semibold">{selectedPatient.name}</p>
-            <p className="text-sm text-gray-600">CPF: {selectedPatient.cpf}</p>
+            <p className="text-sm text-gray-600">CPF: {formatCPF(selectedPatient.cpf || "")}</p>
 
             <input
               className="w-full px-3 py-2 border rounded"

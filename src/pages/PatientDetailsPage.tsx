@@ -19,7 +19,7 @@ import CreateCertificateModal from "@/components/CreateCertificateModal";
 import CreatePrescriptionModal from "@/components/CreatePrescriptionModal";
 import AddExamModal from "@/components/AddExamModal";
 
-import { calculateAge, formatDate } from "@/utils";
+import { calculateAge, formatDate, formatCPF } from "@/utils";
 
 const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
   const { profile } = useAuth();
@@ -328,7 +328,7 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                     <span className="font-normal">{` - ${appointment.reason}`}</span>
                   )}
                 </h1>
-                <p className="text-gray-600">CPF: {patient.cpf}</p>
+                <p className="text-gray-600">CPF: {formatCPF(patient.cpf || "")}</p>
                 <p className="text-gray-600">
                   {formatDate(patient.birth_date)}
                   {patient.birth_date &&
