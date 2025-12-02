@@ -1,20 +1,38 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { X, Search, FileText } from "lucide-react";
+import { X, Search, FileText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/customSupabaseClient";
 import { toast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/SupabaseAuthContext";
 
 export const SearchReportsModal = ({
   clinicId,
   preselectedPatient,
   onClose,
 }) => {
+  const { profile } = useAuth();
   const [searchTerm, setSearchTerm] = useState(preselectedPatient?.name || "");
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
+  const [doctorId, setDoctorId] = useState(null);
+
+  // Fetch doctor ID
+  useEffect(() => {
+    const fetchDoctorId = async () => {
+      if (!profile?.id) return;
+      const { data } = await supabase
+        .from("doctors")
+        .select("id")
+        .eq("user_id", profile.id)
+        .eq("clinic_id", clinicId)
+        .single();
+      if (data) setDoctorId(data.id);
+    };
+    fetchDoctorId();
+  }, [profile, clinicId]);
 
   useEffect(() => {
     if (searchTerm.length < 3) {
@@ -47,6 +65,33 @@ export const SearchReportsModal = ({
 
     return () => clearTimeout(debounce);
   }, [searchTerm, clinicId]);
+
+  // Delete report
+  const handleDeleteReport = async (reportId: string) => {
+    if (!window.confirm("Tem certeza que deseja apagar esta anamnese? Esta ação não pode ser desfeita.")) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("medical_reports")
+      .delete()
+      .eq("id", reportId);
+
+    if (error) {
+      toast({
+        title: "Erro ao apagar anamnese",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Anamnese apagada com sucesso",
+      });
+      // Remove from list and go back to search
+      setReports(reports.filter(r => r.id !== reportId));
+      setSelectedReport(null);
+    }
+  };
 
   return (
     <div className="fixed inset-0 !m-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -99,7 +144,23 @@ export const SearchReportsModal = ({
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  onClick={() => setSelectedReport(report)}
+                  onClick={async () => {
+                    // Se o report não tiver doctor_id, buscar o report completo
+                    if (!report.doctor_id) {
+                      const { data } = await supabase
+                        .from("medical_reports")
+                        .select("*, doctor:doctors(id)")
+                        .eq("id", report.id)
+                        .single();
+                      if (data) {
+                        setSelectedReport(data);
+                      } else {
+                        setSelectedReport(report);
+                      }
+                    } else {
+                      setSelectedReport(report);
+                    }
+                  }}
                   className="glass-effect rounded-xl p-4 hover:shadow-lg cursor-pointer transition-all"
                 >
                   <div className="flex items-start justify-between">
@@ -150,9 +211,21 @@ export const SearchReportsModal = ({
           </>
         ) : (
           <div className="space-y-6">
-            <Button onClick={() => setSelectedReport(null)} variant="outline">
-              ← Voltar para a busca
-            </Button>
+            <div className="flex justify-between items-center">
+              <Button onClick={() => setSelectedReport(null)} variant="outline">
+                ← Voltar para a busca
+              </Button>
+              {doctorId && selectedReport.doctor_id === doctorId && (
+                <Button
+                  onClick={() => handleDeleteReport(selectedReport.id)}
+                  variant="destructive"
+                  className="flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Apagar Anamnese
+                </Button>
+              )}
+            </div>
 
             <div className="glass-effect rounded-xl p-6">
               <h3 className="text-2xl font-bold text-gray-900 mb-4">

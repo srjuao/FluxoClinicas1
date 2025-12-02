@@ -196,17 +196,23 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
     });
   }, [correctAndFormatText]);
 
+  // Ref para acumular texto final durante a gravação
+  const accumulatedFinalRef = useRef<string>("");
+
   // 🔹 Inicializar reconhecimento de voz
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
-    if (SpeechRecognition) {
+    if (!SpeechRecognition) {
+      return;
+    }
+
+    // Criar instância do recognition apenas uma vez
+    if (!recognitionRef.current) {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = "pt-BR";
-
-      let accumulatedFinal = "";
 
       recognition.onresult = (event: any) => {
         let finalTranscript = "";
@@ -223,9 +229,9 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
 
         // Acumular texto final
         if (finalTranscript) {
-          accumulatedFinal += finalTranscript;
+          accumulatedFinalRef.current += finalTranscript;
           // Atualizar o conteúdo com o texto final
-          setContent(baseContentRef.current + accumulatedFinal);
+          setContent(baseContentRef.current + accumulatedFinalRef.current);
         }
 
         // Mostrar texto provisório em tempo real
@@ -236,9 +242,19 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
         console.error("Erro no reconhecimento de voz:", event.error);
         setIsListening(false);
         setInterimText("");
+        
+        let errorMessage = "Ocorreu um erro no reconhecimento de voz.";
+        if (event.error === "no-speech") {
+          errorMessage = "Nenhuma fala detectada. Tente falar mais perto do microfone.";
+        } else if (event.error === "not-allowed") {
+          errorMessage = "Permissão de microfone negada. Permita o acesso nas configurações do navegador.";
+        } else if (event.error === "network") {
+          errorMessage = "Erro de rede. Verifique sua conexão com a internet.";
+        }
+        
         toast({
           title: "Erro no reconhecimento de voz",
-          description: `Ocorreu um erro: ${event.error}`,
+          description: errorMessage,
           variant: "destructive",
         });
       };
@@ -246,45 +262,76 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
       recognition.onend = () => {
         setIsListening(false);
         setInterimText("");
+        
         // Aplicar correção automática ao parar de gravar
-        setContent((prev) => correctAndFormatText(prev));
-        accumulatedFinal = "";
+        if (accumulatedFinalRef.current) {
+          const corrected = correctAndFormatText(baseContentRef.current + accumulatedFinalRef.current);
+          setContent(corrected);
+          baseContentRef.current = corrected;
+          accumulatedFinalRef.current = "";
+        }
       };
 
       recognitionRef.current = recognition;
     }
 
     return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
+      // Não parar aqui, apenas limpar no unmount
     };
   }, [correctAndFormatText]);
 
   // 🔹 Função para iniciar/parar transcrição
   const toggleListening = () => {
-    if (!recognitionRef.current) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition || !recognitionRef.current) {
       toast({
         title: "Navegador não suportado",
-        description: "Seu navegador não suporta reconhecimento de voz.",
+        description: "Seu navegador não suporta reconhecimento de voz. Use Chrome, Edge ou Safari.",
         variant: "destructive",
       });
       return;
     }
 
     if (isListening) {
-      recognitionRef.current.stop();
+      // Parar gravação
+      try {
+        recognitionRef.current.stop();
+      } catch (error) {
+        console.error("Erro ao parar gravação:", error);
+      }
       setIsListening(false);
       setInterimText("");
     } else {
+      // Resetar acumulador
+      accumulatedFinalRef.current = "";
+      
       // Guardar o conteúdo atual como base
       baseContentRef.current = content;
-      recognitionRef.current.start();
-      setIsListening(true);
-      toast({
-        title: "🎤 Escutando...",
-        description: "Fale agora. O texto aparecerá em tempo real.",
-      });
+      
+      // Iniciar gravação
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+        toast({
+          title: "🎤 Escutando...",
+          description: "Fale agora. O texto aparecerá em tempo real.",
+        });
+      } catch (error: any) {
+        console.error("Erro ao iniciar gravação:", error);
+        setIsListening(false);
+        
+        if (error.message?.includes("already started")) {
+          // Se já estava iniciado, apenas atualizar estado
+          setIsListening(true);
+        } else {
+          toast({
+            title: "Erro ao iniciar gravação",
+            description: "Não foi possível iniciar o reconhecimento de voz. Tente novamente.",
+            variant: "destructive",
+          });
+        }
+      }
     }
   };
 

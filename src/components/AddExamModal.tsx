@@ -72,6 +72,10 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
   const [transcriptPreview, setTranscriptPreview] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
+  const fullTranscriptRef = useRef<string>("");
+  const detectedFieldRef = useRef<keyof LaudoData | null>(null);
+  const isExamTypeRef = useRef<boolean>(false);
+  const fieldConfirmedRef = useRef<boolean>(false);
 
   // Palavras-chave para detectar o tipo de exame (título)
   const examTypeKeywords = [
@@ -347,19 +351,25 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
 
     // Se já está gravando, parar
     if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (error) {
+        console.error("Erro ao parar gravação:", error);
+      }
       return;
     }
 
+    // Resetar refs
+    fullTranscriptRef.current = "";
+    detectedFieldRef.current = null;
+    isExamTypeRef.current = false;
+    fieldConfirmedRef.current = false;
+
+    // Criar nova instância do recognition
     const recognition = new SpeechRecognition();
     recognition.lang = "pt-BR";
     recognition.continuous = true;
     recognition.interimResults = true;
-
-    let fullTranscript = "";
-    let detectedField: keyof LaudoData | null = null;
-    let isExamType = false;
-    let fieldConfirmed = false;
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -384,51 +394,57 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
         }
       }
 
-      const currentTranscript = fullTranscript + finalTranscript + interimTranscript;
+      // Atualizar transcript completo
+      if (finalTranscript) {
+        fullTranscriptRef.current += finalTranscript;
+      }
+
+      const currentTranscript = fullTranscriptRef.current + interimTranscript;
       setTranscriptPreview(currentTranscript);
 
-      // Detectar se é tipo de exame ou campo do laudo
-      if (!fieldConfirmed) {
+      // Detectar se é tipo de exame ou campo do laudo (apenas uma vez)
+      if (!fieldConfirmedRef.current) {
         // Verificar primeiro se é tipo de exame
         if (isExamTypeText(currentTranscript)) {
-          isExamType = true;
-          setCurrentField(null); // Não é um campo do laudo
+          isExamTypeRef.current = true;
+          setCurrentField(null);
         } else {
           const detected = detectField(currentTranscript);
           if (detected) {
-            detectedField = detected;
-            isExamType = false;
+            detectedFieldRef.current = detected;
+            isExamTypeRef.current = false;
             setCurrentField(detected);
           }
         }
         
         // Se tiver texto final, confirmar
         if (finalTranscript.trim()) {
-          fieldConfirmed = true;
+          fieldConfirmedRef.current = true;
         }
-      }
-
-      // Atualizar o transcript completo
-      if (finalTranscript) {
-        fullTranscript += finalTranscript;
       }
     };
 
     recognition.onerror = (event: any) => {
       console.error("Erro no reconhecimento de voz:", event.error);
+      
+      let errorMessage = "Ocorreu um erro no reconhecimento de voz.";
       if (event.error === "no-speech") {
-        toast({
-          title: "Nenhuma fala detectada",
-          description: "Tente novamente e fale mais perto do microfone.",
-          variant: "destructive",
-        });
+        errorMessage = "Nenhuma fala detectada. Tente falar mais perto do microfone.";
       } else if (event.error === "not-allowed") {
-        toast({
-          title: "Microfone bloqueado",
-          description: "Permita o acesso ao microfone nas configurações do navegador.",
-          variant: "destructive",
-        });
+        errorMessage = "Permissão de microfone negada. Permita o acesso nas configurações do navegador.";
+      } else if (event.error === "network") {
+        errorMessage = "Erro de rede. Verifique sua conexão com a internet.";
+      } else if (event.error === "aborted") {
+        // Ignorar erro de aborto (quando para manualmente)
+        return;
       }
+      
+      toast({
+        title: "Erro no reconhecimento de voz",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      
       setIsListening(false);
       setCurrentField(null);
       setTranscriptPreview("");
@@ -436,6 +452,10 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
 
     recognition.onend = () => {
       setIsListening(false);
+      
+      const fullTranscript = fullTranscriptRef.current;
+      const detectedField = detectedFieldRef.current;
+      const isExamType = isExamTypeRef.current;
       
       // Se é tipo de exame
       if (fullTranscript.trim() && isExamType) {
@@ -454,11 +474,11 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
         
         // Adicionar ao campo detectado
         setLaudo((prev) => {
-          const existingText = prev[detectedField!];
+          const existingText = prev[detectedField];
           const newText = existingText 
             ? existingText + " " + cleanText 
             : cleanText;
-          return { ...prev, [detectedField!]: newText };
+          return { ...prev, [detectedField]: newText };
         });
 
         const fieldNames: Record<keyof LaudoData, string> = {
@@ -498,8 +518,25 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
-  }, [isListening, detectField, removeKeywordFromText, correctAndFormatText]);
+    
+    try {
+      recognition.start();
+    } catch (error: any) {
+      console.error("Erro ao iniciar gravação:", error);
+      setIsListening(false);
+      
+      if (error.message?.includes("already started")) {
+        // Se já estava iniciado, apenas atualizar estado
+        setIsListening(true);
+      } else {
+        toast({
+          title: "Erro ao iniciar gravação",
+          description: "Não foi possível iniciar o reconhecimento de voz. Tente novamente.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [isListening, detectField, removeKeywordFromText, correctAndFormatText, isExamTypeText, extractExamTypeFromText, detectExamType, examName]);
 
   // Função para corrigir texto manualmente
   const applyCorrection = useCallback((field: keyof LaudoData) => {

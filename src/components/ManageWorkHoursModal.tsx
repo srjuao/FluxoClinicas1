@@ -310,8 +310,8 @@ const ManageWorkHoursModal = ({ doctor, user, clinicId, onClose }) => {
                     });
                     setSpecificDateBR(""); // Limpa a data específica quando muda o dia da semana
                   }}
-                  disabled={!!specificDateBR}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200"
+                  disabled={!!newHour.specific_date}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   {WEEKDAYS.map((day) => (
                     <option key={day.value} value={day.value}>
@@ -329,41 +329,38 @@ const ManageWorkHoursModal = ({ doctor, user, clinicId, onClose }) => {
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-500" />
                   <input
-                    type="text"
-                    placeholder="DD/MM/AAAA"
-                    value={specificDateBR}
+                    type="date"
+                    value={newHour.specific_date || ""}
                     onChange={(e) => {
-                      const formatted = formatDateInput(e.target.value);
-                      setSpecificDateBR(formatted);
-                      
-                      // Converte para ISO quando a data estiver completa e válida
-                      if (formatted.length === 10 && isValidDate(formatted)) {
-                        const isoDate = formatDateToISO(formatted);
-                        const localDate = parseDate(isoDate);
+                      const selectedDate = e.target.value;
+                      if (selectedDate) {
+                        const localDate = parseDate(selectedDate);
                         if (localDate) {
                           const weekday = localDate.getDay();
                           setNewHour({
                             ...newHour,
-                            specific_date: isoDate,
+                            specific_date: selectedDate,
                             weekday,
                           });
+                          setSpecificDateBR(formatDateToBR(selectedDate));
                         }
                       } else {
-                        // Se a data não está completa ou é inválida, limpa o campo interno
+                        // Se limpar a data, reseta
                         setNewHour({
                           ...newHour,
                           specific_date: "",
                           weekday: 1,
                         });
+                        setSpecificDateBR("");
                       }
                     }}
-                    maxLength={10}
+                    min={new Date().toISOString().split("T")[0]}
                     className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
-                {specificDateBR.length === 10 && !isValidDate(specificDateBR) && (
-                  <p className="text-xs text-red-500 mt-1">
-                    Data inválida. Use o formato DD/MM/AAAA
+                {newHour.specific_date && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    📅 {formatDateToBR(newHour.specific_date)}
                   </p>
                 )}
               </div>
