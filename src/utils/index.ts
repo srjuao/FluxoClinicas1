@@ -14,7 +14,23 @@ export const calculateAge = (
   return age;
 };
 
+/**
+ * Formata uma data string (YYYY-MM-DD) para o formato brasileiro (DD/MM/YYYY)
+ * Adiciona T12:00:00 para evitar o bug de timezone que pode retroceder o dia
+ */
 export const formatDate = (dateString: string | null | undefined): string => {
   if (!dateString) return "";
-  return new Date(dateString).toLocaleDateString("pt-BR");
+  // Adiciona T12:00:00 para evitar que a conversão de timezone mude o dia
+  const dateWithTime = dateString.includes("T") ? dateString : `${dateString}T12:00:00`;
+  return new Date(dateWithTime).toLocaleDateString("pt-BR");
+};
+
+/**
+ * Cria um objeto Date seguro a partir de uma string de data (YYYY-MM-DD)
+ * Evita o bug de timezone que pode retroceder o dia
+ */
+export const createSafeDate = (dateString: string | null | undefined): Date | null => {
+  if (!dateString) return null;
+  const dateWithTime = dateString.includes("T") ? dateString : `${dateString}T12:00:00`;
+  return new Date(dateWithTime);
 };

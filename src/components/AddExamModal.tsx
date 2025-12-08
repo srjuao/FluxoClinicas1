@@ -5,6 +5,7 @@ import { X, FileText, Upload, Paperclip, Trash2, Printer, Mic, MicOff, Loader2 }
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
+import { formatDate } from "@/utils";
 
 // Declaração para TypeScript reconhecer a Web Speech API
 declare global {
@@ -133,7 +134,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
   // Função para detectar tipo de exame
   const detectExamType = useCallback((text: string): string | null => {
     const lowerText = text.toLowerCase().trim();
-    
+
     // Primeiro, verificar se começa com "tipo de exame:", "exame:", etc.
     for (const keyword of examTypeKeywords) {
       const pattern = new RegExp(`^${keyword}\\s*:\\s*(.+)`, "i");
@@ -143,7 +144,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
         return match[1].trim().replace(/\b\w/g, l => l.toUpperCase());
       }
     }
-    
+
     // Depois, verificar se menciona um tipo comum de exame
     for (const examType of commonExamTypes) {
       if (lowerText.includes(examType)) {
@@ -155,21 +156,21 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
         return formatted;
       }
     }
-    
+
     return null;
   }, []);
 
   // Função para detectar qual campo baseado no texto
   const detectField = useCallback((text: string): keyof LaudoData | null => {
     const lowerText = text.toLowerCase().trim();
-    
+
     // Verificar se é tipo de exame primeiro (retorna null para não adicionar a campos de laudo)
     for (const keyword of examTypeKeywords) {
       if (lowerText.startsWith(keyword)) {
         return null; // Será tratado separadamente como tipo de exame
       }
     }
-    
+
     for (const [field, keywords] of Object.entries(fieldKeywords)) {
       for (const keyword of keywords) {
         if (lowerText.startsWith(keyword) || lowerText.includes(keyword + ":") || lowerText.includes(keyword + " ")) {
@@ -194,13 +195,13 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
   // Função para extrair o tipo de exame do texto
   const extractExamTypeFromText = useCallback((text: string): string => {
     const lowerText = text.toLowerCase().trim();
-    
+
     for (const keyword of examTypeKeywords) {
       const patterns = [
         new RegExp(`^${keyword}\\s*:\\s*`, "i"),
         new RegExp(`^${keyword}\\s+`, "i"),
       ];
-      
+
       for (const pattern of patterns) {
         const cleanText = text.replace(pattern, "").trim();
         if (cleanText !== text.trim()) {
@@ -209,7 +210,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
         }
       }
     }
-    
+
     return text.trim().replace(/\b\w/g, l => l.toUpperCase());
   }, []);
 
@@ -217,19 +218,19 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
   const removeKeywordFromText = useCallback((text: string, field: keyof LaudoData): string => {
     let cleanText = text;
     const keywords = fieldKeywords[field];
-    
+
     for (const keyword of keywords) {
       // Remove keyword seguido de : ou espaço no início
       const patterns = [
         new RegExp(`^${keyword}\\s*:\\s*`, "i"),
         new RegExp(`^${keyword}\\s+`, "i"),
       ];
-      
+
       for (const pattern of patterns) {
         cleanText = cleanText.replace(pattern, "");
       }
     }
-    
+
     return cleanText.trim();
   }, []);
 
@@ -339,7 +340,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
   // Função para iniciar/parar gravação de voz inteligente
   const toggleSmartVoiceRecording = useCallback(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
+
     if (!SpeechRecognition) {
       toast({
         title: "Navegador não suportado",
@@ -384,7 +385,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
     recognition.onresult = (event: any) => {
       let interimTranscript = "";
       let finalTranscript = "";
-      
+
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
@@ -416,7 +417,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
             setCurrentField(detected);
           }
         }
-        
+
         // Se tiver texto final, confirmar
         if (finalTranscript.trim()) {
           fieldConfirmedRef.current = true;
@@ -426,7 +427,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
 
     recognition.onerror = (event: any) => {
       console.error("Erro no reconhecimento de voz:", event.error);
-      
+
       let errorMessage = "Ocorreu um erro no reconhecimento de voz.";
       if (event.error === "no-speech") {
         errorMessage = "Nenhuma fala detectada. Tente falar mais perto do microfone.";
@@ -438,13 +439,13 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
         // Ignorar erro de aborto (quando para manualmente)
         return;
       }
-      
+
       toast({
         title: "Erro no reconhecimento de voz",
         description: errorMessage,
         variant: "destructive",
       });
-      
+
       setIsListening(false);
       setCurrentField(null);
       setTranscriptPreview("");
@@ -452,11 +453,11 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
 
     recognition.onend = () => {
       setIsListening(false);
-      
+
       const fullTranscript = fullTranscriptRef.current;
       const detectedField = detectedFieldRef.current;
       const isExamType = isExamTypeRef.current;
-      
+
       // Se é tipo de exame
       if (fullTranscript.trim() && isExamType) {
         const extractedType = extractExamTypeFromText(fullTranscript);
@@ -471,12 +472,12 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
         // Remover a palavra-chave e limpar o texto
         let cleanText = removeKeywordFromText(fullTranscript, detectedField);
         cleanText = correctAndFormatText(cleanText);
-        
+
         // Adicionar ao campo detectado
         setLaudo((prev) => {
           const existingText = prev[detectedField];
-          const newText = existingText 
-            ? existingText + " " + cleanText 
+          const newText = existingText
+            ? existingText + " " + cleanText
             : cleanText;
           return { ...prev, [detectedField]: newText };
         });
@@ -493,7 +494,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
           title: `✓ Adicionado em "${fieldNames[detectedField]}"`,
           description: cleanText.substring(0, 50) + (cleanText.length > 50 ? "..." : ""),
         });
-      } 
+      }
       // Tentar detectar tipo de exame automaticamente pelo conteúdo
       else if (fullTranscript.trim() && !detectedField && !isExamType) {
         const autoDetectedType = detectExamType(fullTranscript);
@@ -518,13 +519,13 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
     };
 
     recognitionRef.current = recognition;
-    
+
     try {
       recognition.start();
     } catch (error: any) {
       console.error("Erro ao iniciar gravação:", error);
       setIsListening(false);
-      
+
       if (error.message?.includes("already started")) {
         // Se já estava iniciado, apenas atualizar estado
         setIsListening(true);
@@ -564,7 +565,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
         .select("birth_date, sexo, cpf")
         .eq("id", patientId)
         .single();
-      
+
       if (patient) {
         setPatientInfo(patient);
       }
@@ -575,7 +576,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
         .select("crm, profile:profiles(name)")
         .eq("id", doctorId)
         .single();
-      
+
       if (doctor) {
         setDoctorInfo({
           name: doctor.profile?.name || "",
@@ -594,7 +595,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
   // Gera o texto formatado do laudo para salvar
   const generateLaudoText = () => {
     const parts = [];
-    
+
     if (laudo.indicacaoClinica.trim()) {
       parts.push(`INDICAÇÃO CLÍNICA / QUEIXA PRINCIPAL:\n${laudo.indicacaoClinica}`);
     }
@@ -610,7 +611,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
     if (laudo.observacoes.trim()) {
       parts.push(`OBSERVAÇÕES:\n${laudo.observacoes}`);
     }
-    
+
     return parts.join("\n\n");
   };
 
@@ -626,7 +627,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
     }
 
     const formattedBirthDate = patientInfo?.birth_date
-      ? new Date(patientInfo.birth_date).toLocaleDateString("pt-BR")
+      ? formatDate(patientInfo.birth_date)
       : "Não informada";
 
     const formattedExamDate = new Date(examDate).toLocaleDateString("pt-BR");
@@ -986,11 +987,10 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
               value={examName}
               onChange={(e) => setExamName(e.target.value)}
               placeholder='Ex: Ultrassonografia Abdominal, Hemograma, Raio-X... (dite: "Exame: ...")'
-              className={`w-full px-4 py-2 rounded-lg border transition-all outline-none ${
-                examName 
-                  ? "border-green-300 bg-green-50" 
+              className={`w-full px-4 py-2 rounded-lg border transition-all outline-none ${examName
+                  ? "border-green-300 bg-green-50"
                   : "border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
-              }`}
+                }`}
               required
             />
             {examName && (
@@ -1048,20 +1048,18 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
             </div>
 
             {/* Botão de Ditado Inteligente Central */}
-            <div className={`p-4 rounded-xl border-2 transition-all ${
-              isListening 
-                ? "bg-red-50 border-red-300" 
+            <div className={`p-4 rounded-xl border-2 transition-all ${isListening
+                ? "bg-red-50 border-red-300"
                 : "bg-purple-50 border-purple-200 hover:border-purple-300"
-            }`}>
+              }`}>
               <div className="flex items-center justify-center gap-4">
                 <button
                   type="button"
                   onClick={toggleSmartVoiceRecording}
-                  className={`p-4 rounded-full transition-all shadow-lg ${
-                    isListening
+                  className={`p-4 rounded-full transition-all shadow-lg ${isListening
                       ? "bg-red-500 text-white animate-pulse scale-110"
                       : "bg-purple-600 text-white hover:bg-purple-700 hover:scale-105"
-                  }`}
+                    }`}
                 >
                   {isListening ? (
                     <MicOff className="w-8 h-8" />
@@ -1074,8 +1072,8 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
                     {isListening ? "🔴 Gravando... Clique para parar" : "🎤 Ditado Inteligente"}
                   </p>
                   <p className="text-xs text-gray-600 mt-1">
-                    {isListening 
-                      ? "Diga o nome da seção seguido do conteúdo" 
+                    {isListening
+                      ? "Diga o nome da seção seguido do conteúdo"
                       : "Diga: \"Exame: ultrassom\", \"Indicação: dor...\", \"Achados: normal...\", \"Conclusão: ...\""}
                   </p>
                 </div>
@@ -1087,14 +1085,13 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
                   <div className="flex items-center gap-2 mb-2">
                     <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
                     <span className="text-xs font-medium text-gray-600">
-                      {currentField 
-                        ? `Detectado: ${
-                            currentField === "indicacaoClinica" ? "Indicação Clínica" :
-                            currentField === "metodo" ? "Método" :
+                      {currentField
+                        ? `Detectado: ${currentField === "indicacaoClinica" ? "Indicação Clínica" :
+                          currentField === "metodo" ? "Método" :
                             currentField === "achados" ? "Achados" :
-                            currentField === "conclusao" ? "Conclusão" :
-                            "Observações"
-                          }`
+                              currentField === "conclusao" ? "Conclusão" :
+                                "Observações"
+                        }`
                         : isExamTypeText(transcriptPreview)
                           ? "Detectado: Tipo de Exame"
                           : "Aguardando identificação..."}
@@ -1110,9 +1107,8 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
             {/* Campos do Laudo */}
             <div className="grid gap-3">
               {/* 1. Indicação Clínica */}
-              <div className={`p-3 rounded-lg border transition-all ${
-                currentField === "indicacaoClinica" ? "border-purple-400 bg-purple-50" : "border-gray-200"
-              }`}>
+              <div className={`p-3 rounded-lg border transition-all ${currentField === "indicacaoClinica" ? "border-purple-400 bg-purple-50" : "border-gray-200"
+                }`}>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-sm font-medium text-gray-700">
                     1. Indicação Clínica / Queixa Principal
@@ -1146,9 +1142,8 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
               </div>
 
               {/* 2. Método */}
-              <div className={`p-3 rounded-lg border transition-all ${
-                currentField === "metodo" ? "border-purple-400 bg-purple-50" : "border-gray-200"
-              }`}>
+              <div className={`p-3 rounded-lg border transition-all ${currentField === "metodo" ? "border-purple-400 bg-purple-50" : "border-gray-200"
+                }`}>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-sm font-medium text-gray-700">
                     2. Método
@@ -1182,9 +1177,8 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
               </div>
 
               {/* 3. Achados */}
-              <div className={`p-3 rounded-lg border transition-all ${
-                currentField === "achados" ? "border-purple-400 bg-purple-50" : "border-gray-200"
-              }`}>
+              <div className={`p-3 rounded-lg border transition-all ${currentField === "achados" ? "border-purple-400 bg-purple-50" : "border-gray-200"
+                }`}>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-sm font-medium text-gray-700">
                     3. Achados
@@ -1218,9 +1212,8 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
               </div>
 
               {/* 4. Conclusão */}
-              <div className={`p-3 rounded-lg border transition-all ${
-                currentField === "conclusao" ? "border-purple-400 bg-purple-50" : "border-gray-200"
-              }`}>
+              <div className={`p-3 rounded-lg border transition-all ${currentField === "conclusao" ? "border-purple-400 bg-purple-50" : "border-gray-200"
+                }`}>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-sm font-medium text-gray-700">
                     4. Conclusão / Impressão Diagnóstica
@@ -1254,9 +1247,8 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
               </div>
 
               {/* 5. Observações */}
-              <div className={`p-3 rounded-lg border transition-all ${
-                currentField === "observacoes" ? "border-purple-400 bg-purple-50" : "border-gray-200"
-              }`}>
+              <div className={`p-3 rounded-lg border transition-all ${currentField === "observacoes" ? "border-purple-400 bg-purple-50" : "border-gray-200"
+                }`}>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-sm font-medium text-gray-700">
                     5. Observações <span className="text-gray-400 font-normal">(opcional)</span>

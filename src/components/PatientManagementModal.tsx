@@ -4,7 +4,7 @@ import { X, User, Search, Edit, Trash2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
-import { validateCPF, formatCPF, cleanCPF } from "@/utils";
+import { validateCPF, formatCPF, cleanCPF, formatDate } from "@/utils";
 import type { Patient } from "@/types/database.types";
 
 const SEX_OPTIONS = [
@@ -284,9 +284,7 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
                         {patient.birth_date && (
                           <span>
                             Nascimento:{" "}
-                            {new Date(patient.birth_date).toLocaleDateString(
-                              "pt-BR"
-                            )}
+                            {formatDate(patient.birth_date)}
                           </span>
                         )}
                       </div>
@@ -328,9 +326,9 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
                   type="text"
                   value={patientForm.name}
                   onChange={(e) =>
-                    setPatientForm({ ...patientForm, name: e.target.value })
+                    setPatientForm({ ...patientForm, name: e.target.value.toUpperCase() })
                   }
-                  className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent uppercase"
                   required
                 />
               </div>
@@ -347,9 +345,8 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
                     setPatientForm({ ...patientForm, cpf: formatted });
                     if (cpfError) setCpfError(null);
                   }}
-                  className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                    cpfError ? "border-red-500" : "border-gray-200"
-                  }`}
+                  className={`w-full px-4 py-2 rounded-lg border focus:ring-2 focus:ring-purple-500 focus:border-transparent ${cpfError ? "border-red-500" : "border-gray-200"
+                    }`}
                   placeholder="000.000.000-00"
                   maxLength={14}
                   required
@@ -443,9 +440,9 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
                   type="text"
                   value={patientForm.endereco}
                   onChange={(e) =>
-                    setPatientForm({ ...patientForm, endereco: e.target.value })
+                    setPatientForm({ ...patientForm, endereco: e.target.value.toUpperCase() })
                   }
-                  className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent uppercase"
                   placeholder="Rua, número, bairro, cidade"
                 />
               </div>
@@ -472,8 +469,8 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
                 {loading
                   ? "Salvando..."
                   : editingPatient
-                  ? "Atualizar Paciente"
-                  : "Cadastrar Paciente"}
+                    ? "Atualizar Paciente"
+                    : "Cadastrar Paciente"}
               </Button>
             </div>
           </form>

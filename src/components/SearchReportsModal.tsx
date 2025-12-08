@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/customSupabaseClient";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
+import { formatDate } from "@/utils";
 
 export const SearchReportsModal = ({
   clinicId,
@@ -133,9 +134,7 @@ export const SearchReportsModal = ({
                         <span>CPF: {report.patient_cpf}</span>
                         <span>
                           Nasc:{" "}
-                          {new Date(
-                            report.patient_birth_date
-                          ).toLocaleDateString("pt-BR")}
+                          {formatDate(report.patient_birth_date)}
                         </span>
                         <span>
                           Criado em:{" "}
@@ -187,9 +186,7 @@ export const SearchReportsModal = ({
                   <p>CPF: {selectedReport.patient_cpf}</p>
                   <p>
                     Data de Nascimento:{" "}
-                    {new Date(
-                      selectedReport.patient_birth_date
-                    ).toLocaleDateString("pt-BR")}
+                    {formatDate(selectedReport.patient_birth_date)}
                   </p>
                 </div>
               </div>
