@@ -312,7 +312,7 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
         {/* Header */}
         <div className="glass-effect border-b border-white/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <Button onClick={onBack} variant="outline" className="mb-4">
+            <Button onClick={onBack} className="mb-4 bg-purple-600 text-white hover:bg-purple-700">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Voltar
             </Button>
@@ -400,11 +400,10 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                               );
                               setShowDoctorDropdown(false);
                             }}
-                            className={`w-full px-3 py-2 text-left text-sm hover:bg-purple-50 transition-colors ${
-                              selectedDoctorFilter === doctor.id
+                            className={`w-full px-3 py-2 text-left text-sm hover:bg-purple-50 transition-colors ${selectedDoctorFilter === doctor.id
                                 ? "bg-purple-100"
                                 : ""
-                            }`}
+                              }`}
                           >
                             Dr(a). {doctor.profile?.name}
                           </button>
@@ -641,14 +640,14 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                 )}
                 {(currentAppointment.status === "COMPLETED" ||
                   currentAppointment.status === "CANCELED") && (
-                  <Button
-                    onClick={handleRevertToScheduled}
-                    variant="outline"
-                    className="w-full bg-black-100 hover:bg-black-200 text-black-700 border-black-300"
-                  >
-                    Reverter para não atendido
-                  </Button>
-                )}
+                    <Button
+                      onClick={handleRevertToScheduled}
+                      variant="outline"
+                      className="w-full bg-black-100 hover:bg-black-200 text-black-700 border-black-300"
+                    >
+                      Reverter para não atendido
+                    </Button>
+                  )}
               </motion.div>
             </div>
           </div>
