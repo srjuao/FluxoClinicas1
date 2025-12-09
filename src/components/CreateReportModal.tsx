@@ -6,7 +6,7 @@ import React, {
   FormEvent,
 } from "react";
 import { motion } from "framer-motion";
-import { X, FileText, Search, Mic, MicOff, Sparkles } from "lucide-react";
+import { X, FileText, Search, Mic, MicOff, Sparkles, History, ChevronDown, ChevronUp, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -39,6 +39,11 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
   const [interimText, setInterimText] = useState<string>(""); // texto provisório enquanto fala
   const [loading, setLoading] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
+
+  // Estados para histórico de anamneses
+  const [previousReports, setPreviousReports] = useState<any[]>([]);
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+  const [loadingReports, setLoadingReports] = useState<boolean>(false);
 
   const lastSavedPatientId = useRef<string | null>(null); // para controlar troca de paciente
   const recognitionRef = useRef<any>(null);
@@ -202,7 +207,7 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
   // 🔹 Inicializar reconhecimento de voz
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
+
     if (!SpeechRecognition) {
       return;
     }
@@ -242,7 +247,7 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
         console.error("Erro no reconhecimento de voz:", event.error);
         setIsListening(false);
         setInterimText("");
-        
+
         let errorMessage = "Ocorreu um erro no reconhecimento de voz.";
         if (event.error === "no-speech") {
           errorMessage = "Nenhuma fala detectada. Tente falar mais perto do microfone.";
@@ -251,7 +256,7 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
         } else if (event.error === "network") {
           errorMessage = "Erro de rede. Verifique sua conexão com a internet.";
         }
-        
+
         toast({
           title: "Erro no reconhecimento de voz",
           description: errorMessage,
@@ -262,7 +267,7 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
       recognition.onend = () => {
         setIsListening(false);
         setInterimText("");
-        
+
         // Aplicar correção automática ao parar de gravar
         if (accumulatedFinalRef.current) {
           const corrected = correctAndFormatText(baseContentRef.current + accumulatedFinalRef.current);
@@ -283,7 +288,7 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
   // 🔹 Função para iniciar/parar transcrição
   const toggleListening = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
+
     if (!SpeechRecognition || !recognitionRef.current) {
       toast({
         title: "Navegador não suportado",
@@ -305,10 +310,10 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
     } else {
       // Resetar acumulador
       accumulatedFinalRef.current = "";
-      
+
       // Guardar o conteúdo atual como base
       baseContentRef.current = content;
-      
+
       // Iniciar gravação
       try {
         recognitionRef.current.start();
@@ -320,7 +325,7 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
       } catch (error: any) {
         console.error("Erro ao iniciar gravação:", error);
         setIsListening(false);
-        
+
         if (error.message?.includes("already started")) {
           // Se já estava iniciado, apenas atualizar estado
           setIsListening(true);
@@ -348,6 +353,30 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
   useEffect(() => {
     loadPatients();
   }, [loadPatients]);
+
+  // 🔹 Carregar anamneses anteriores do paciente
+  const loadPreviousReports = useCallback(async () => {
+    if (!selectedPatient?.id) {
+      setPreviousReports([]);
+      return;
+    }
+
+    setLoadingReports(true);
+    const { data, error } = await supabase
+      .from("medical_reports")
+      .select("*, doctor:doctors(*, profile:profiles(name))")
+      .eq("patient_id", selectedPatient.id)
+      .order("created_at", { ascending: false });
+
+    if (!error) {
+      setPreviousReports(data || []);
+    }
+    setLoadingReports(false);
+  }, [selectedPatient?.id]);
+
+  useEffect(() => {
+    loadPreviousReports();
+  }, [loadPreviousReports]);
 
   // 🔹 Restaurar rascunho ao abrir
   useEffect(() => {
@@ -433,7 +462,8 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto"
+        className={`bg-white rounded-2xl p-6 w-full shadow-xl max-h-[90vh] overflow-hidden ${selectedPatient ? "max-w-6xl" : "max-w-2xl"
+          }`}
       >
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-2">
@@ -448,146 +478,213 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {!selectedPatient ? (
-            <>
-              <div>
-                <label className="text-sm font-medium">Buscar Paciente</label>
-                <div className="relative mt-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <input
-                    className="w-full pl-10 pr-3 py-2 border rounded-lg"
-                    placeholder="Nome ou CPF"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
+        {/* Layout de 2 colunas quando paciente selecionado */}
+        <div className={`${selectedPatient ? "flex gap-6" : ""} overflow-hidden`}>
+
+          {/* Painel de Histórico (esquerda) - só aparece com paciente selecionado */}
+          {selectedPatient && (
+            <div className="w-2/5 border-r pr-4 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="flex items-center gap-2 mb-3">
+                <History className="w-4 h-4 text-gray-600" />
+                <h3 className="font-semibold text-gray-700">Anamneses Anteriores</h3>
               </div>
 
-              {searchTerm && (
-                <div className="border rounded-lg max-h-48 overflow-auto">
-                  {filteredPatients.map((p) => (
+              {loadingReports ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                </div>
+              ) : previousReports.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-8">
+                  Nenhuma anamnese anterior encontrada.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {previousReports.map((report) => (
                     <div
-                      key={p.id}
-                      className="p-2 hover:bg-gray-50 cursor-pointer"
-                      onClick={() => setSelectedPatient(p)}
+                      key={report.id}
+                      className="border rounded-lg bg-gray-50 overflow-hidden"
                     >
-                      {p.name} — {formatCPF(p.cpf || "")}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedReportId(
+                          expandedReportId === report.id ? null : report.id
+                        )}
+                        className="w-full p-3 text-left flex items-start justify-between hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium text-sm text-gray-900">
+                            {report.title}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(report.created_at).toLocaleDateString('pt-BR')}
+                            <span className="text-gray-400">•</span>
+                            {report.doctor?.profile?.name || "Médico"}
+                          </div>
+                        </div>
+                        {expandedReportId === report.id ? (
+                          <ChevronUp className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        )}
+                      </button>
+
+                      {expandedReportId === report.id && (
+                        <div className="px-3 pb-3 border-t bg-white">
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap mt-2">
+                            {report.content}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
-                  {filteredPatients.length === 0 && (
-                    <p className="p-2 text-gray-500 text-sm text-center">
-                      Nenhum paciente encontrado
-                    </p>
-                  )}
                 </div>
               )}
-            </>
-          ) : (
-            <div className="p-3 border rounded-lg bg-gray-50">
-              <p className="font-semibold">{selectedPatient.name}</p>
-              <p className="text-sm text-gray-600">
-                CPF: {formatCPF(selectedPatient.cpf || "")}
-              </p>
-              <button
-                onClick={() => setSelectedPatient(null)}
-                type="button"
-                className="text-xs text-blue-600 mt-1"
-              >
-                Trocar paciente
-              </button>
             </div>
           )}
 
-          <div>
-            <label className="text-sm font-medium">Título</label>
-            <input
-              className="w-full border rounded-lg p-2 mt-1"
-              placeholder="Ex: Consulta inicial"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
+          {/* Formulário (direita ou largura total) */}
+          <div className={`${selectedPatient ? "w-3/5" : "w-full"} overflow-y-auto max-h-[calc(90vh-120px)]`}>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {!selectedPatient ? (
+                <>
+                  <div>
+                    <label className="text-sm font-medium">Buscar Paciente</label>
+                    <div className="relative mt-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        className="w-full pl-10 pr-3 py-2 border rounded-lg"
+                        placeholder="Nome ou CPF"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                  </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-sm font-medium">Anamnese</label>
-              <div className="flex items-center gap-2">
-                {content && (
-                  <button
-                    type="button"
-                    onClick={applyCorrection}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-green-100 text-green-600 hover:bg-green-200 transition-all"
-                    title="Corrigir erros de português"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    Corrigir
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={toggleListening}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    isListening
-                      ? "bg-red-100 text-red-600 hover:bg-red-200 animate-pulse"
-                      : "bg-purple-100 text-purple-600 hover:bg-purple-200"
-                  }`}
-                >
-                  {isListening ? (
-                    <>
-                      <MicOff className="w-4 h-4" />
-                      Parar
-                    </>
-                  ) : (
-                    <>
-                      <Mic className="w-4 h-4" />
-                      Ditar
-                    </>
+                  {searchTerm && (
+                    <div className="border rounded-lg max-h-48 overflow-auto">
+                      {filteredPatients.map((p) => (
+                        <div
+                          key={p.id}
+                          className="p-2 hover:bg-gray-50 cursor-pointer"
+                          onClick={() => setSelectedPatient(p)}
+                        >
+                          {p.name} — {formatCPF(p.cpf || "")}
+                        </div>
+                      ))}
+                      {filteredPatients.length === 0 && (
+                        <p className="p-2 text-gray-500 text-sm text-center">
+                          Nenhum paciente encontrado
+                        </p>
+                      )}
+                    </div>
                   )}
-                </button>
-              </div>
-            </div>
-            <div className="relative">
-              <textarea
-                className={`w-full border rounded-lg p-2 h-40 transition-all ${
-                  isListening ? "border-red-400 ring-2 ring-red-200 bg-red-50" : ""
-                }`}
-                placeholder="Digite a anamnese ou clique em 'Ditar' para transcrever por voz..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                disabled={isListening}
-              />
-              {/* Mostrar texto provisório em tempo real */}
-              {isListening && interimText && (
-                <div className="absolute bottom-2 left-2 right-2 p-2 bg-yellow-100 border border-yellow-300 rounded-lg">
-                  <p className="text-sm text-yellow-800 italic">
-                    <span className="font-medium">Ouvindo:</span> {interimText}
+                </>
+              ) : (
+                <div className="p-3 border rounded-lg bg-gray-50">
+                  <p className="font-semibold">{selectedPatient.name}</p>
+                  <p className="text-sm text-gray-600">
+                    CPF: {formatCPF(selectedPatient.cpf || "")}
                   </p>
+                  <button
+                    onClick={() => setSelectedPatient(null)}
+                    type="button"
+                    className="text-xs text-blue-600 mt-1"
+                  >
+                    Trocar paciente
+                  </button>
                 </div>
               )}
-            </div>
-            {isListening && (
-              <div className="flex items-center justify-between mt-1">
-                <p className="text-xs text-red-500 flex items-center gap-1">
-                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                  Gravando... O texto aparece em tempo real
-                </p>
-                <p className="text-xs text-gray-500">
-                  ✨ Correção automática ao parar
-                </p>
-              </div>
-            )}
-            {!isListening && content && (
-              <p className="text-xs text-gray-500 mt-1">
-                💡 Clique em "Corrigir" para aplicar correções ortográficas e de formatação.
-              </p>
-            )}
-          </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Salvando..." : "Salvar Anamnese"}
-          </Button>
-        </form>
+              <div>
+                <label className="text-sm font-medium">Título</label>
+                <input
+                  className="w-full border rounded-lg p-2 mt-1"
+                  placeholder="Ex: Consulta inicial"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-sm font-medium">Anamnese</label>
+                  <div className="flex items-center gap-2">
+                    {content && (
+                      <button
+                        type="button"
+                        onClick={applyCorrection}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-green-100 text-green-600 hover:bg-green-200 transition-all"
+                        title="Corrigir erros de português"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        Corrigir
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={toggleListening}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${isListening
+                        ? "bg-red-100 text-red-600 hover:bg-red-200 animate-pulse"
+                        : "bg-purple-100 text-purple-600 hover:bg-purple-200"
+                        }`}
+                    >
+                      {isListening ? (
+                        <>
+                          <MicOff className="w-4 h-4" />
+                          Parar
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="w-4 h-4" />
+                          Ditar
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div className="relative">
+                  <textarea
+                    className={`w-full border rounded-lg p-2 h-40 transition-all ${isListening ? "border-red-400 ring-2 ring-red-200 bg-red-50" : ""
+                      }`}
+                    placeholder="Digite a anamnese ou clique em 'Ditar' para transcrever por voz..."
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    disabled={isListening}
+                  />
+                  {/* Mostrar texto provisório em tempo real */}
+                  {isListening && interimText && (
+                    <div className="absolute bottom-2 left-2 right-2 p-2 bg-yellow-100 border border-yellow-300 rounded-lg">
+                      <p className="text-sm text-yellow-800 italic">
+                        <span className="font-medium">Ouvindo:</span> {interimText}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {isListening && (
+                  <div className="flex items-center justify-between mt-1">
+                    <p className="text-xs text-red-500 flex items-center gap-1">
+                      <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                      Gravando... O texto aparece em tempo real
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      ✨ Correção automática ao parar
+                    </p>
+                  </div>
+                )}
+                {!isListening && content && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 Clique em "Corrigir" para aplicar correções ortográficas e de formatação.
+                  </p>
+                )}
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Salvando..." : "Salvar Anamnese"}
+              </Button>
+            </form>
+          </div>
+        </div>
       </motion.div>
     </div>
   );
