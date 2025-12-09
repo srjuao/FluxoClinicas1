@@ -186,13 +186,19 @@ const ClinicAdminContent = () => {
                     u.role === "DOCTOR"
                       ? "médico"
                       : u.role === "RECEPTIONIST"
-                      ? "recepção"
-                      : "admin";
+                        ? "recepção"
+                        : "admin";
                   return (
                     u.name.toLowerCase().includes(search) ||
                     u.email.toLowerCase().includes(search) ||
                     roleLabel.includes(search)
                   );
+                })
+                .sort((a, b) => {
+                  // Remove prefixos Dr/Dra para ordenação
+                  const cleanName = (name: string) =>
+                    name.replace(/^(dr\.?a?\.?\s+)/i, '').trim();
+                  return cleanName(a.name).localeCompare(cleanName(b.name), 'pt-BR');
                 })
                 .map((u, index) => {
                   const doctor = doctors.find((d) => d.user_id === u.id);
@@ -222,19 +228,18 @@ const ClinicAdminContent = () => {
                         </div>
                         <div className="flex flex-col items-end gap-1">
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              u.role === "DOCTOR"
-                                ? "bg-blue-100 text-blue-700"
-                                : u.role === "RECEPTIONIST"
+                            className={`px-2 py-1 rounded-full text-xs font-semibold ${u.role === "DOCTOR"
+                              ? "bg-blue-100 text-blue-700"
+                              : u.role === "RECEPTIONIST"
                                 ? "bg-green-100 text-green-700"
                                 : "bg-purple-100 text-purple-700"
-                            }`}
+                              }`}
                           >
                             {u.role === "DOCTOR"
                               ? "Médico"
                               : u.role === "RECEPTIONIST"
-                              ? "Recepção"
-                              : "Admin"}
+                                ? "Recepção"
+                                : "Admin"}
                           </span>
                           {u.is_admin && u.role !== "CLINIC_ADMIN" && (
                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
