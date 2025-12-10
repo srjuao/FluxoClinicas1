@@ -1,11 +1,12 @@
 // @ts-nocheck
 import React, { useState, useEffect, FormEvent, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
-import { X, FileText, Upload, Paperclip, Trash2, Printer, Mic, MicOff, Loader2 } from "lucide-react";
+import { X, FileText, Upload, Paperclip, Trash2, Printer, Mic, MicOff, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
 import { formatDate } from "@/utils";
+import { generateMedicalReport } from "@/lib/geminiClient";
 
 // Declaração para TypeScript reconhecer a Web Speech API
 declare global {
@@ -24,13 +25,7 @@ interface AddExamModalProps {
   onSuccess: () => void;
 }
 
-interface LaudoData {
-  indicacaoClinica: string;
-  metodo: string;
-  achados: string;
-  conclusao: string;
-  observacoes: string;
-}
+// Laudo agora é um texto único gerado pela IA
 
 interface PatientInfo {
   birth_date: string | null;
@@ -56,21 +51,17 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
     new Date().toISOString().split("T")[0]
   );
   const [description, setDescription] = useState("");
-  const [laudo, setLaudo] = useState<LaudoData>({
-    indicacaoClinica: "",
-    metodo: "",
-    achados: "",
-    conclusao: "",
-    observacoes: "",
-  });
+  const [laudoText, setLaudoText] = useState("");
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [patientInfo, setPatientInfo] = useState<PatientInfo | null>(null);
   const [doctorInfo, setDoctorInfo] = useState<DoctorInfo | null>(null);
   const [isListening, setIsListening] = useState(false);
-  const [currentField, setCurrentField] = useState<keyof LaudoData | null>(null);
   const [transcriptPreview, setTranscriptPreview] = useState("");
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiDescription, setAIDescription] = useState("");
+  const [generatingAI, setGeneratingAI] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const fullTranscriptRef = useRef<string>("");
@@ -455,62 +446,17 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
       setIsListening(false);
 
       const fullTranscript = fullTranscriptRef.current;
-      const detectedField = detectedFieldRef.current;
-      const isExamType = isExamTypeRef.current;
 
-      // Se é tipo de exame
-      if (fullTranscript.trim() && isExamType) {
-        const extractedType = extractExamTypeFromText(fullTranscript);
-        setExamName(extractedType);
+      // Se o modal de IA está aberto, preencher o campo aiDescription
+      if (showAIModal && fullTranscript.trim()) {
+        setAIDescription((prev) => {
+          const newText = prev ? prev + " " + fullTranscript.trim() : fullTranscript.trim();
+          return newText;
+        });
         toast({
-          title: "✓ Tipo de Exame definido",
-          description: extractedType,
+          title: "✓ Texto adicionado",
+          description: "Clique em 'Gerar Laudo' para processar com IA.",
         });
-      }
-      // Se é campo do laudo
-      else if (fullTranscript.trim() && detectedField) {
-        // Remover a palavra-chave e limpar o texto
-        let cleanText = removeKeywordFromText(fullTranscript, detectedField);
-        cleanText = correctAndFormatText(cleanText);
-
-        // Adicionar ao campo detectado
-        setLaudo((prev) => {
-          const existingText = prev[detectedField];
-          const newText = existingText
-            ? existingText + " " + cleanText
-            : cleanText;
-          return { ...prev, [detectedField]: newText };
-        });
-
-        const fieldNames: Record<keyof LaudoData, string> = {
-          indicacaoClinica: "Indicação Clínica",
-          metodo: "Método",
-          achados: "Achados",
-          conclusao: "Conclusão",
-          observacoes: "Observações",
-        };
-
-        toast({
-          title: `✓ Adicionado em "${fieldNames[detectedField]}"`,
-          description: cleanText.substring(0, 50) + (cleanText.length > 50 ? "..." : ""),
-        });
-      }
-      // Tentar detectar tipo de exame automaticamente pelo conteúdo
-      else if (fullTranscript.trim() && !detectedField && !isExamType) {
-        const autoDetectedType = detectExamType(fullTranscript);
-        if (autoDetectedType && !examName) {
-          setExamName(autoDetectedType);
-          toast({
-            title: "✓ Tipo de Exame detectado automaticamente",
-            description: autoDetectedType,
-          });
-        } else {
-          toast({
-            title: "Campo não identificado",
-            description: "Diga: 'Exame:', 'Indicação:', 'Método:', 'Achados:', 'Conclusão:' ou 'Observações:'",
-            variant: "destructive",
-          });
-        }
       }
 
       setCurrentField(null);
@@ -537,24 +483,49 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
         });
       }
     }
-  }, [isListening, detectField, removeKeywordFromText, correctAndFormatText, isExamTypeText, extractExamTypeFromText, detectExamType, examName]);
+  }, [isListening, showAIModal]);
 
-  // Função para corrigir texto manualmente
-  const applyCorrection = useCallback((field: keyof LaudoData) => {
-    setLaudo((prev) => ({
-      ...prev,
-      [field]: correctAndFormatText(prev[field]),
-    }));
-    toast({
-      title: "✓ Texto corrigido",
-      description: "Correções ortográficas e de formatação aplicadas.",
-    });
-  }, [correctAndFormatText]);
+  // Função para gerar laudo com IA
+  const handleGenerateWithAI = async () => {
+    if (!aiDescription.trim()) {
+      toast({
+        title: "Descrição vazia",
+        description: "Por favor, descreva o exame para gerar o laudo.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  // Função para limpar um campo
-  const clearField = useCallback((field: keyof LaudoData) => {
-    setLaudo((prev) => ({ ...prev, [field]: "" }));
-  }, []);
+    setGeneratingAI(true);
+
+    try {
+      const result = await generateMedicalReport(patientName, aiDescription);
+
+      // Preencher o laudo com o texto gerado
+      setLaudoText(result.laudoText);
+
+      // Preencher o nome do exame se estiver vazio
+      if (!examName && result.examName) {
+        setExamName(result.examName);
+      }
+
+      toast({
+        title: "✨ Laudo gerado com sucesso!",
+        description: "Os campos foram preenchidos automaticamente. Revise antes de salvar.",
+      });
+
+      setShowAIModal(false);
+      setAIDescription("");
+    } catch (error: any) {
+      toast({
+        title: "Erro ao gerar laudo",
+        description: error.message || "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setGeneratingAI(false);
+    }
+  };
 
   // Carregar dados do paciente e médico
   useEffect(() => {
@@ -587,33 +558,6 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
 
     loadData();
   }, [patientId, doctorId]);
-
-  const handleLaudoChange = (field: keyof LaudoData, value: string) => {
-    setLaudo((prev) => ({ ...prev, [field]: value }));
-  };
-
-  // Gera o texto formatado do laudo para salvar
-  const generateLaudoText = () => {
-    const parts = [];
-
-    if (laudo.indicacaoClinica.trim()) {
-      parts.push(`INDICAÇÃO CLÍNICA / QUEIXA PRINCIPAL:\n${laudo.indicacaoClinica}`);
-    }
-    if (laudo.metodo.trim()) {
-      parts.push(`MÉTODO:\n${laudo.metodo}`);
-    }
-    if (laudo.achados.trim()) {
-      parts.push(`ACHADOS:\n${laudo.achados}`);
-    }
-    if (laudo.conclusao.trim()) {
-      parts.push(`CONCLUSÃO / IMPRESSÃO DIAGNÓSTICA:\n${laudo.conclusao}`);
-    }
-    if (laudo.observacoes.trim()) {
-      parts.push(`OBSERVAÇÕES:\n${laudo.observacoes}`);
-    }
-
-    return parts.join("\n\n");
-  };
 
   // Função para imprimir o laudo
   const handlePrintLaudo = () => {
@@ -751,38 +695,10 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
               <p style="margin-top: 10px;"><strong>Tipo de Exame:</strong> ${examName}</p>
             </div>
 
-            ${laudo.indicacaoClinica.trim() ? `
+            ${laudoText.trim() ? `
               <div class="section">
-                <div class="section-title">1. INDICAÇÃO CLÍNICA / QUEIXA PRINCIPAL</div>
-                <div class="section-content">${laudo.indicacaoClinica}</div>
-              </div>
-            ` : ''}
-
-            ${laudo.metodo.trim() ? `
-              <div class="section">
-                <div class="section-title">2. MÉTODO</div>
-                <div class="section-content">${laudo.metodo}</div>
-              </div>
-            ` : ''}
-
-            ${laudo.achados.trim() ? `
-              <div class="section">
-                <div class="section-title">3. ACHADOS</div>
-                <div class="section-content">${laudo.achados}</div>
-              </div>
-            ` : ''}
-
-            ${laudo.conclusao.trim() ? `
-              <div class="section">
-                <div class="section-title">4. CONCLUSÃO / IMPRESSÃO DIAGNÓSTICA</div>
-                <div class="section-content">${laudo.conclusao}</div>
-              </div>
-            ` : ''}
-
-            ${laudo.observacoes.trim() ? `
-              <div class="section">
-                <div class="section-title">5. OBSERVAÇÕES</div>
-                <div class="section-content">${laudo.observacoes}</div>
+                <div class="section-title">LAUDO</div>
+                <div class="section-content">${laudoText.replace(/\n/g, '<br>')}</div>
               </div>
             ` : ''}
 
@@ -921,7 +837,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
         exam_name: examName,
         exam_date: examDate,
         description: description || null,
-        results: generateLaudoText() || null,
+        results: laudoText || null,
         file_url: fileUrl,
         file_name: attachedFile?.name || null,
       });
@@ -988,8 +904,8 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
               onChange={(e) => setExamName(e.target.value)}
               placeholder='Ex: Ultrassonografia Abdominal, Hemograma, Raio-X... (dite: "Exame: ...")'
               className={`w-full px-4 py-2 rounded-lg border transition-all outline-none ${examName
-                  ? "border-green-300 bg-green-50"
-                  : "border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                ? "border-green-300 bg-green-50"
+                : "border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                 }`}
               required
             />
@@ -1036,6 +952,15 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
+                  onClick={() => setShowAIModal(true)}
+                  size="sm"
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-md"
+                >
+                  <Sparkles className="w-4 h-4 mr-1" />
+                  Gerar com IA
+                </Button>
+                <Button
+                  type="button"
                   onClick={handlePrintLaudo}
                   variant="outline"
                   size="sm"
@@ -1047,250 +972,26 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
               </div>
             </div>
 
-            {/* Botão de Ditado Inteligente Central */}
-            <div className={`p-4 rounded-xl border-2 transition-all ${isListening
-                ? "bg-red-50 border-red-300"
-                : "bg-purple-50 border-purple-200 hover:border-purple-300"
-              }`}>
-              <div className="flex items-center justify-center gap-4">
-                <button
-                  type="button"
-                  onClick={toggleSmartVoiceRecording}
-                  className={`p-4 rounded-full transition-all shadow-lg ${isListening
-                      ? "bg-red-500 text-white animate-pulse scale-110"
-                      : "bg-purple-600 text-white hover:bg-purple-700 hover:scale-105"
-                    }`}
-                >
-                  {isListening ? (
-                    <MicOff className="w-8 h-8" />
-                  ) : (
-                    <Mic className="w-8 h-8" />
-                  )}
-                </button>
-                <div className="flex-1">
-                  <p className={`font-medium ${isListening ? "text-red-700" : "text-purple-700"}`}>
-                    {isListening ? "🔴 Gravando... Clique para parar" : "🎤 Ditado Inteligente"}
-                  </p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    {isListening
-                      ? "Diga o nome da seção seguido do conteúdo"
-                      : "Diga: \"Exame: ultrassom\", \"Indicação: dor...\", \"Achados: normal...\", \"Conclusão: ...\""}
-                  </p>
-                </div>
-              </div>
-
-              {/* Preview do que está sendo ditado */}
-              {isListening && (
-                <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
-                    <span className="text-xs font-medium text-gray-600">
-                      {currentField
-                        ? `Detectado: ${currentField === "indicacaoClinica" ? "Indicação Clínica" :
-                          currentField === "metodo" ? "Método" :
-                            currentField === "achados" ? "Achados" :
-                              currentField === "conclusao" ? "Conclusão" :
-                                "Observações"
-                        }`
-                        : isExamTypeText(transcriptPreview)
-                          ? "Detectado: Tipo de Exame"
-                          : "Aguardando identificação..."}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-700 italic">
-                    {transcriptPreview || "..."}
-                  </p>
+            {/* Campo único do Laudo */}
+            <div className="mt-4">
+              <textarea
+                value={laudoText}
+                onChange={(e) => setLaudoText(e.target.value)}
+                placeholder="Clique em 'Gerar com IA' e descreva o exame por voz para gerar o laudo automaticamente..."
+                rows={10}
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none resize-none text-sm font-mono whitespace-pre-wrap"
+              />
+              {laudoText && (
+                <div className="flex justify-end mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setLaudoText("")}
+                    className="text-xs text-red-500 hover:text-red-700 px-3 py-1 rounded hover:bg-red-50"
+                  >
+                    Limpar Laudo
+                  </button>
                 </div>
               )}
-            </div>
-
-            {/* Campos do Laudo */}
-            <div className="grid gap-3">
-              {/* 1. Indicação Clínica */}
-              <div className={`p-3 rounded-lg border transition-all ${currentField === "indicacaoClinica" ? "border-purple-400 bg-purple-50" : "border-gray-200"
-                }`}>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium text-gray-700">
-                    1. Indicação Clínica / Queixa Principal
-                  </label>
-                  {laudo.indicacaoClinica && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => applyCorrection("indicacaoClinica")}
-                        className="text-xs text-purple-600 hover:text-purple-800 px-2 py-0.5 rounded hover:bg-purple-100"
-                      >
-                        Corrigir
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => clearField("indicacaoClinica")}
-                        className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded hover:bg-red-50"
-                      >
-                        Limpar
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <textarea
-                  value={laudo.indicacaoClinica}
-                  onChange={(e) => handleLaudoChange("indicacaoClinica", e.target.value)}
-                  placeholder='Diga: "Indicação: paciente apresenta dor..."'
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none resize-none text-sm"
-                />
-              </div>
-
-              {/* 2. Método */}
-              <div className={`p-3 rounded-lg border transition-all ${currentField === "metodo" ? "border-purple-400 bg-purple-50" : "border-gray-200"
-                }`}>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium text-gray-700">
-                    2. Método
-                  </label>
-                  {laudo.metodo && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => applyCorrection("metodo")}
-                        className="text-xs text-purple-600 hover:text-purple-800 px-2 py-0.5 rounded hover:bg-purple-100"
-                      >
-                        Corrigir
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => clearField("metodo")}
-                        className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded hover:bg-red-50"
-                      >
-                        Limpar
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <textarea
-                  value={laudo.metodo}
-                  onChange={(e) => handleLaudoChange("metodo", e.target.value)}
-                  placeholder='Diga: "Método: ultrassonografia abdominal..."'
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none resize-none text-sm"
-                />
-              </div>
-
-              {/* 3. Achados */}
-              <div className={`p-3 rounded-lg border transition-all ${currentField === "achados" ? "border-purple-400 bg-purple-50" : "border-gray-200"
-                }`}>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium text-gray-700">
-                    3. Achados
-                  </label>
-                  {laudo.achados && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => applyCorrection("achados")}
-                        className="text-xs text-purple-600 hover:text-purple-800 px-2 py-0.5 rounded hover:bg-purple-100"
-                      >
-                        Corrigir
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => clearField("achados")}
-                        className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded hover:bg-red-50"
-                      >
-                        Limpar
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <textarea
-                  value={laudo.achados}
-                  onChange={(e) => handleLaudoChange("achados", e.target.value)}
-                  placeholder='Diga: "Achados: fígado de dimensões normais..."'
-                  rows={3}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none resize-none text-sm"
-                />
-              </div>
-
-              {/* 4. Conclusão */}
-              <div className={`p-3 rounded-lg border transition-all ${currentField === "conclusao" ? "border-purple-400 bg-purple-50" : "border-gray-200"
-                }`}>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium text-gray-700">
-                    4. Conclusão / Impressão Diagnóstica
-                  </label>
-                  {laudo.conclusao && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => applyCorrection("conclusao")}
-                        className="text-xs text-purple-600 hover:text-purple-800 px-2 py-0.5 rounded hover:bg-purple-100"
-                      >
-                        Corrigir
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => clearField("conclusao")}
-                        className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded hover:bg-red-50"
-                      >
-                        Limpar
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <textarea
-                  value={laudo.conclusao}
-                  onChange={(e) => handleLaudoChange("conclusao", e.target.value)}
-                  placeholder='Diga: "Conclusão: exame sem alterações significativas..."'
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none resize-none text-sm"
-                />
-              </div>
-
-              {/* 5. Observações */}
-              <div className={`p-3 rounded-lg border transition-all ${currentField === "observacoes" ? "border-purple-400 bg-purple-50" : "border-gray-200"
-                }`}>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium text-gray-700">
-                    5. Observações <span className="text-gray-400 font-normal">(opcional)</span>
-                  </label>
-                  {laudo.observacoes && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => applyCorrection("observacoes")}
-                        className="text-xs text-purple-600 hover:text-purple-800 px-2 py-0.5 rounded hover:bg-purple-100"
-                      >
-                        Corrigir
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => clearField("observacoes")}
-                        className="text-xs text-red-500 hover:text-red-700 px-2 py-0.5 rounded hover:bg-red-50"
-                      >
-                        Limpar
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <textarea
-                  value={laudo.observacoes}
-                  onChange={(e) => handleLaudoChange("observacoes", e.target.value)}
-                  placeholder='Diga: "Observações: retorno em 30 dias..."'
-                  rows={2}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none resize-none text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="text-xs text-gray-500 pt-2 border-t border-gray-200 space-y-1">
-              <p>🎤 <strong>Como usar:</strong> Clique no microfone e diga o nome da seção seguido de dois pontos e o conteúdo.</p>
-              <p>📝 <strong>Exemplos:</strong></p>
-              <ul className="ml-4 space-y-0.5">
-                <li>• <strong>"Exame: ultrassonografia abdominal"</strong> → preenche o tipo de exame</li>
-                <li>• <strong>"Indicação: dor abdominal há 3 dias"</strong> → preenche indicação clínica</li>
-                <li>• <strong>"Achados: fígado de dimensões normais"</strong> → preenche achados</li>
-                <li>• <strong>"Conclusão: exame sem alterações"</strong> → preenche conclusão</li>
-              </ul>
             </div>
           </div>
 
@@ -1383,6 +1084,124 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
           </div>
         </form>
       </motion.div>
+
+      {/* Modal de Geração com IA */}
+      {showAIModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Gerar Laudo com IA</h3>
+                  <p className="text-xs text-gray-500">Descreva o exame em linguagem natural</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAIModal(false);
+                  setAIDescription("");
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Descreva os detalhes do exame:
+                </label>
+                <button
+                  type="button"
+                  onClick={toggleSmartVoiceRecording}
+                  disabled={generatingAI}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${isListening
+                    ? "bg-red-100 text-red-600 hover:bg-red-200 animate-pulse"
+                    : "bg-purple-100 text-purple-600 hover:bg-purple-200"
+                    }`}
+                >
+                  {isListening ? (
+                    <>
+                      <MicOff className="w-4 h-4" />
+                      Parar
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="w-4 h-4" />
+                      Ditar
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className="relative">
+                <textarea
+                  value={aiDescription}
+                  onChange={(e) => setAIDescription(e.target.value)}
+                  placeholder="Ex: Paciente veio hoje para fazer uma mamografia. No peito direito deu um nó de 8mm, no peito esquerdo não apresentou nada. Aparentemente tudo ok, mas precisa acompanhar."
+                  rows={5}
+                  className={`w-full px-4 py-3 rounded-lg border transition-all outline-none resize-none text-sm ${isListening
+                    ? "border-red-400 ring-2 ring-red-200 bg-red-50"
+                    : "border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                    }`}
+                  disabled={generatingAI}
+                />
+                {isListening && (
+                  <div className="absolute bottom-2 left-2 right-2 p-2 bg-yellow-100 border border-yellow-300 rounded-lg">
+                    <p className="text-sm text-yellow-800 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                      <span className="font-medium">Ouvindo...</span> {transcriptPreview || "Fale agora"}
+                    </p>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                💡 Dica: Clique em "Ditar" para falar o exame por voz. A IA irá estruturar em formato profissional.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowAIModal(false);
+                  setAIDescription("");
+                }}
+                className="flex-1"
+                disabled={generatingAI}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={handleGenerateWithAI}
+                disabled={generatingAI || !aiDescription.trim()}
+                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
+                {generatingAI ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Gerando...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Gerar Laudo
+                  </>
+                )}
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

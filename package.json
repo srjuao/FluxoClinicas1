@@ -9,6 +9,7 @@
     "preview": "vite preview --host :: --port 3000"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-avatar": "^1.0.3",
     "@radix-ui/react-checkbox": "^1.0.4",
@@ -24,6 +25,7 @@
     "clsx": "^2.0.0",
     "dayjs": "^1.11.19",
     "framer-motion": "^10.16.4",
+    "groq-sdk": "^0.37.0",
     "jspdf": "^3.0.3",
     "lucide-react": "^0.285.0",
     "react": "^18.2.0",
