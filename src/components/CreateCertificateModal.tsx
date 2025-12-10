@@ -37,6 +37,41 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
   const [searchTerm, setSearchTerm] = useState("");
   const [cpfError, setCpfError] = useState<string | null>(null);
 
+  // Chave do localStorage para rascunho do atestado (por paciente)
+  const draftKey = selectedPatient ? `certificate_draft_${selectedPatient.id}` : null;
+
+  // Carregar rascunho quando seleciona um paciente
+  useEffect(() => {
+    if (draftKey) {
+      const savedDraft = localStorage.getItem(draftKey);
+      if (savedDraft) {
+        try {
+          const draft = JSON.parse(savedDraft);
+          if (draft.cid) setCid(draft.cid);
+          if (draft.days) setDays(draft.days);
+          if (draft.doctorObs) setDoctorObs(draft.doctorObs);
+        } catch (e) {
+          console.error("Erro ao carregar rascunho:", e);
+        }
+      }
+    }
+  }, [draftKey]);
+
+  // Salvar rascunho automaticamente
+  useEffect(() => {
+    if (draftKey && (cid || days || doctorObs)) {
+      const draft = { cid, days, doctorObs };
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+    }
+  }, [cid, days, doctorObs, draftKey]);
+
+  // Limpar rascunho
+  const clearDraft = () => {
+    if (draftKey) {
+      localStorage.removeItem(draftKey);
+    }
+  };
+
   const loadPatients = useCallback(async () => {
     if (!clinicId) return;
     const { data, error } = await supabase
@@ -202,11 +237,10 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
 
           <div class="line"><strong>Retorno previsto:</strong> ${endDate.toLocaleDateString()}</div>
 
-          ${
-            doctorObs
-              ? `<div class="line"><strong>Observação:</strong> ${doctorObs}</div>`
-              : ""
-          }
+          ${doctorObs
+        ? `<div class="line"><strong>Observação:</strong> ${doctorObs}</div>`
+        : ""
+      }
 
           <div class="line"><strong>Data:</strong> ${startDate.toLocaleDateString()}</div>
 
@@ -223,6 +257,7 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
       printWindow.close();
     };
 
+    clearDraft(); // Limpa rascunho após imprimir
     toast({ title: "Documento pronto para impressão!" });
   };
 
@@ -313,9 +348,8 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
               }
             />
             <input
-              className={`w-full px-3 py-2 border rounded ${
-                cpfError ? "border-red-500" : ""
-              }`}
+              className={`w-full px-3 py-2 border rounded ${cpfError ? "border-red-500" : ""
+                }`}
               placeholder="CPF"
               value={patientForm.cpf}
               onChange={(e) => {

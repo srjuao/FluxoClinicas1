@@ -527,6 +527,39 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
     }
   };
 
+  // Chave do localStorage para rascunho deste paciente
+  const draftKey = `exam_draft_${patientId}`;
+
+  // Carregar rascunho ao abrir o modal
+  useEffect(() => {
+    const savedDraft = localStorage.getItem(draftKey);
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        if (draft.examName) setExamName(draft.examName);
+        if (draft.examDate) setExamDate(draft.examDate);
+        if (draft.description) setDescription(draft.description);
+        if (draft.laudoText) setLaudoText(draft.laudoText);
+      } catch (e) {
+        console.error("Erro ao carregar rascunho:", e);
+      }
+    }
+  }, [draftKey]);
+
+  // Salvar rascunho automaticamente quando os campos mudam
+  useEffect(() => {
+    const draft = { examName, examDate, description, laudoText };
+    // Só salva se tiver algum conteúdo
+    if (examName || description || laudoText) {
+      localStorage.setItem(draftKey, JSON.stringify(draft));
+    }
+  }, [examName, examDate, description, laudoText, draftKey]);
+
+  // Limpar rascunho após salvar com sucesso (será chamado no onSuccess)
+  const clearDraft = () => {
+    localStorage.removeItem(draftKey);
+  };
+
   // Carregar dados do paciente e médico
   useEffect(() => {
     const loadData = async () => {
@@ -849,6 +882,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
         description: `${examName} foi registrado para ${patientName}`,
       });
 
+      clearDraft(); // Limpa rascunho após salvar
       onSuccess();
       onClose();
     } catch (error: any) {

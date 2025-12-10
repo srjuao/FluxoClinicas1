@@ -6,10 +6,11 @@ import React, {
   FormEvent,
 } from "react";
 import { motion } from "framer-motion";
-import { X, FileText, Search, Mic, MicOff, Sparkles, History, ChevronDown, ChevronUp, Calendar } from "lucide-react";
+import { X, FileText, Search, Mic, MicOff, History, ChevronDown, ChevronUp, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
+import { organizeAnamnesis } from "@/lib/geminiClient";
 import { formatCPF } from "@/utils";
 import type { Patient } from "@/types/database.types";
 import type { CreateReportModalProps } from "@/types/components.types";
@@ -39,6 +40,7 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
   const [interimText, setInterimText] = useState<string>(""); // texto provisório enquanto fala
   const [loading, setLoading] = useState<boolean>(false);
   const [isListening, setIsListening] = useState<boolean>(false);
+  const [isOrganizing, setIsOrganizing] = useState<boolean>(false);
 
   // Estados para histórico de anamneses
   const [previousReports, setPreviousReports] = useState<any[]>([]);
@@ -152,7 +154,6 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
       "sao": "são",
       "estao": "estão",
       "voce": "você",
-      "tambem": "também",
       "necessario": "necessário",
       "necessaria": "necessária",
       "proximo": "próximo",
@@ -191,15 +192,6 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
 
     return corrected.trim();
   }, []);
-
-  // Função para aplicar correção manualmente
-  const applyCorrection = useCallback(() => {
-    setContent((prev) => correctAndFormatText(prev));
-    toast({
-      title: "✓ Texto corrigido",
-      description: "Correções ortográficas e de formatação aplicadas.",
-    });
-  }, [correctAndFormatText]);
 
   // Ref para acumular texto final durante a gravação
   const accumulatedFinalRef = useRef<string>("");
@@ -264,15 +256,44 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
         });
       };
 
-      recognition.onend = () => {
+      recognition.onend = async () => {
         setIsListening(false);
         setInterimText("");
 
-        // Aplicar correção automática ao parar de gravar
-        if (accumulatedFinalRef.current) {
-          const corrected = correctAndFormatText(baseContentRef.current + accumulatedFinalRef.current);
-          setContent(corrected);
-          baseContentRef.current = corrected;
+        // Organizar automaticamente com IA ao parar de gravar
+        if (accumulatedFinalRef.current && selectedPatient) {
+          const fullText = baseContentRef.current + accumulatedFinalRef.current;
+          setContent(fullText); // Mostrar texto bruto primeiro
+          accumulatedFinalRef.current = "";
+
+          // Organizar com IA automaticamente
+          setIsOrganizing(true);
+          try {
+            const result = await organizeAnamnesis(selectedPatient.name, fullText);
+            setContent(result.content);
+            setTitle(result.title);
+            baseContentRef.current = result.content;
+            toast({
+              title: "✨ Anamnese organizada!",
+              description: "Título e texto foram estruturados automaticamente.",
+            });
+          } catch (error: any) {
+            // Se falhar, manter o texto original
+            setContent(fullText);
+            baseContentRef.current = fullText;
+            toast({
+              title: "Erro ao organizar",
+              description: error.message || "Não foi possível organizar. Texto original mantido.",
+              variant: "destructive",
+            });
+          } finally {
+            setIsOrganizing(false);
+          }
+        } else if (accumulatedFinalRef.current) {
+          // Se não tiver paciente selecionado, apenas salvar o texto
+          const fullText = baseContentRef.current + accumulatedFinalRef.current;
+          setContent(fullText);
+          baseContentRef.current = fullText;
           accumulatedFinalRef.current = "";
         }
       };
@@ -610,16 +631,11 @@ const CreateReportModal: React.FC<CreateReportModalProps> = ({
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-sm font-medium">Anamnese</label>
                   <div className="flex items-center gap-2">
-                    {content && (
-                      <button
-                        type="button"
-                        onClick={applyCorrection}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-green-100 text-green-600 hover:bg-green-200 transition-all"
-                        title="Corrigir erros de português"
-                      >
-                        <Sparkles className="w-4 h-4" />
-                        Corrigir
-                      </button>
+                    {isOrganizing && (
+                      <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-100 text-blue-600">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Organizando...
+                      </span>
                     )}
                     <button
                       type="button"
