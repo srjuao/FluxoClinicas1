@@ -148,6 +148,7 @@ export interface Database {
           created_at: string
           can_prescribe_exams: boolean
           can_prescribe_lenses: boolean
+          can_prescribe_urology_exams: boolean
         }
         Insert: {
           id?: string
@@ -158,6 +159,7 @@ export interface Database {
           created_at?: string
           can_prescribe_exams?: boolean
           can_prescribe_lenses?: boolean
+          can_prescribe_urology_exams?: boolean
         }
         Update: {
           id?: string
@@ -168,6 +170,7 @@ export interface Database {
           created_at?: string
           can_prescribe_exams?: boolean
           can_prescribe_lenses?: boolean
+          can_prescribe_urology_exams?: boolean
         }
       }
       medical_certificates: {
@@ -274,6 +277,7 @@ export interface Database {
           id: string
           doctor_id: string
           clinic_id: string
+          patient_id: string | null
           title: string
           content: string
           created_at: string
@@ -283,6 +287,7 @@ export interface Database {
           id?: string
           doctor_id: string
           clinic_id: string
+          patient_id?: string | null
           title: string
           content: string
           created_at?: string
@@ -292,6 +297,7 @@ export interface Database {
           id?: string
           doctor_id?: string
           clinic_id?: string
+          patient_id?: string | null
           title?: string
           content?: string
           created_at?: string

@@ -26,6 +26,7 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
   const [patient, setPatient] = useState(null);
   const [reports, setReports] = useState([]);
   const [exams, setExams] = useState([]);
+  const [prescriptions, setPrescriptions] = useState([]);
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateReport, setShowCreateReport] = useState(false);
@@ -115,6 +116,19 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
         setExams(examsData || []);
       }
 
+      // Fetch prescriptions
+      const { data: prescriptionsData, error: prescriptionsError } = await supabase
+        .from("prescriptions")
+        .select("*, doctor:doctors(*, profile:profiles(name))")
+        .eq("patient_id", patientId)
+        .order("created_at", { ascending: false });
+
+      if (prescriptionsError) {
+        console.error("Error fetching prescriptions:", prescriptionsError);
+      } else {
+        setPrescriptions(prescriptionsData || []);
+      }
+
       // TODO: Fetch internal notes when table is available
 
       setLoading(false);
@@ -169,6 +183,16 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
       .eq("patient_id", patientId)
       .order("created_at", { ascending: false });
     if (data) setReports(data);
+  };
+
+  // Refresh prescriptions after creating new one
+  const refreshPrescriptions = async () => {
+    const { data } = await supabase
+      .from("prescriptions")
+      .select("*, doctor:doctors(*, profile:profiles(name))")
+      .eq("patient_id", patientId)
+      .order("created_at", { ascending: false });
+    if (data) setPrescriptions(data);
   };
 
 
@@ -342,7 +366,7 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Left Column - Previous Reports */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -401,8 +425,8 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                               setShowDoctorDropdown(false);
                             }}
                             className={`w-full px-3 py-2 text-left text-sm hover:bg-purple-50 transition-colors ${selectedDoctorFilter === doctor.id
-                                ? "bg-purple-100"
-                                : ""
+                              ? "bg-purple-100"
+                              : ""
                               }`}
                           >
                             Dr(a). {doctor.profile?.name}
@@ -531,6 +555,117 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                       )}
                     </motion.div>
                   ))
+                )}
+              </div>
+            </motion.div>
+
+            {/* Prescriptions Column */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="glass-effect rounded-2xl p-6 h-fit"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900">Prescrições</h2>
+                <FileText className="w-5 h-5 text-green-600" />
+              </div>
+
+              <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                {prescriptions.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-8">
+                    Nenhuma prescrição registrada
+                  </p>
+                ) : (
+                  prescriptions.map((prescription, index) => {
+                    // Parse prescription content
+                    let parsedContent = {};
+                    try {
+                      parsedContent = JSON.parse(prescription.content);
+                    } catch (e) {
+                      parsedContent = { medicationContent: prescription.content };
+                    }
+
+                    return (
+                      <motion.div
+                        key={prescription.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="p-4 bg-green-50/50 rounded-xl hover:bg-green-50 transition-all border border-green-100"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="font-semibold text-gray-900 text-sm">
+                            {prescription.title}
+                          </h3>
+                          <span className="text-xs text-gray-500">
+                            {formatDate(prescription.created_at)}
+                          </span>
+                        </div>
+
+                        {prescription.doctor?.profile?.name && (
+                          <p className="text-xs text-gray-500 mb-2">
+                            👨‍⚕️ Dr(a). {prescription.doctor.profile.name}
+                          </p>
+                        )}
+
+                        {/* Medicamentos */}
+                        {parsedContent.medicationContent && (
+                          <details className="mt-2">
+                            <summary className="text-xs text-green-600 cursor-pointer hover:text-green-700 font-medium">
+                              💊 Medicamentos
+                            </summary>
+                            <p className="text-xs text-gray-700 mt-2 p-2 bg-white rounded border border-gray-200 whitespace-pre-wrap">
+                              {parsedContent.medicationContent}
+                            </p>
+                          </details>
+                        )}
+
+                        {/* Exames Oftalmológicos */}
+                        {parsedContent.selectedExams?.length > 0 && (
+                          <details className="mt-2">
+                            <summary className="text-xs text-purple-600 cursor-pointer hover:text-purple-700 font-medium">
+                              👁️ Exames Oftalmológicos ({parsedContent.selectedExams.length})
+                            </summary>
+                            <ul className="text-xs text-gray-700 mt-2 p-2 bg-white rounded border border-gray-200 list-disc list-inside">
+                              {parsedContent.selectedExams.map((exam, i) => (
+                                <li key={i}>{exam}</li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+
+                        {/* Exames Urológicos */}
+                        {parsedContent.selectedUrologyExams?.length > 0 && (
+                          <details className="mt-2">
+                            <summary className="text-xs text-blue-600 cursor-pointer hover:text-blue-700 font-medium">
+                              🩺 Exames Urológicos ({parsedContent.selectedUrologyExams.length})
+                            </summary>
+                            <ul className="text-xs text-gray-700 mt-2 p-2 bg-white rounded border border-gray-200 list-disc list-inside">
+                              {parsedContent.selectedUrologyExams.map((exam, i) => (
+                                <li key={i}>{exam}</li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+
+                        {/* Lentes */}
+                        {parsedContent.lensData && Object.values(parsedContent.lensData).some(v => v) && (
+                          <details className="mt-2">
+                            <summary className="text-xs text-orange-600 cursor-pointer hover:text-orange-700 font-medium">
+                              👓 Prescrição de Lentes
+                            </summary>
+                            <div className="text-xs text-gray-700 mt-2 p-2 bg-white rounded border border-gray-200">
+                              <p><strong>OD:</strong> ESF {parsedContent.lensData.od_esf} | CIL {parsedContent.lensData.od_cil} | EIXO {parsedContent.lensData.od_eixo}</p>
+                              <p><strong>OE:</strong> ESF {parsedContent.lensData.oe_esf} | CIL {parsedContent.lensData.oe_cil} | EIXO {parsedContent.lensData.oe_eixo}</p>
+                              {parsedContent.lensData.adicao && <p><strong>Adição:</strong> {parsedContent.lensData.adicao}</p>}
+                              {parsedContent.lensData.observacoes && <p><strong>Obs:</strong> {parsedContent.lensData.observacoes}</p>}
+                            </div>
+                          </details>
+                        )}
+                      </motion.div>
+                    );
+                  })
                 )}
               </div>
             </motion.div>
@@ -689,6 +824,7 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
           onClose={() => setShowCreatePrescription(false)}
           onSuccess={() => {
             setShowCreatePrescription(false);
+            refreshPrescriptions();
             toast({ title: "Receita criada com sucesso! 🎉" });
           }}
         />

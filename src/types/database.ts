@@ -37,6 +37,7 @@ export interface Doctor {
   created_at: string;
   can_prescribe_exams: boolean;
   can_prescribe_lenses: boolean;
+  can_prescribe_urology_exams: boolean;
 }
 
 export interface Patient {

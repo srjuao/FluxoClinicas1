@@ -28,6 +28,93 @@ const examOptions = [
   "Outros",
 ];
 
+// Exames de Urologia organizados em 3 categorias
+const urologyExamOptions = {
+  laboratoriais: [
+    "Ácido Cítrico – Citrato Urina 24 Horas",
+    "Ácido Oxálico – Oxalato Urina 24 Horas",
+    "Ácido Úrico – Urina 24 horas",
+    "Cálcio – Urina 24 horas",
+    "Cistina – Urina 24h",
+    "Urina Rotina (EAS)",
+    "Cultura de Urina (Urocultura)",
+    "Desformínio Eritrocitário",
+    "Bacterioscopia por Lâmina (Gram)",
+    "Anti HBS",
+    "Anti HCV (Hepatite C)",
+    "FTA-ABS IgG",
+    "FTA-ABS IgM",
+    "HBSag",
+    "Herpes Simples I e II IgG",
+    "Herpes Simples I e II IgM",
+    "HIV 1 e 2",
+    "VDRL – Reação de Sífilis",
+    "Cálcio Iônico",
+    "Ácido Láctico",
+    "Cálcio Total",
+    "Paratormônio PTH Intacto (Molécula Íntegra)",
+    "Colesterol HDL",
+    "Colesterol LDL",
+    "Colesterol Total",
+    "Colesterol VLDL",
+    "Triglicerídeos",
+    "Hemograma",
+    "Uréia",
+    "Creatinina",
+    "Sódio",
+    "Potássio",
+  ],
+  hormonios: [
+    "Tempo de Tromboplastina Parcial (TTP)",
+    "Tempo e Atividade de Protrombina (TP)",
+    "Fosfatase Alcalina (FA)",
+    "Transaminase Oxalacética – TGO/AST",
+    "Gama Glutamil Transferase (GGT)",
+    "Transaminase Pirúvica – TGP/ALT",
+    "Hemoglobina Glicada por HPLC (HbA1c)",
+    "Glicemia de Jejum",
+    "PSA Livre/Total",
+    "PSA Total",
+    "TSH (Tireoestimulante)",
+    "T4 Total",
+    "Testosterona",
+    "Testosterona Livre",
+    "Prolactina",
+    "Hormônio Luteinizante (LH)",
+    "Hormônio Folículo Estimulante (FSH)",
+    "Hormônio Gonadotrófico Coriônico Quantitativo (HCG Beta)",
+    "Gonadotrofina Coriônica Hormônio (HCG)",
+    "Alfa-fetoproteína",
+    "Lactato Desidrogenase (DHL)",
+    "Espermatograma",
+    "Microdeleção do Cromossomo Y",
+    "Pesquisa de Espermatozoides na Urina",
+    "Cariótipo com Banda G",
+  ],
+  imagem: [
+    "Tc – Abdome Superior",
+    "Tc – Tórax",
+    "Rx – Tórax",
+    "Tc – Abdome Total",
+    "Tc – Pelve",
+    "Urotomografia",
+    "Us – Abdome Total",
+    "Us – Aparelho Urinário (rins, ureteres e bexiga)",
+    "Us – Pélvico Masculino",
+    "Us – Região Inguinal – Direita",
+    "Us – Região Inguinal – Esquerda",
+    "Us – Testículos",
+    "Us – Transretal com Biópsia da Próstata",
+    "CTG Renal Estática e Dinâmica",
+    "CTG Renal Dinâmica com Diurético",
+    "Colonoscopia (inclui a retossigmoidoscopia)",
+    "Revisão de Lâmina",
+    "Imunohistoquímica",
+    "Vitamina B12",
+    "Vitamina D3 (25-Hidrox)",
+  ],
+};
+
 const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
   doctorId,
   clinicId,
@@ -53,6 +140,7 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
     observacoes: "",
   });
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
+  const [selectedUrologyExams, setSelectedUrologyExams] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [doctorData, setDoctorData] = useState<Doctor | null>(null);
 
@@ -95,7 +183,7 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
 
       const { data, error } = await supabase
         .from("doctors")
-        .select("can_prescribe_exams, can_prescribe_lenses")
+        .select("can_prescribe_exams, can_prescribe_lenses, can_prescribe_urology_exams")
         .eq("id", doctorId)
         .single();
 
@@ -114,15 +202,22 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
     );
   };
 
+  const toggleUrologyExam = (exam: string) => {
+    setSelectedUrologyExams((prev) =>
+      prev.includes(exam) ? prev.filter((e) => e !== exam) : [...prev, exam]
+    );
+  };
+
   const handleSave = async (type: string) => {
     setLoading(true);
 
     const hasMedication = medicationContent.trim() && type === "medication";
     const hasExams = selectedExams.length && type === "exams";
+    const hasUrologyExams = selectedUrologyExams.length && type === "urology_exams";
     const hasLenses =
       Object.values(lensData).some((v) => v) && type === "lenses";
 
-    if (!hasMedication && !hasExams && !hasLenses) {
+    if (!hasMedication && !hasExams && !hasUrologyExams && !hasLenses) {
       toast({
         title: "Erro",
         description: "Preencha algo na aba antes de criar.",
@@ -134,12 +229,14 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
     const content = JSON.stringify({
       medicationContent,
       selectedExams,
+      selectedUrologyExams,
       lensData,
     });
     const { error } = await supabase.from("prescriptions").insert([
       {
         doctor_id: doctorId,
         clinic_id: clinicId,
+        patient_id: selectedPatient || preselectedPatient?.id || null,
         title: "Prescrição",
         content,
       },
@@ -177,7 +274,13 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
     }
 
     if (type === "exams" && parsed.selectedExams?.length) {
-      printContent += `<div class="content"><h3>Exames</h3><ul>${parsed.selectedExams
+      printContent += `<div class="content"><h3>Exames Oftalmológicos</h3><ul>${parsed.selectedExams
+        .map((exam: string) => `<li>${exam}</li>`)
+        .join("")}</ul></div>`;
+    }
+
+    if (type === "urology_exams" && parsed.selectedUrologyExams?.length) {
+      printContent += `<div class="content"><h3>Exames Urológicos</h3><ul>${parsed.selectedUrologyExams
         .map((exam: string) => `<li>${exam}</li>`)
         .join("")}</ul></div>`;
     }
@@ -282,11 +385,10 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
         {/* Abas principais */}
         <div className="flex mb-4 border-b">
           <button
-            className={`flex-1 p-2 ${
-              activeTab === "receita"
-                ? "border-b-2 border-blue-500 font-semibold"
-                : ""
-            }`}
+            className={`flex-1 p-2 ${activeTab === "receita"
+              ? "border-b-2 border-blue-500 font-semibold"
+              : ""
+              }`}
             onClick={() => setActiveTab("receita")}
           >
             Receita Médica
@@ -298,22 +400,20 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
           <>
             <div className="flex mb-3 border-b">
               <button
-                className={`flex-1 p-2 ${
-                  subTab === "sem_lentes"
-                    ? "border-b-2 border-blue-500 font-semibold"
-                    : ""
-                }`}
+                className={`flex-1 p-2 ${subTab === "sem_lentes"
+                  ? "border-b-2 border-blue-500 font-semibold"
+                  : ""
+                  }`}
                 onClick={() => setSubTab("sem_lentes")}
               >
                 Medicamentos
               </button>
               {doctorData?.can_prescribe_lenses && (
                 <button
-                  className={`flex-1 p-2 ${
-                    subTab === "lentes"
-                      ? "border-b-2 border-blue-500 font-semibold"
-                      : ""
-                  }`}
+                  className={`flex-1 p-2 ${subTab === "lentes"
+                    ? "border-b-2 border-blue-500 font-semibold"
+                    : ""
+                    }`}
                   onClick={() => setSubTab("lentes")}
                 >
                   Lentes
@@ -321,14 +421,24 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
               )}
               {doctorData?.can_prescribe_exams && (
                 <button
-                  className={`flex-1 p-2 ${
-                    subTab === "exames"
-                      ? "border-b-2 border-blue-500 font-semibold"
-                      : ""
-                  }`}
+                  className={`flex-1 p-2 ${subTab === "exames"
+                    ? "border-b-2 border-blue-500 font-semibold"
+                    : ""
+                    }`}
                   onClick={() => setSubTab("exames")}
                 >
-                  Exames
+                  Exames Oftalmo
+                </button>
+              )}
+              {doctorData?.can_prescribe_urology_exams && (
+                <button
+                  className={`flex-1 p-2 ${subTab === "exames_urologicos"
+                    ? "border-b-2 border-blue-500 font-semibold"
+                    : ""
+                    }`}
+                  onClick={() => setSubTab("exames_urologicos")}
+                >
+                  Exames Urologia
                 </button>
               )}
             </div>
@@ -491,6 +601,80 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
                   >
                     {loading ? "Salvando..." : "Criar & Imprimir Exames"}
                   </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Subaba: Exames Urológicos */}
+            {subTab === "exames_urologicos" && doctorData?.can_prescribe_urology_exams && (
+              <div>
+                <div className="max-h-80 overflow-y-auto border p-3 rounded mb-4 space-y-4">
+                  {/* Laboratoriais */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-700 mb-2 border-b pb-1">🧪 Laboratoriais</h4>
+                    <div className="grid grid-cols-2 gap-1">
+                      {urologyExamOptions.laboratoriais.map((exam) => (
+                        <label key={exam} className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedUrologyExams.includes(exam)}
+                            onChange={() => toggleUrologyExam(exam)}
+                          />
+                          <span>{exam}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Hormônios e outros */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-700 mb-2 border-b pb-1">💉 Hormônios e Outros</h4>
+                    <div className="grid grid-cols-2 gap-1">
+                      {urologyExamOptions.hormonios.map((exam) => (
+                        <label key={exam} className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedUrologyExams.includes(exam)}
+                            onChange={() => toggleUrologyExam(exam)}
+                          />
+                          <span>{exam}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Imagem e Procedimentos */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-700 mb-2 border-b pb-1">📷 Imagem e Procedimentos</h4>
+                    <div className="grid grid-cols-2 gap-1">
+                      {urologyExamOptions.imagem.map((exam) => (
+                        <label key={exam} className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedUrologyExams.includes(exam)}
+                            onChange={() => toggleUrologyExam(exam)}
+                          />
+                          <span>{exam}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center gap-3">
+                  <span className="text-xs text-gray-500">
+                    {selectedUrologyExams.length} exame(s) selecionado(s)
+                  </span>
+                  <div className="flex gap-3">
+                    <Button variant="outline" onClick={onClose}>
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={() => handleSave("urology_exams")}
+                      disabled={loading}
+                    >
+                      {loading ? "Salvando..." : "Criar & Imprimir Exames"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
