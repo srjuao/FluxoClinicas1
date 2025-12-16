@@ -189,6 +189,8 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
           ? "Consulta"
           : reason === "retorno"
           ? "Retorno"
+          : reason === "exame"
+          ? "Exame"
           : null;
 
       const { error } = await supabase.from("appointments").insert({
@@ -300,6 +302,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
                 <option value="">Selecione o motivo...</option>
                 <option value="consulta">Consulta</option>
                 <option value="retorno">Retorno</option>
+                <option value="exame">Exame</option>
               </select>
             </div>
 

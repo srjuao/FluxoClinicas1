@@ -35,6 +35,7 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
   const getReasonValue = (reasonText?: string) => {
     if (reasonText === "Primeira Consulta") return "primeira_consulta";
     if (reasonText === "Retorno") return "retorno";
+    if (reasonText === "Exame") return "exame";
     return "";
   };
 
@@ -175,8 +176,10 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
         reason === "primeira_consulta"
           ? "Primeira Consulta"
           : reason === "retorno"
-          ? "Retorno"
-          : null;
+            ? "Retorno"
+            : reason === "exame"
+              ? "Exame"
+              : null;
 
       const updates: any = { status, reason: reasonText };
 
@@ -393,11 +396,10 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
                         <button
                           key={slot}
                           onClick={() => setSelectedSlot(slot)}
-                          className={`p-2 rounded-lg border-2 text-sm font-medium transition-all ${
-                            selectedSlot === slot
+                          className={`p-2 rounded-lg border-2 text-sm font-medium transition-all ${selectedSlot === slot
                               ? "border-purple-500 bg-purple-50 text-purple-700"
                               : "border-gray-200 hover:border-purple-300 text-gray-700"
-                          }`}
+                            }`}
                         >
                           {slot}
                         </button>
@@ -426,6 +428,7 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
               <option value="">Selecione o motivo...</option>
               <option value="primeira_consulta">Primeira Consulta</option>
               <option value="retorno">Retorno</option>
+              <option value="exame">Exame</option>
             </select>
           </div>
 
