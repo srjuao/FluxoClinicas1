@@ -1,12 +1,50 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
-import { X, Calendar, Clock, User, CreditCard } from "lucide-react";
+import { X, Calendar, Clock, User, CreditCard, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
 import { formatCPF } from "@/utils";
 import type { Patient } from "@/types/database";
 import type { InsurancePlan, DoctorPricing, ClinicCommission } from "@/types/database.types";
+
+// Lista de tipos de exame de ultrassom
+const EXAM_TYPES = [
+  "Abdome total",
+  "Abdome superior",
+  "Rins",
+  "Pélvico feminino",
+  "Próstata",
+  "Parede abdominal",
+  "Região inguinal (cada lado)",
+  "Partes moles",
+  "Carótidas e vertebrais",
+  "Bolsa escrotal",
+  "Bolsa escrotal com Doppler",
+  "Tireoide",
+  "Tireoide com Doppler",
+  "Cervical",
+  "Cervical com Doppler",
+  "Mamas",
+  "Axilas (partes moles)",
+  "Obstétrico simples",
+  "Morfológico (21ª a 24ª semana)",
+  "Obstétrico com Doppler (26ª a 38ª semanas)",
+  "Obstétrico + TN",
+  "Obstétrico + PBF",
+  "Obstétrico simples gemelar",
+  "Endovaginal",
+  "Ombro / cotovelo",
+  "Joelho / tornozelo",
+  "Mamas + axilas",
+  "Morfológico com Doppler e TN",
+  "Pênis",
+  "Abdome com Doppler",
+  "Obstétrico com medida do colo",
+  "Obstétrico + Doppler + TN",
+  "Perianal",
+  "Obstétrico + Doppler + PBF",
+];
 
 interface QuickAppointmentModalProps {
   clinicId: string;
@@ -31,14 +69,16 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientSearch, setPatientSearch] = useState("");
   const [reason, setReason] = useState("");
+  const [selectedExamType, setSelectedExamType] = useState("");
+  const [examTypeSearch, setExamTypeSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  
+
   // Estados para convênio
   const [isInsurance, setIsInsurance] = useState(false);
   const [insurancePlans, setInsurancePlans] = useState<InsurancePlan[]>([]);
   const [selectedInsurancePlan, setSelectedInsurancePlan] = useState<string>("");
-  
+
   // Estados para valores financeiros
   const [consultationValue, setConsultationValue] = useState<number>(0);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
@@ -168,6 +208,14 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
       (p.cpf && p.cpf.includes(patientSearch))
   );
 
+  // Filtrar tipos de exame
+  const filteredExamTypes = useMemo(() => {
+    if (!examTypeSearch) return EXAM_TYPES;
+    return EXAM_TYPES.filter((type) =>
+      type.toLowerCase().includes(examTypeSearch.toLowerCase())
+    );
+  }, [examTypeSearch]);
+
   const handleSubmit = async () => {
     if (!selectedPatient) {
       toast({
@@ -184,14 +232,19 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
       const endDate = new Date(startDate.getTime() + slotMinutes * 60000);
 
       // Convert reason value to text
-      const reasonText =
+      let reasonText =
         reason === "consulta"
           ? "Consulta"
           : reason === "retorno"
-          ? "Retorno"
-          : reason === "exame"
-          ? "Exame"
-          : null;
+            ? "Retorno"
+            : reason === "exame"
+              ? "Exame"
+              : null;
+
+      // Se for exame, adicionar o tipo de exame ao motivo
+      if (reason === "exame" && selectedExamType) {
+        reasonText = `Exame: ${selectedExamType}`;
+      }
 
       const { error } = await supabase.from("appointments").insert({
         clinic_id: clinicId,
@@ -296,7 +349,13 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
               </label>
               <select
                 value={reason}
-                onChange={(e) => setReason(e.target.value)}
+                onChange={(e) => {
+                  setReason(e.target.value);
+                  if (e.target.value !== "exame") {
+                    setSelectedExamType("");
+                    setExamTypeSearch("");
+                  }
+                }}
                 className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
               >
                 <option value="">Selecione o motivo...</option>
@@ -305,6 +364,54 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
                 <option value="exame">Exame</option>
               </select>
             </div>
+
+            {/* Exam Type Selector - aparece quando motivo é Exame */}
+            {reason === "exame" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo de Exame
+                </label>
+                <div className="relative mb-2">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Buscar tipo de exame..."
+                    value={examTypeSearch}
+                    onChange={(e) => setExamTypeSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg">
+                  {filteredExamTypes.length === 0 ? (
+                    <p className="text-center text-gray-500 py-3 text-sm">
+                      Nenhum exame encontrado
+                    </p>
+                  ) : (
+                    filteredExamTypes.map((examType) => (
+                      <button
+                        key={examType}
+                        type="button"
+                        onClick={() => {
+                          setSelectedExamType(examType);
+                          setExamTypeSearch("");
+                        }}
+                        className={`w-full px-4 py-2 text-left text-sm hover:bg-purple-50 transition-colors ${selectedExamType === examType
+                            ? "bg-purple-100 text-purple-700 font-medium"
+                            : "text-gray-700"
+                          }`}
+                      >
+                        {examType}
+                      </button>
+                    ))
+                  )}
+                </div>
+                {selectedExamType && (
+                  <p className="mt-2 text-sm text-purple-600 font-medium">
+                    Selecionado: {selectedExamType}
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Tipo de Pagamento */}
             <div>
@@ -416,11 +523,10 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
                     <button
                       key={patient.id}
                       onClick={() => setSelectedPatient(patient)}
-                      className={`w-full p-3 rounded-lg border-2 text-left transition-all ${
-                        selectedPatient?.id === patient.id
+                      className={`w-full p-3 rounded-lg border-2 text-left transition-all ${selectedPatient?.id === patient.id
                           ? "border-purple-500 bg-purple-50"
                           : "border-gray-200 hover:border-purple-300"
-                      }`}
+                        }`}
                     >
                       <p className="font-medium text-gray-900">
                         {patient.name}
@@ -456,7 +562,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
           <Button
             onClick={handleSubmit}
             className="flex-1 gradient-primary text-white"
-            disabled={!selectedPatient || !reason || submitting}
+            disabled={!selectedPatient || !reason || (reason === "exame" && !selectedExamType) || submitting}
           >
             {submitting ? "Agendando..." : "Confirmar Agendamento"}
           </Button>

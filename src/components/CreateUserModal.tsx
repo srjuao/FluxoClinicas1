@@ -35,6 +35,10 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   const [canPrescribeUrologyExams, setCanPrescribeUrologyExams] = useState(
     doctorData?.can_prescribe_urology_exams || false
   );
+  const [canPrescribeCardiologyExams, setCanPrescribeCardiologyExams] = useState(
+    doctorData?.can_prescribe_cardiology_exams || false
+  );
+  const [room, setRoom] = useState(doctorData?.room || "");
   const [isAdmin, setIsAdmin] = useState(userToEdit?.is_admin || false);
   const [loading, setLoading] = useState(false);
   const [showPasswordEdit, setShowPasswordEdit] = useState(false);
@@ -54,6 +58,8 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
       setCanPrescribeExams(doctorData?.can_prescribe_exams || false);
       setCanPrescribeLenses(doctorData?.can_prescribe_lenses || false);
       setCanPrescribeUrologyExams(doctorData?.can_prescribe_urology_exams || false);
+      setCanPrescribeCardiologyExams(doctorData?.can_prescribe_cardiology_exams || false);
+      setRoom(doctorData?.room || "");
     }
   }, [userToEdit]);
 
@@ -153,6 +159,8 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
             can_prescribe_exams: canPrescribeExams,
             can_prescribe_lenses: canPrescribeLenses,
             can_prescribe_urology_exams: canPrescribeUrologyExams,
+            can_prescribe_cardiology_exams: canPrescribeCardiologyExams,
+            room: room || null,
           },
           { onConflict: ["user_id"] }
         );
@@ -214,6 +222,8 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
         can_prescribe_exams: canPrescribeExams,
         can_prescribe_lenses: canPrescribeLenses,
         can_prescribe_urology_exams: canPrescribeUrologyExams,
+        can_prescribe_cardiology_exams: canPrescribeCardiologyExams,
+        room: room || null,
       });
 
       if (doctorError) {
@@ -457,6 +467,19 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sala de Atendimento
+                </label>
+                <input
+                  type="text"
+                  value={room}
+                  onChange={(e) => setRoom(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all outline-none"
+                  placeholder="Ex: Sala 1, Consultório 3"
+                />
+              </div>
+
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-gray-700">
                   Especialidade
@@ -511,8 +534,8 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 {/* Toggle Urologista */}
                 <div
                   className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${canPrescribeUrologyExams
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:border-gray-300"
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
                     }`}
                   onClick={() => setCanPrescribeUrologyExams(!canPrescribeUrologyExams)}
                 >
@@ -529,14 +552,14 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                   {/* Toggle Switch */}
                   <div
                     className={`relative w-12 h-6 rounded-full transition-colors ${canPrescribeUrologyExams
-                        ? "bg-blue-600"
-                        : "bg-gray-300"
+                      ? "bg-blue-600"
+                      : "bg-gray-300"
                       }`}
                   >
                     <div
                       className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${canPrescribeUrologyExams
-                          ? "translate-x-7"
-                          : "translate-x-1"
+                        ? "translate-x-7"
+                        : "translate-x-1"
                         }`}
                     />
                   </div>
@@ -547,6 +570,48 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                     <span>✓ Exames laboratoriais urológicos</span>
                     <span>•</span>
                     <span>✓ Exames de imagem</span>
+                  </div>
+                )}
+
+                {/* Toggle Cardiologista */}
+                <div
+                  className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${canPrescribeCardiologyExams
+                    ? "border-red-500 bg-red-50"
+                    : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  onClick={() => setCanPrescribeCardiologyExams(!canPrescribeCardiologyExams)}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">❤️</span>
+                    <div>
+                      <p className="font-medium text-gray-900">Cardiologista</p>
+                      <p className="text-xs text-gray-500">
+                        Permite prescrever exames cardiológicos
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Toggle Switch */}
+                  <div
+                    className={`relative w-12 h-6 rounded-full transition-colors ${canPrescribeCardiologyExams
+                      ? "bg-red-600"
+                      : "bg-gray-300"
+                      }`}
+                  >
+                    <div
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${canPrescribeCardiologyExams
+                        ? "translate-x-7"
+                        : "translate-x-1"
+                        }`}
+                    />
+                  </div>
+                </div>
+
+                {canPrescribeCardiologyExams && (
+                  <div className="flex items-center gap-2 text-xs text-red-600 pl-2">
+                    <span>✓ Exames laboratoriais cardiológicos</span>
+                    <span>•</span>
+                    <span>✓ Perfil lipídico e metabólico</span>
                   </div>
                 )}
               </div>

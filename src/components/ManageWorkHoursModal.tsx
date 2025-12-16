@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { X, Clock, Plus, Trash2, Calendar, Utensils, Edit, Save, XCircle } from "lucide-react";
+import { X, Clock, Plus, Trash2, Calendar, Utensils, Edit, Save, XCircle, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -45,7 +45,7 @@ const formatDateToISO = (brDate) => {
 const formatDateInput = (value) => {
   // Remove tudo que não é número
   const numbers = value.replace(/\D/g, "");
-  
+
   // Aplica máscara DD/MM/YYYY
   if (numbers.length <= 2) {
     return numbers;
@@ -84,6 +84,7 @@ const ManageWorkHoursModal = ({ doctor, user, clinicId, onClose }) => {
     slot_minutes: 30,
     lunch_start: "",
     lunch_end: "",
+    room: "",
   });
 
   const loadWorkHours = useCallback(async () => {
@@ -118,6 +119,7 @@ const ManageWorkHoursModal = ({ doctor, user, clinicId, onClose }) => {
       slot_minutes: 30,
       lunch_start: "",
       lunch_end: "",
+      room: "",
     });
     setSpecificDateBR("");
     setEditingId(null);
@@ -169,6 +171,7 @@ const ManageWorkHoursModal = ({ doctor, user, clinicId, onClose }) => {
           slot_minutes: newHour.slot_minutes,
           lunch_start: formatTime(newHour.lunch_start),
           lunch_end: formatTime(newHour.lunch_end),
+          room: newHour.room || null,
         })
         .eq("id", editingId);
 
@@ -195,6 +198,7 @@ const ManageWorkHoursModal = ({ doctor, user, clinicId, onClose }) => {
         slot_minutes: newHour.slot_minutes,
         lunch_start: formatTime(newHour.lunch_start),
         lunch_end: formatTime(newHour.lunch_end),
+        room: newHour.room || null,
       });
 
       if (error) {
@@ -222,6 +226,7 @@ const ManageWorkHoursModal = ({ doctor, user, clinicId, onClose }) => {
       slot_minutes: wh.slot_minutes,
       lunch_start: wh.lunch_start ? wh.lunch_start.substring(0, 5) : "",
       lunch_end: wh.lunch_end ? wh.lunch_end.substring(0, 5) : "",
+      room: wh.room || "",
     });
     // Converte para formato brasileiro para exibição
     setSpecificDateBR(isoDate ? formatDateToBR(isoDate) : "");
@@ -414,6 +419,23 @@ const ManageWorkHoursModal = ({ doctor, user, clinicId, onClose }) => {
                 />
               </div>
 
+              {/* Sala de Atendimento */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <MapPin className="w-4 h-4 inline mr-1" />
+                  Sala de Atendimento
+                </label>
+                <input
+                  type="text"
+                  value={newHour.room}
+                  onChange={(e) =>
+                    setNewHour({ ...newHour, room: e.target.value })
+                  }
+                  placeholder="Ex: Sala 1, Consultório 3"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200"
+                />
+              </div>
+
               {/* Horário de Almoço */}
               <div className="col-span-2 border-t pt-4 mt-2">
                 <h4 className="text-sm font-semibold text-gray-800 flex items-center gap-2 mb-2">
@@ -498,6 +520,11 @@ const ManageWorkHoursModal = ({ doctor, user, clinicId, onClose }) => {
                         {wh.lunch_start && wh.lunch_end && (
                           <p className="text-xs text-gray-500">
                             🍽 Almoço: {wh.lunch_start.substring(0, 5)} - {wh.lunch_end.substring(0, 5)}
+                          </p>
+                        )}
+                        {wh.room && (
+                          <p className="text-xs text-purple-600 font-medium">
+                            📍 Sala: {wh.room}
                           </p>
                         )}
                       </div>

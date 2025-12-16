@@ -115,6 +115,48 @@ const urologyExamOptions = {
   ],
 };
 
+// Exames de Cardiologia organizados em categorias
+const cardiologyExamOptions = {
+  hemograma: [
+    "Hemograma completo",
+  ],
+  perfilLipidico: [
+    "Colesterol total e frações",
+  ],
+  metabolico: [
+    "Hemoglobina glicada",
+    "Ureia",
+    "Creatinina",
+    "Ácido úrico",
+  ],
+  hepatico: [
+    "TGO",
+    "TGP",
+    "Fosfatase alcalina",
+    "Gama GT",
+  ],
+  tireoide: [
+    "TSH",
+    "T4 livre",
+  ],
+  ferroVitaminas: [
+    "Ferro",
+    "Ferritina",
+    "Índice saturação transferrina",
+    "Vitamina D",
+    "Vitamina B12",
+  ],
+  eletrólitos: [
+    "Sódio",
+    "Potássio",
+    "Cálcio",
+  ],
+  urina: [
+    "EAS",
+    "EPF",
+  ],
+};
+
 const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
   doctorId,
   clinicId,
@@ -141,6 +183,7 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
   });
   const [selectedExams, setSelectedExams] = useState<string[]>([]);
   const [selectedUrologyExams, setSelectedUrologyExams] = useState<string[]>([]);
+  const [selectedCardiologyExams, setSelectedCardiologyExams] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [doctorData, setDoctorData] = useState<Doctor | null>(null);
 
@@ -183,7 +226,7 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
 
       const { data, error } = await supabase
         .from("doctors")
-        .select("can_prescribe_exams, can_prescribe_lenses, can_prescribe_urology_exams")
+        .select("can_prescribe_exams, can_prescribe_lenses, can_prescribe_urology_exams, can_prescribe_cardiology_exams")
         .eq("id", doctorId)
         .single();
 
@@ -208,16 +251,23 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
     );
   };
 
+  const toggleCardiologyExam = (exam: string) => {
+    setSelectedCardiologyExams((prev) =>
+      prev.includes(exam) ? prev.filter((e) => e !== exam) : [...prev, exam]
+    );
+  };
+
   const handleSave = async (type: string) => {
     setLoading(true);
 
     const hasMedication = medicationContent.trim() && type === "medication";
     const hasExams = selectedExams.length && type === "exams";
     const hasUrologyExams = selectedUrologyExams.length && type === "urology_exams";
+    const hasCardiologyExams = selectedCardiologyExams.length && type === "cardiology_exams";
     const hasLenses =
       Object.values(lensData).some((v) => v) && type === "lenses";
 
-    if (!hasMedication && !hasExams && !hasUrologyExams && !hasLenses) {
+    if (!hasMedication && !hasExams && !hasUrologyExams && !hasCardiologyExams && !hasLenses) {
       toast({
         title: "Erro",
         description: "Preencha algo na aba antes de criar.",
@@ -230,6 +280,7 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
       medicationContent,
       selectedExams,
       selectedUrologyExams,
+      selectedCardiologyExams,
       lensData,
     });
     const { error } = await supabase.from("prescriptions").insert([
@@ -281,6 +332,12 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
 
     if (type === "urology_exams" && parsed.selectedUrologyExams?.length) {
       printContent += `<div class="content"><h3>Exames Urológicos</h3><ul>${parsed.selectedUrologyExams
+        .map((exam: string) => `<li>${exam}</li>`)
+        .join("")}</ul></div>`;
+    }
+
+    if (type === "cardiology_exams" && parsed.selectedCardiologyExams?.length) {
+      printContent += `<div class="content"><h3>Exames Cardiológicos</h3><ul>${parsed.selectedCardiologyExams
         .map((exam: string) => `<li>${exam}</li>`)
         .join("")}</ul></div>`;
     }
@@ -439,6 +496,17 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
                   onClick={() => setSubTab("exames_urologicos")}
                 >
                   Exames Urologia
+                </button>
+              )}
+              {doctorData?.can_prescribe_cardiology_exams && (
+                <button
+                  className={`flex-1 p-2 ${subTab === "exames_cardiologicos"
+                    ? "border-b-2 border-red-500 font-semibold"
+                    : ""
+                    }`}
+                  onClick={() => setSubTab("exames_cardiologicos")}
+                >
+                  Exames Cardio
                 </button>
               )}
             </div>
@@ -670,6 +738,165 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
                     </Button>
                     <Button
                       onClick={() => handleSave("urology_exams")}
+                      disabled={loading}
+                    >
+                      {loading ? "Salvando..." : "Criar & Imprimir Exames"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Subaba: Exames Cardiológicos */}
+            {subTab === "exames_cardiologicos" && doctorData?.can_prescribe_cardiology_exams && (
+              <div>
+                <div className="max-h-80 overflow-y-auto border p-3 rounded mb-4 space-y-4">
+                  {/* Hemograma */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-700 mb-2 border-b pb-1">🩸 Hemograma</h4>
+                    <div className="grid grid-cols-2 gap-1">
+                      {cardiologyExamOptions.hemograma.map((exam) => (
+                        <label key={exam} className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedCardiologyExams.includes(exam)}
+                            onChange={() => toggleCardiologyExam(exam)}
+                          />
+                          <span>{exam}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Perfil Lipídico */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-700 mb-2 border-b pb-1">💉 Perfil Lipídico</h4>
+                    <div className="grid grid-cols-2 gap-1">
+                      {cardiologyExamOptions.perfilLipidico.map((exam) => (
+                        <label key={exam} className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedCardiologyExams.includes(exam)}
+                            onChange={() => toggleCardiologyExam(exam)}
+                          />
+                          <span>{exam}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Função Metabólica/Renal */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-700 mb-2 border-b pb-1">🔬 Função Metabólica/Renal</h4>
+                    <div className="grid grid-cols-2 gap-1">
+                      {cardiologyExamOptions.metabolico.map((exam) => (
+                        <label key={exam} className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedCardiologyExams.includes(exam)}
+                            onChange={() => toggleCardiologyExam(exam)}
+                          />
+                          <span>{exam}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Função Hepática */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-700 mb-2 border-b pb-1">🫀 Função Hepática</h4>
+                    <div className="grid grid-cols-2 gap-1">
+                      {cardiologyExamOptions.hepatico.map((exam) => (
+                        <label key={exam} className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedCardiologyExams.includes(exam)}
+                            onChange={() => toggleCardiologyExam(exam)}
+                          />
+                          <span>{exam}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tireoide */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-700 mb-2 border-b pb-1">🦋 Tireoide</h4>
+                    <div className="grid grid-cols-2 gap-1">
+                      {cardiologyExamOptions.tireoide.map((exam) => (
+                        <label key={exam} className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedCardiologyExams.includes(exam)}
+                            onChange={() => toggleCardiologyExam(exam)}
+                          />
+                          <span>{exam}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Ferro e Vitaminas */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-700 mb-2 border-b pb-1">💊 Ferro e Vitaminas</h4>
+                    <div className="grid grid-cols-2 gap-1">
+                      {cardiologyExamOptions.ferroVitaminas.map((exam) => (
+                        <label key={exam} className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedCardiologyExams.includes(exam)}
+                            onChange={() => toggleCardiologyExam(exam)}
+                          />
+                          <span>{exam}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Eletrólitos */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-700 mb-2 border-b pb-1">⚡ Eletrólitos</h4>
+                    <div className="grid grid-cols-2 gap-1">
+                      {cardiologyExamOptions.eletrólitos.map((exam) => (
+                        <label key={exam} className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedCardiologyExams.includes(exam)}
+                            onChange={() => toggleCardiologyExam(exam)}
+                          />
+                          <span>{exam}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Urina */}
+                  <div>
+                    <h4 className="font-semibold text-sm text-gray-700 mb-2 border-b pb-1">🧪 Exames de Urina</h4>
+                    <div className="grid grid-cols-2 gap-1">
+                      {cardiologyExamOptions.urina.map((exam) => (
+                        <label key={exam} className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={selectedCardiologyExams.includes(exam)}
+                            onChange={() => toggleCardiologyExam(exam)}
+                          />
+                          <span>{exam}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center gap-3">
+                  <span className="text-xs text-gray-500">
+                    {selectedCardiologyExams.length} exame(s) selecionado(s)
+                  </span>
+                  <div className="flex gap-3">
+                    <Button variant="outline" onClick={onClose}>
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={() => handleSave("cardiology_exams")}
                       disabled={loading}
                     >
                       {loading ? "Salvando..." : "Criar & Imprimir Exames"}

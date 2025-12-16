@@ -649,6 +649,20 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                           </details>
                         )}
 
+                        {/* Exames Cardiológicos */}
+                        {parsedContent.selectedCardiologyExams?.length > 0 && (
+                          <details className="mt-2">
+                            <summary className="text-xs text-red-600 cursor-pointer hover:text-red-700 font-medium">
+                              ❤️ Exames Cardiológicos ({parsedContent.selectedCardiologyExams.length})
+                            </summary>
+                            <ul className="text-xs text-gray-700 mt-2 p-2 bg-white rounded border border-gray-200 list-disc list-inside">
+                              {parsedContent.selectedCardiologyExams.map((exam, i) => (
+                                <li key={i}>{exam}</li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+
                         {/* Lentes */}
                         {parsedContent.lensData && Object.values(parsedContent.lensData).some(v => v) && (
                           <details className="mt-2">

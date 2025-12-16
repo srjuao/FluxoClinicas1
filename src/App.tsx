@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Helmet } from "react-helmet";
 import { Toaster } from "@/components/ui/toaster";
 import LoginPage from "@/pages/LoginPage";
@@ -5,10 +6,33 @@ import SuperAdminDashboard from "@/pages/SuperAdminDashboard";
 import ClinicAdminDashboard from "@/pages/ClinicAdminDashboard";
 import DoctorDashboard from "@/pages/DoctorDashboard";
 import ReceptionistDashboard from "@/pages/ReceptionistDashboard";
+import TVPanelPage from "@/pages/TVPanelPage";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
 
 function App() {
   const { user, loading, profile } = useAuth();
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+
+  // Listen for URL changes
+  useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  // Check if current path is TV panel route
+  const tvPanelMatch = currentPath.match(/^\/tv\/([a-zA-Z0-9-]+)$/);
+  if (tvPanelMatch) {
+    const clinicId = tvPanelMatch[1];
+    return (
+      <>
+        <TVPanelPage clinicId={clinicId} />
+        <Toaster />
+      </>
+    );
+  }
 
   if (loading) {
     return (
@@ -64,3 +88,4 @@ function App() {
 }
 
 export default App;
+

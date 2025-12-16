@@ -26,6 +26,7 @@ export interface DoctorWorkHours {
   specific_date: string | null; // ISO date string
   lunch_start: string | null; // "HH:MM:SS" format
   lunch_end: string | null; // "HH:MM:SS" format
+  room: string | null;
 }
 
 export interface Doctor {
@@ -38,6 +39,8 @@ export interface Doctor {
   can_prescribe_exams: boolean;
   can_prescribe_lenses: boolean;
   can_prescribe_urology_exams: boolean;
+  can_prescribe_cardiology_exams: boolean;
+  room: string | null;
 }
 
 export interface Patient {

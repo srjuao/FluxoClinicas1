@@ -1,9 +1,10 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, Clock, Bell } from "lucide-react";
 import { supabase } from "@/lib/customSupabaseClient";
 import { toast } from "@/components/ui/use-toast";
+import { Button } from "@/components/ui/button";
 import CreatePrescriptionModal from "./CreatePrescriptionModal";
 import { SearchReportsModal } from "./SearchReportsModal";
 
@@ -17,6 +18,8 @@ const DoctorAgenda = ({ doctorId, clinicId, onSelectPatient }) => {
     useState(null);
 
   const [showSearchReports, setShowSearchReports] = useState(false);
+  const [doctorRoom, setDoctorRoom] = useState<string | null>(null);
+  const [callingPatient, setCallingPatient] = useState<string | null>(null);
 
   // 🧭 Buscar agendamentos
   const loadAppointments = useCallback(async () => {
@@ -52,6 +55,83 @@ const DoctorAgenda = ({ doctorId, clinicId, onSelectPatient }) => {
   useEffect(() => {
     loadAppointments();
   }, [loadAppointments]);
+
+  // 🏠 Buscar sala do médico a partir do horário de trabalho do dia
+  useEffect(() => {
+    const fetchDoctorRoom = async () => {
+      if (!doctorId) return;
+
+      const dateStr = selectedDate.toISOString().split("T")[0];
+      const weekday = selectedDate.getDay();
+
+      // Primeiro tenta buscar por data específica
+      let { data } = await supabase
+        .from("doctor_work_hours")
+        .select("room")
+        .eq("doctor_id", doctorId)
+        .eq("specific_date", dateStr)
+        .single();
+
+      // Se não encontrar, busca pelo dia da semana
+      if (!data) {
+        const { data: weekdayData } = await supabase
+          .from("doctor_work_hours")
+          .select("room")
+          .eq("doctor_id", doctorId)
+          .eq("weekday", weekday)
+          .is("specific_date", null)
+          .single();
+        data = weekdayData;
+      }
+
+      if (data) {
+        setDoctorRoom(data.room);
+      } else {
+        setDoctorRoom(null);
+      }
+    };
+    fetchDoctorRoom();
+  }, [doctorId, selectedDate]);
+
+  // 📢 Chamar paciente para o painel TV
+  const handleCallPatient = async (apt: any, e: React.MouseEvent) => {
+    e.stopPropagation(); // Evita navegar para detalhes do paciente
+
+    if (!doctorRoom) {
+      toast({
+        title: "Sala não configurada",
+        description: "Peça ao administrador para configurar sua sala de atendimento.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCallingPatient(apt.id);
+
+    const { error } = await supabase.from("patient_calls").insert({
+      clinic_id: clinicId,
+      doctor_id: doctorId,
+      patient_id: apt.patient?.id,
+      patient_name: apt.patient?.name || "Paciente",
+      room: doctorRoom,
+      is_active: true,
+    });
+
+    setCallingPatient(null);
+
+    if (error) {
+      toast({
+        title: "Erro ao chamar paciente",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Paciente chamado! 📢",
+        description: `${apt.patient?.name} foi chamado para ${doctorRoom}`,
+      });
+    }
+  };
 
   // ✅ Marcar paciente como atendido
   const handleMarkAsAttended = async (appointmentId) => {
@@ -177,24 +257,36 @@ const DoctorAgenda = ({ doctorId, clinicId, onSelectPatient }) => {
 
                   <div className="flex flex-col items-end space-y-2">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        apt.status === "SCHEDULED"
-                          ? "bg-blue-100 text-blue-700"
-                          : apt.status === "COMPLETED"
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${apt.status === "SCHEDULED"
+                        ? "bg-blue-100 text-blue-700"
+                        : apt.status === "COMPLETED"
                           ? "bg-green-100 text-green-700"
                           : apt.status === "CANCELED"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
+                            ? "bg-red-100 text-red-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
                     >
                       {apt.status === "SCHEDULED"
                         ? "Agendado"
                         : apt.status === "COMPLETED"
-                        ? "Atendido"
-                        : apt.status === "CANCELED"
-                        ? "Não atendido"
-                        : "Cancelado"}
+                          ? "Atendido"
+                          : apt.status === "CANCELED"
+                            ? "Não atendido"
+                            : "Cancelado"}
                     </span>
+
+                    {/* Botão Chamar Paciente */}
+                    {apt.status === "SCHEDULED" && apt.patient && (
+                      <Button
+                        size="sm"
+                        onClick={(e) => handleCallPatient(apt, e)}
+                        disabled={callingPatient === apt.id}
+                        className="bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white text-xs"
+                      >
+                        <Bell className="w-3 h-3 mr-1" />
+                        {callingPatient === apt.id ? "Chamando..." : "Chamar"}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </motion.div>

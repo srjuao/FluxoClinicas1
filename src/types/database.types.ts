@@ -110,6 +110,7 @@ export interface Database {
           specific_date: string | null
           lunch_start: string | null
           lunch_end: string | null
+          room: string | null
         }
         Insert: {
           id?: string
@@ -123,6 +124,7 @@ export interface Database {
           specific_date?: string | null
           lunch_start?: string | null
           lunch_end?: string | null
+          room?: string | null
         }
         Update: {
           id?: string
@@ -136,6 +138,7 @@ export interface Database {
           specific_date?: string | null
           lunch_start?: string | null
           lunch_end?: string | null
+          room?: string | null
         }
       }
       doctors: {
@@ -149,6 +152,8 @@ export interface Database {
           can_prescribe_exams: boolean
           can_prescribe_lenses: boolean
           can_prescribe_urology_exams: boolean
+          can_prescribe_cardiology_exams: boolean
+          room: string | null
         }
         Insert: {
           id?: string
@@ -160,6 +165,8 @@ export interface Database {
           can_prescribe_exams?: boolean
           can_prescribe_lenses?: boolean
           can_prescribe_urology_exams?: boolean
+          can_prescribe_cardiology_exams?: boolean
+          room?: string | null
         }
         Update: {
           id?: string
@@ -171,6 +178,8 @@ export interface Database {
           can_prescribe_exams?: boolean
           can_prescribe_lenses?: boolean
           can_prescribe_urology_exams?: boolean
+          can_prescribe_cardiology_exams?: boolean
+          room?: string | null
         }
       }
       medical_certificates: {

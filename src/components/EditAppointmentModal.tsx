@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
-import { X, Calendar, Clock, User, Trash2, Edit2 } from "lucide-react";
+import { X, Calendar, Clock, User, Trash2, Edit2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -8,6 +8,44 @@ import type {
   AppointmentWithPatientName,
   DoctorWorkHours,
 } from "@/types/database";
+
+// Lista de tipos de exame de ultrassom
+const EXAM_TYPES = [
+  "Abdome total",
+  "Abdome superior",
+  "Rins",
+  "Pélvico feminino",
+  "Próstata",
+  "Parede abdominal",
+  "Região inguinal (cada lado)",
+  "Partes moles",
+  "Carótidas e vertebrais",
+  "Bolsa escrotal",
+  "Bolsa escrotal com Doppler",
+  "Tireoide",
+  "Tireoide com Doppler",
+  "Cervical",
+  "Cervical com Doppler",
+  "Mamas",
+  "Axilas (partes moles)",
+  "Obstétrico simples",
+  "Morfológico (21ª a 24ª semana)",
+  "Obstétrico com Doppler (26ª a 38ª semanas)",
+  "Obstétrico + TN",
+  "Obstétrico + PBF",
+  "Obstétrico simples gemelar",
+  "Endovaginal",
+  "Ombro / cotovelo",
+  "Joelho / tornozelo",
+  "Mamas + axilas",
+  "Morfológico com Doppler e TN",
+  "Pênis",
+  "Abdome com Doppler",
+  "Obstétrico com medida do colo",
+  "Obstétrico + Doppler + TN",
+  "Perianal",
+  "Obstétrico + Doppler + PBF",
+];
 
 interface EditAppointmentModalProps {
   appointment: AppointmentWithPatientName;
@@ -31,15 +69,24 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Convert reason text back to value for select
+  // Convert reason text back to value for select and extract exam type if present
   const getReasonValue = (reasonText?: string) => {
-    if (reasonText === "Primeira Consulta") return "primeira_consulta";
+    if (reasonText === "Primeira Consulta" || reasonText === "Consulta") return "primeira_consulta";
     if (reasonText === "Retorno") return "retorno";
-    if (reasonText === "Exame") return "exame";
+    if (reasonText === "Exame" || reasonText?.startsWith("Exame:")) return "exame";
+    return "";
+  };
+
+  const getExamTypeFromReason = (reasonText?: string) => {
+    if (reasonText?.startsWith("Exame: ")) {
+      return reasonText.replace("Exame: ", "");
+    }
     return "";
   };
 
   const [reason, setReason] = useState(getReasonValue(appointment.reason));
+  const [selectedExamType, setSelectedExamType] = useState(getExamTypeFromReason(appointment.reason));
+  const [examTypeSearch, setExamTypeSearch] = useState("");
 
   // Load available slots when editing date/time
   const loadAvailableSlots = useCallback(async () => {
@@ -161,6 +208,14 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
     }
   }, [editingDateTime, selectedDate, appointment]);
 
+  // Filtrar tipos de exame
+  const filteredExamTypes = useMemo(() => {
+    if (!examTypeSearch) return EXAM_TYPES;
+    return EXAM_TYPES.filter((type) =>
+      type.toLowerCase().includes(examTypeSearch.toLowerCase())
+    );
+  }, [examTypeSearch]);
+
   useEffect(() => {
     if (editingDateTime) {
       loadAvailableSlots();
@@ -172,7 +227,7 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
 
     try {
       // Convert reason value to text
-      const reasonText =
+      let reasonText =
         reason === "primeira_consulta"
           ? "Primeira Consulta"
           : reason === "retorno"
@@ -180,6 +235,11 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
             : reason === "exame"
               ? "Exame"
               : null;
+
+      // Se for exame, adicionar o tipo de exame ao motivo
+      if (reason === "exame" && selectedExamType) {
+        reasonText = `Exame: ${selectedExamType}`;
+      }
 
       const updates: any = { status, reason: reasonText };
 
@@ -397,8 +457,8 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
                           key={slot}
                           onClick={() => setSelectedSlot(slot)}
                           className={`p-2 rounded-lg border-2 text-sm font-medium transition-all ${selectedSlot === slot
-                              ? "border-purple-500 bg-purple-50 text-purple-700"
-                              : "border-gray-200 hover:border-purple-300 text-gray-700"
+                            ? "border-purple-500 bg-purple-50 text-purple-700"
+                            : "border-gray-200 hover:border-purple-300 text-gray-700"
                             }`}
                         >
                           {slot}
@@ -422,7 +482,13 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
             </label>
             <select
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => {
+                setReason(e.target.value);
+                if (e.target.value !== "exame") {
+                  setSelectedExamType("");
+                  setExamTypeSearch("");
+                }
+              }}
               className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
             >
               <option value="">Selecione o motivo...</option>
@@ -431,6 +497,54 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
               <option value="exame">Exame</option>
             </select>
           </div>
+
+          {/* Exam Type Selector - aparece quando motivo é Exame */}
+          {reason === "exame" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tipo de Exame
+              </label>
+              <div className="relative mb-2">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar tipo de exame..."
+                  value={examTypeSearch}
+                  onChange={(e) => setExamTypeSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+              <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg">
+                {filteredExamTypes.length === 0 ? (
+                  <p className="text-center text-gray-500 py-3 text-sm">
+                    Nenhum exame encontrado
+                  </p>
+                ) : (
+                  filteredExamTypes.map((examType) => (
+                    <button
+                      key={examType}
+                      type="button"
+                      onClick={() => {
+                        setSelectedExamType(examType);
+                        setExamTypeSearch("");
+                      }}
+                      className={`w-full px-4 py-2 text-left text-sm hover:bg-purple-50 transition-colors ${selectedExamType === examType
+                          ? "bg-purple-100 text-purple-700 font-medium"
+                          : "text-gray-700"
+                        }`}
+                    >
+                      {examType}
+                    </button>
+                  ))
+                )}
+              </div>
+              {selectedExamType && (
+                <p className="mt-2 text-sm text-purple-600 font-medium">
+                  Selecionado: {selectedExamType}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Status Selection */}
           <div>
