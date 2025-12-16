@@ -4,7 +4,6 @@ import {
   Users,
   Calendar,
   UserPlus,
-  Clock,
   Search,
   Shield,
   DollarSign,
@@ -17,7 +16,8 @@ import { supabase } from "@/lib/customSupabaseClient";
 import { toast } from "@/components/ui/use-toast";
 import CreateUserModal from "@/components/CreateUserModal";
 import ManageWorkHoursModal from "@/components/ManageWorkHoursModal";
-import ClinicCalendar from "@/components/ClinicCalendar";
+import DoctorMonthlyCalendar from "@/components/DoctorMonthlyCalendar";
+import PatientManagementModal from "@/components/PatientManagementModal";
 import FinancialManagement from "@/components/FinancialManagement";
 import type {
   Profile,
@@ -25,8 +25,124 @@ import type {
   DoctorWithProfileName,
 } from "@/types/database.types";
 
+// Interface para médicos com perfil
+interface DoctorWithProfile {
+  user_id: string;
+  crm: string;
+  name: string;
+  id: string;
+}
+
+// 🔹 Autocomplete de Médicos (copiado do ReceptionistDashboard)
+interface DoctorAutocompleteProps {
+  clinicId: string;
+  selectedDoctor: string | null;
+  setSelectedDoctor: (doctorId: string | null) => void;
+}
+
+const DoctorAutocomplete: React.FC<DoctorAutocompleteProps> = ({
+  clinicId,
+  selectedDoctor,
+  setSelectedDoctor,
+}) => {
+  const [doctors, setDoctors] = useState<DoctorWithProfile[]>([]);
+  const [query, setQuery] = useState("");
+  const [filteredDoctors, setFilteredDoctors] = useState<DoctorWithProfile[]>(
+    []
+  );
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  useEffect(() => {
+    if (!clinicId) return;
+
+    const fetchDoctors = async () => {
+      const { data: doctorsData, error: doctorsError } = await supabase
+        .from("doctors")
+        .select("user_id, crm, id")
+        .eq("clinic_id", clinicId);
+
+      if (doctorsError) return console.error(doctorsError);
+
+      const userIds = doctorsData.map((d: { user_id: string }) => d.user_id);
+      if (!userIds.length) return setDoctors([]);
+
+      const { data: profilesData } = await supabase
+        .from("profiles")
+        .select("id, name")
+        .in("id", userIds);
+
+      const merged = doctorsData.map((d: { user_id: string; crm: string }) => {
+        const profile = profilesData?.find(
+          (p: { id: string; name: string }) => p.id === d.user_id
+        );
+        return { ...d, name: profile?.name || "Sem nome" };
+      });
+
+      setDoctors(merged);
+      setFilteredDoctors(merged);
+    };
+
+    fetchDoctors();
+  }, [clinicId]);
+
+  useEffect(() => {
+    const filtered = doctors.filter((d) =>
+      d.name.toLowerCase().includes(query.toLowerCase())
+    );
+    setFilteredDoctors(filtered);
+  }, [query, doctors]);
+
+  return (
+    <div className="relative w-64">
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setShowDropdown(true);
+        }}
+        onFocus={() => setShowDropdown(true)}
+        placeholder="Filtrar médico"
+        className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none"
+      />
+
+      {showDropdown && (
+        <ul className="absolute z-10 bg-white border border-gray-200 w-full mt-1 max-h-40 overflow-y-auto rounded-lg shadow">
+          <li
+            className="px-3 py-2 hover:bg-purple-100 cursor-pointer"
+            onClick={() => {
+              setSelectedDoctor(null);
+              setQuery("");
+              setShowDropdown(false);
+            }}
+          >
+            Todos os médicos
+          </li>
+          {filteredDoctors.map((d) => (
+            <li
+              key={d.user_id}
+              className="px-3 py-2 hover:bg-purple-100 cursor-pointer"
+              onClick={() => {
+                setSelectedDoctor(d.id);
+                setQuery(d.name);
+                setShowDropdown(false);
+              }}
+            >
+              {d.name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+interface ClinicAdminContentProps {
+  defaultTab?: 'planner' | 'users' | 'financial';
+}
+
 // Componente reutilizável com o conteúdo do dashboard de admin (sem navbar)
-const ClinicAdminContent = () => {
+const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps) => {
   const { profile } = useAuth();
   const [users, setUsers] = useState<Profile[]>([]);
   const [doctors, setDoctors] = useState<DoctorWithProfileName[]>([]);
@@ -35,6 +151,9 @@ const ClinicAdminContent = () => {
   const [showWorkHours, setShowWorkHours] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [userSearch, setUserSearch] = useState("");
+  // Estados do Planner
+  const [plannerSelectedDoctor, setPlannerSelectedDoctor] = useState<string | null>(null);
+  const [showPatientManagement, setShowPatientManagement] = useState(false);
 
   const clinicId = profile?.clinic_id;
 
@@ -117,14 +236,14 @@ const ClinicAdminContent = () => {
 
   return (
     <>
-      <Tabs defaultValue="calendar" className="space-y-6">
+      <Tabs defaultValue={defaultTab} className="space-y-6">
         <TabsList className="glass-effect p-1">
           <TabsTrigger
-            value="calendar"
+            value="planner"
             className="data-[state=active]:gradient-primary data-[state=active]:text-white"
           >
             <Calendar className="w-4 h-4 mr-2" />
-            Calendário
+            Planner
           </TabsTrigger>
           <TabsTrigger
             value="users"
@@ -142,8 +261,38 @@ const ClinicAdminContent = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="calendar">
-          {clinicId && <ClinicCalendar clinicId={clinicId} />}
+        <TabsContent value="planner">
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Planner Semanal dos Médicos
+              </h2>
+
+              <div className="flex gap-2">
+                {clinicId && (
+                  <DoctorAutocomplete
+                    clinicId={clinicId}
+                    selectedDoctor={plannerSelectedDoctor}
+                    setSelectedDoctor={setPlannerSelectedDoctor}
+                  />
+                )}
+                <Button
+                  onClick={() => setShowPatientManagement(true)}
+                  variant="outline"
+                  className="bg-purple-100 hover:bg-purple-200 text-purple-700 border-purple-300"
+                >
+                  <Users className="w-4 h-4 mr-2" />
+                  Gerenciar Pacientes
+                </Button>
+              </div>
+            </div>
+
+            {/* Calendário Mensal */}
+            <DoctorMonthlyCalendar
+              clinicId={clinicId || ""}
+              doctorId={plannerSelectedDoctor}
+            />
+          </div>
         </TabsContent>
 
         <TabsContent value="users">
@@ -329,6 +478,13 @@ const ClinicAdminContent = () => {
             setShowWorkHours(false);
             setSelectedDoctor(null);
           }}
+        />
+      )}
+
+      {showPatientManagement && clinicId && (
+        <PatientManagementModal
+          clinicId={clinicId}
+          onClose={() => setShowPatientManagement(false)}
         />
       )}
     </>
