@@ -499,7 +499,7 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
     setGeneratingAI(true);
 
     try {
-      const result = await generateMedicalReport(patientName, aiDescription);
+      const result = await generateMedicalReport(patientName, aiDescription, doctorInfo || undefined);
 
       // Preencher o laudo com o texto gerado
       setLaudoText(result.laudoText);
