@@ -153,6 +153,7 @@ export interface Database {
           can_prescribe_lenses: boolean
           can_prescribe_urology_exams: boolean
           can_prescribe_cardiology_exams: boolean
+          does_ultrasound_exams: boolean
           room: string | null
         }
         Insert: {
@@ -166,6 +167,7 @@ export interface Database {
           can_prescribe_lenses?: boolean
           can_prescribe_urology_exams?: boolean
           can_prescribe_cardiology_exams?: boolean
+          does_ultrasound_exams?: boolean
           room?: string | null
         }
         Update: {
@@ -179,6 +181,7 @@ export interface Database {
           can_prescribe_lenses?: boolean
           can_prescribe_urology_exams?: boolean
           can_prescribe_cardiology_exams?: boolean
+          does_ultrasound_exams?: boolean
           room?: string | null
         }
       }
@@ -426,6 +429,29 @@ export interface Database {
           updated_at?: string
         }
       }
+      doctor_exams: {
+        Row: {
+          id: string
+          clinic_id: string
+          doctor_id: string
+          exam_name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          clinic_id: string
+          doctor_id: string
+          exam_name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          clinic_id?: string
+          doctor_id?: string
+          exam_name?: string
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -458,6 +484,7 @@ export type Profile = Tables<'profiles'>
 export type DoctorPricing = Tables<'doctor_pricing'>
 export type ClinicCommission = Tables<'clinic_commission'>
 export type InsurancePlan = Tables<'insurance_plans'>
+export type DoctorExam = Tables<'doctor_exams'>
 
 // Extended types with relations
 export type ProfileWithClinic = Profile & {

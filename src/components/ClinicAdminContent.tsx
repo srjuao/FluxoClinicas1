@@ -367,10 +367,9 @@ const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps)
                               {u.name}
                             </h3>
                             {u.is_admin && (
-                              <Shield
-                                className="w-4 h-4 text-purple-600"
-                                title="Privilégios de Administrador"
-                              />
+                              <span title="Privilégios de Administrador">
+                                <Shield className="w-4 h-4 text-purple-600" />
+                              </span>
                             )}
                           </div>
                           <p className="text-sm text-gray-600">{u.email}</p>

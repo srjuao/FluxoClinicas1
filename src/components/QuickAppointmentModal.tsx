@@ -73,6 +73,12 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
   const [examTypeSearch, setExamTypeSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Estados para exames do médico
+  const [doctorExamTypes, setDoctorExamTypes] = useState<string[]>([]);
+  // Estados para médicos de ultrassom
+  const [ultrasoundDoctors, setUltrasoundDoctors] = useState<Array<{ id: string; name: string; crm: string }>>([]);
+  const [selectedUltrasoundDoctor, setSelectedUltrasoundDoctor] = useState<string | null>(null);
+  const [currentDoctorHasUltrasound, setCurrentDoctorHasUltrasound] = useState(false);
 
   // Estados para convênio
   const [isInsurance, setIsInsurance] = useState(false);
@@ -168,6 +174,82 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
     loadFinancialData();
   }, [loadFinancialData]);
 
+  // Carregar exames configurados para o médico
+  const loadDoctorExams = useCallback(async () => {
+    if (!clinicId || !doctorId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("doctor_exams")
+        .select("exam_name")
+        .eq("clinic_id", clinicId)
+        .eq("doctor_id", doctorId);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setDoctorExamTypes(data.map((d: { exam_name: string }) => d.exam_name));
+      } else {
+        // Fallback: se não tem configuração, usar todos os exames
+        setDoctorExamTypes([]);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar exames do médico:", error);
+      setDoctorExamTypes([]);
+    }
+  }, [clinicId, doctorId]);
+
+  useEffect(() => {
+    loadDoctorExams();
+  }, [loadDoctorExams]);
+
+  // Carregar médicos habilitados para ultrassom
+  const loadUltrasoundDoctors = useCallback(async () => {
+    if (!clinicId) return;
+
+    try {
+      // Verificar se o médico atual tem permissão
+      const { data: currentDoctor } = await supabase
+        .from("doctors")
+        .select("does_ultrasound_exams")
+        .eq("id", doctorId)
+        .single();
+
+      setCurrentDoctorHasUltrasound(currentDoctor?.does_ultrasound_exams || false);
+
+      // Buscar todos os médicos com permissão de ultrassom
+      const { data: doctors, error } = await supabase
+        .from("doctors")
+        .select("id, crm, profile:profiles(name)")
+        .eq("clinic_id", clinicId)
+        .eq("does_ultrasound_exams", true);
+
+      if (error) throw error;
+
+      const formattedDoctors = (doctors || []).map((d: any) => ({
+        id: d.id,
+        name: d.profile?.name || "Sem nome",
+        crm: d.crm
+      }));
+
+      setUltrasoundDoctors(formattedDoctors);
+
+      // Se o médico atual tem permissão, pré-seleciona ele
+      if (currentDoctor?.does_ultrasound_exams) {
+        setSelectedUltrasoundDoctor(doctorId);
+      } else if (formattedDoctors.length > 0) {
+        // Senão, seleciona o primeiro da lista
+        setSelectedUltrasoundDoctor(formattedDoctors[0].id);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar médicos de ultrassom:", error);
+    }
+  }, [clinicId, doctorId]);
+
+  useEffect(() => {
+    loadUltrasoundDoctors();
+  }, [loadUltrasoundDoctors]);
+
   // Calcular valores quando mudar convênio ou valor da consulta
   useEffect(() => {
     if (consultationValue <= 0) {
@@ -208,13 +290,14 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
       (p.cpf && p.cpf.includes(patientSearch))
   );
 
-  // Filtrar tipos de exame
+  // Filtrar tipos de exame - usa exames do médico se configurado, senão todos
+  const availableExamTypes = doctorExamTypes.length > 0 ? doctorExamTypes : EXAM_TYPES;
   const filteredExamTypes = useMemo(() => {
-    if (!examTypeSearch) return EXAM_TYPES;
-    return EXAM_TYPES.filter((type) =>
+    if (!examTypeSearch) return availableExamTypes;
+    return availableExamTypes.filter((type) =>
       type.toLowerCase().includes(examTypeSearch.toLowerCase())
     );
-  }, [examTypeSearch]);
+  }, [examTypeSearch, availableExamTypes]);
 
   const handleSubmit = async () => {
     if (!selectedPatient) {
@@ -248,7 +331,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
 
       const { error } = await supabase.from("appointments").insert({
         clinic_id: clinicId,
-        doctor_id: doctorId,
+        doctor_id: reason === "exame" && selectedUltrasoundDoctor ? selectedUltrasoundDoctor : doctorId,
         patient_id: selectedPatient.id,
         scheduled_start: startDate.toISOString(),
         scheduled_end: endDate.toISOString(),
@@ -367,49 +450,86 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
 
             {/* Exam Type Selector - aparece quando motivo é Exame */}
             {reason === "exame" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de Exame
-                </label>
-                <div className="relative mb-2">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Buscar tipo de exame..."
-                    value={examTypeSearch}
-                    onChange={(e) => setExamTypeSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  />
-                </div>
-                <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg">
-                  {filteredExamTypes.length === 0 ? (
-                    <p className="text-center text-gray-500 py-3 text-sm">
-                      Nenhum exame encontrado
+              <div className="space-y-4">
+                {/* Seleção de Médico de Ultrassom */}
+                {ultrasoundDoctors.length === 0 ? (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800 font-medium">
+                      ⚠️ Nenhum médico habilitado para exames
                     </p>
-                  ) : (
-                    filteredExamTypes.map((examType) => (
-                      <button
-                        key={examType}
-                        type="button"
-                        onClick={() => {
-                          setSelectedExamType(examType);
-                          setExamTypeSearch("");
-                        }}
-                        className={`w-full px-4 py-2 text-left text-sm hover:bg-purple-50 transition-colors ${selectedExamType === examType
+                    <p className="text-xs text-yellow-600 mt-1">
+                      Configure a permissão "Realiza Exames de Ultrassom" no cadastro do médico.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      🔬 Médico Responsável pelo Exame
+                    </label>
+                    {!currentDoctorHasUltrasound && (
+                      <p className="text-xs text-amber-600 mb-2">
+                        O médico selecionado não realiza exames. Escolha um médico habilitado:
+                      </p>
+                    )}
+                    <select
+                      value={selectedUltrasoundDoctor || ""}
+                      onChange={(e) => setSelectedUltrasoundDoctor(e.target.value)}
+                      className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white"
+                    >
+                      {ultrasoundDoctors.map((doctor) => (
+                        <option key={doctor.id} value={doctor.id}>
+                          {doctor.name} - CRM: {doctor.crm}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Tipo de Exame */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tipo de Exame
+                  </label>
+                  <div className="relative mb-2">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar tipo de exame..."
+                      value={examTypeSearch}
+                      onChange={(e) => setExamTypeSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg">
+                    {filteredExamTypes.length === 0 ? (
+                      <p className="text-center text-gray-500 py-3 text-sm">
+                        Nenhum exame encontrado
+                      </p>
+                    ) : (
+                      filteredExamTypes.map((examType) => (
+                        <button
+                          key={examType}
+                          type="button"
+                          onClick={() => {
+                            setSelectedExamType(examType);
+                            setExamTypeSearch("");
+                          }}
+                          className={`w-full px-4 py-2 text-left text-sm hover:bg-purple-50 transition-colors ${selectedExamType === examType
                             ? "bg-purple-100 text-purple-700 font-medium"
                             : "text-gray-700"
-                          }`}
-                      >
-                        {examType}
-                      </button>
-                    ))
+                            }`}
+                        >
+                          {examType}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  {selectedExamType && (
+                    <p className="mt-2 text-sm text-purple-600 font-medium">
+                      Selecionado: {selectedExamType}
+                    </p>
                   )}
                 </div>
-                {selectedExamType && (
-                  <p className="mt-2 text-sm text-purple-600 font-medium">
-                    Selecionado: {selectedExamType}
-                  </p>
-                )}
               </div>
             )}
 
@@ -524,8 +644,8 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
                       key={patient.id}
                       onClick={() => setSelectedPatient(patient)}
                       className={`w-full p-3 rounded-lg border-2 text-left transition-all ${selectedPatient?.id === patient.id
-                          ? "border-purple-500 bg-purple-50"
-                          : "border-gray-200 hover:border-purple-300"
+                        ? "border-purple-500 bg-purple-50"
+                        : "border-gray-200 hover:border-purple-300"
                         }`}
                     >
                       <p className="font-medium text-gray-900">
@@ -562,7 +682,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
           <Button
             onClick={handleSubmit}
             className="flex-1 gradient-primary text-white"
-            disabled={!selectedPatient || !reason || (reason === "exame" && !selectedExamType) || submitting}
+            disabled={!selectedPatient || !reason || (reason === "exame" && (!selectedExamType || !selectedUltrasoundDoctor || ultrasoundDoctors.length === 0)) || submitting}
           >
             {submitting ? "Agendando..." : "Confirmar Agendamento"}
           </Button>

@@ -38,6 +38,9 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   const [canPrescribeCardiologyExams, setCanPrescribeCardiologyExams] = useState(
     doctorData?.can_prescribe_cardiology_exams || false
   );
+  const [doesUltrasoundExams, setDoesUltrasoundExams] = useState(
+    doctorData?.does_ultrasound_exams || false
+  );
   const [room, setRoom] = useState(doctorData?.room || "");
   const [isAdmin, setIsAdmin] = useState(userToEdit?.is_admin || false);
   const [loading, setLoading] = useState(false);
@@ -59,6 +62,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
       setCanPrescribeLenses(doctorData?.can_prescribe_lenses || false);
       setCanPrescribeUrologyExams(doctorData?.can_prescribe_urology_exams || false);
       setCanPrescribeCardiologyExams(doctorData?.can_prescribe_cardiology_exams || false);
+      setDoesUltrasoundExams(doctorData?.does_ultrasound_exams || false);
       setRoom(doctorData?.room || "");
     }
   }, [userToEdit]);
@@ -160,6 +164,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
             can_prescribe_lenses: canPrescribeLenses,
             can_prescribe_urology_exams: canPrescribeUrologyExams,
             can_prescribe_cardiology_exams: canPrescribeCardiologyExams,
+            does_ultrasound_exams: doesUltrasoundExams,
             room: room || null,
           },
           { onConflict: ["user_id"] }
@@ -223,6 +228,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
         can_prescribe_lenses: canPrescribeLenses,
         can_prescribe_urology_exams: canPrescribeUrologyExams,
         can_prescribe_cardiology_exams: canPrescribeCardiologyExams,
+        does_ultrasound_exams: doesUltrasoundExams,
         room: room || null,
       });
 
@@ -612,6 +618,48 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
                     <span>✓ Exames laboratoriais cardiológicos</span>
                     <span>•</span>
                     <span>✓ Perfil lipídico e metabólico</span>
+                  </div>
+                )}
+
+                {/* Toggle Ultrassonografista */}
+                <div
+                  className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${doesUltrasoundExams
+                    ? "border-teal-500 bg-teal-50"
+                    : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  onClick={() => setDoesUltrasoundExams(!doesUltrasoundExams)}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🔬</span>
+                    <div>
+                      <p className="font-medium text-gray-900">Realiza Exames de Ultrassom</p>
+                      <p className="text-xs text-gray-500">
+                        Habilita o médico para receber agendamentos de exames
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Toggle Switch */}
+                  <div
+                    className={`relative w-12 h-6 rounded-full transition-colors ${doesUltrasoundExams
+                      ? "bg-teal-600"
+                      : "bg-gray-300"
+                      }`}
+                  >
+                    <div
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${doesUltrasoundExams
+                        ? "translate-x-7"
+                        : "translate-x-1"
+                        }`}
+                    />
+                  </div>
+                </div>
+
+                {doesUltrasoundExams && (
+                  <div className="flex items-center gap-2 text-xs text-teal-600 pl-2">
+                    <span>✓ Exames de ultrassonografia</span>
+                    <span>•</span>
+                    <span>✓ Agendamentos de exames</span>
                   </div>
                 )}
               </div>

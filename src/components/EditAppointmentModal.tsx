@@ -87,6 +87,36 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
   const [reason, setReason] = useState(getReasonValue(appointment.reason));
   const [selectedExamType, setSelectedExamType] = useState(getExamTypeFromReason(appointment.reason));
   const [examTypeSearch, setExamTypeSearch] = useState("");
+  // Estados para exames do médico
+  const [doctorExamTypes, setDoctorExamTypes] = useState<string[]>([]);
+
+  // Carregar exames configurados para o médico
+  const loadDoctorExams = useCallback(async () => {
+    if (!appointment.clinic_id || !appointment.doctor_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("doctor_exams")
+        .select("exam_name")
+        .eq("clinic_id", appointment.clinic_id)
+        .eq("doctor_id", appointment.doctor_id);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setDoctorExamTypes(data.map((d: { exam_name: string }) => d.exam_name));
+      } else {
+        setDoctorExamTypes([]);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar exames do médico:", error);
+      setDoctorExamTypes([]);
+    }
+  }, [appointment.clinic_id, appointment.doctor_id]);
+
+  useEffect(() => {
+    loadDoctorExams();
+  }, [loadDoctorExams]);
 
   // Load available slots when editing date/time
   const loadAvailableSlots = useCallback(async () => {
@@ -208,13 +238,14 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
     }
   }, [editingDateTime, selectedDate, appointment]);
 
-  // Filtrar tipos de exame
+  // Filtrar tipos de exame - usa exames do médico se configurado, senão todos
+  const availableExamTypes = doctorExamTypes.length > 0 ? doctorExamTypes : EXAM_TYPES;
   const filteredExamTypes = useMemo(() => {
-    if (!examTypeSearch) return EXAM_TYPES;
-    return EXAM_TYPES.filter((type) =>
+    if (!examTypeSearch) return availableExamTypes;
+    return availableExamTypes.filter((type) =>
       type.toLowerCase().includes(examTypeSearch.toLowerCase())
     );
-  }, [examTypeSearch]);
+  }, [examTypeSearch, availableExamTypes]);
 
   useEffect(() => {
     if (editingDateTime) {
@@ -529,8 +560,8 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
                         setExamTypeSearch("");
                       }}
                       className={`w-full px-4 py-2 text-left text-sm hover:bg-purple-50 transition-colors ${selectedExamType === examType
-                          ? "bg-purple-100 text-purple-700 font-medium"
-                          : "text-gray-700"
+                        ? "bg-purple-100 text-purple-700 font-medium"
+                        : "text-gray-700"
                         }`}
                     >
                       {examType}
