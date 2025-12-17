@@ -712,9 +712,6 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
         </head>
         <body>
           <div class="container">
-            <div class="header">
-              <h1>LAUDO DE EXAME</h1>
-            </div>
 
             <div class="patient-info">
               <div class="patient-info-grid">
@@ -730,7 +727,6 @@ const AddExamModal: React.FC<AddExamModalProps> = ({
 
             ${laudoText.trim() ? `
               <div class="section">
-                <div class="section-title">LAUDO</div>
                 <div class="section-content">${laudoText.replace(/\n/g, '<br>')}</div>
               </div>
             ` : ''}
