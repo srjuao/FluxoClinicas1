@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
-import { Calendar, FileText, LogOut, Plus, Search, Users, DollarSign } from "lucide-react";
+import { Calendar, FileText, LogOut, Plus, Search, Users, DollarSign, Menu, X, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
 import { supabase } from "@/lib/customSupabaseClient";
 import { toast } from "@/components/ui/use-toast";
@@ -14,7 +13,7 @@ import CreateCertificateModal from "@/components/CreateCertificateModal";
 import { SearchReportsModal } from "@/components/SearchReportsModal";
 import PatientDetailsPage from "@/pages/PatientDetailsPage";
 import ClinicAdminContent from "@/components/ClinicAdminContent";
-import { Shield } from "lucide-react";
+import UnifiedSidebar, { SidebarItem, SidebarSection } from "@/components/UnifiedSidebar";
 
 type ActiveSection = 'agenda' | 'reports' | 'planner' | 'users' | 'financial';
 
@@ -35,8 +34,9 @@ const DoctorDashboard = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
 
-  // Estado para navegação do menu árvore (para médicos admin)
+  // Estado para navegação do menu lateral
   const [activeSection, setActiveSection] = useState<ActiveSection>('agenda');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // 🔹 Restaurar rascunho ao montar o dashboard
   useEffect(() => {
@@ -100,6 +100,33 @@ const DoctorDashboard = () => {
     );
   }
 
+  const medicalItems: SidebarItem[] = [
+    { id: 'agenda', label: 'Minha Agenda', icon: Calendar },
+    { id: 'reports', label: 'Anamneses', icon: FileText },
+  ];
+
+  const adminItems: SidebarItem[] = [
+    { id: 'planner', label: 'Planner', icon: Calendar },
+    { id: 'users', label: 'Usuários', icon: Users },
+    { id: 'financial', label: 'Financeiro', icon: DollarSign },
+  ];
+
+  const sidebarSections: SidebarSection[] = [];
+
+  // Sempre adiciona Área Médica
+  sidebarSections.push({
+    title: "Área Médica",
+    items: medicalItems
+  });
+
+  // Só adiciona Administração se for admin
+  if (profile?.is_admin) {
+    sidebarSections.push({
+      title: "Administração",
+      items: adminItems
+    });
+  }
+
   return (
     <>
       <Helmet>
@@ -107,265 +134,99 @@ const DoctorDashboard = () => {
         <meta name="description" content="Painel do médico" />
       </Helmet>
 
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
-        {/* Navbar */}
-        <nav className="glass-effect border-b border-white/20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full gradient-secondary flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-white" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 flex flex-col lg:flex-row">
+
+        {/* Mobile Header Toggle */}
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center text-white">
+              <Stethoscope className="w-5 h-5" />
+            </div>
+            <span className="font-bold text-gray-900">FluxoClinic</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </Button>
+        </div>
+
+        {/* Sidebar Unificado */}
+        <UnifiedSidebar
+          sections={sidebarSections}
+          activeTab={activeSection}
+          onTabChange={(tab) => setActiveSection(tab as ActiveSection)}
+          userProfile={{
+            name: profile?.name,
+            email: profile?.email,
+            role: profile?.is_admin ? "Médico Admin" : "Médico"
+          }}
+          onLogout={signOut}
+          isMobileMenuOpen={isMobileMenuOpen}
+          setIsMobileMenuOpen={setIsMobileMenuOpen}
+        />
+
+        {/* Conteúdo Principal */}
+        <div className="flex-1 min-w-0 pt-16 lg:pt-0">
+          <div className="p-4 lg:p-8 max-w-[1600px] mx-auto">
+            {activeSection === 'agenda' && doctorData && (
+              <DoctorAgenda
+                doctorId={doctorData.id}
+                clinicId={clinicId}
+                onSelectPatient={(patient: any, appointment: any) => {
+                  setSelectedPatientId(patient.id);
+                  setSelectedAppointment(appointment);
+                  setShowPatientDetails(true);
+                }}
+              />
+            )}
+
+            {activeSection === 'reports' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Anamneses
+                  </h2>
+                  <div className="flex space-x-3">
+                    <Button
+                      onClick={() => setShowSearchReports(true)}
+                      variant="outline"
+                    >
+                      <Search className="w-4 h-4 mr-2" /> Buscar
+                    </Button>
+                    <Button
+                      onClick={() => setShowCreateReport(true)}
+                      className="gradient-primary text-white"
+                      disabled={!doctorData}
+                    >
+                      <Plus className="w-4 h-4 mr-2" /> Novo Anamnese
+                    </Button>
+                    <Button
+                      onClick={() => setShowCreateCertificate(true)}
+                      className="gradient-secondary text-white"
+                      disabled={!doctorData}
+                    >
+                      <FileText className="w-4 h-4 mr-2" /> Atestado
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-lg font-bold text-gray-900">
-                    Bem-vindo Dr(a). {profile?.name}
-                  </h1>
-                  <p className="text-xs text-gray-600">
-                    CRM: {doctorData?.crm}
+
+                <div className="glass-effect rounded-xl p-8 text-center">
+                  <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">
+                    Use os botões acima para criar ou buscar Anamnese ou
+                    atestados.
                   </p>
                 </div>
               </div>
-              <Button
-                onClick={signOut}
-                variant="outline"
-                className="flex items-center space-x-2"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Sair</span>
-              </Button>
-            </div>
+            )}
+
+            {(activeSection === 'planner' || activeSection === 'users' || activeSection === 'financial') && (
+              <ClinicAdminContent defaultTab={activeSection} />
+            )}
           </div>
-        </nav>
-
-        {/* Conteúdo principal com menu árvore para admins */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {profile?.is_admin ? (
-            // Layout com menu árvore para médico admin
-            <div className="flex gap-6">
-              {/* Sidebar Menu Árvore */}
-              <div className="w-64 flex-shrink-0">
-                <div className="glass-effect rounded-xl p-4 sticky top-24">
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
-                    Menu
-                  </h3>
-                  <nav className="space-y-1">
-                    {/* Área do Médico */}
-                    <div className="mb-4">
-                      <p className="text-xs font-medium text-purple-600 mb-2 flex items-center">
-                        <FileText className="w-4 h-4 mr-1" />
-                        Área Médica
-                      </p>
-                      <ul className="ml-4 space-y-1 border-l-2 border-purple-100 pl-3">
-                        <li>
-                          <button
-                            onClick={() => setActiveSection('agenda')}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center gap-2 ${activeSection === 'agenda'
-                              ? 'bg-purple-100 text-purple-700 font-medium'
-                              : 'text-gray-600 hover:bg-gray-100'
-                              }`}
-                          >
-                            <Calendar className="w-4 h-4" />
-                            Minha Agenda
-                          </button>
-                        </li>
-                        <li>
-                          <button
-                            onClick={() => setActiveSection('reports')}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center gap-2 ${activeSection === 'reports'
-                              ? 'bg-purple-100 text-purple-700 font-medium'
-                              : 'text-gray-600 hover:bg-gray-100'
-                              }`}
-                          >
-                            <FileText className="w-4 h-4" />
-                            Anamneses
-                          </button>
-                        </li>
-                      </ul>
-                    </div>
-
-                    {/* Área Administrativa */}
-                    <div>
-                      <p className="text-xs font-medium text-blue-600 mb-2 flex items-center">
-                        <Shield className="w-4 h-4 mr-1" />
-                        Administração
-                      </p>
-                      <ul className="ml-4 space-y-1 border-l-2 border-blue-100 pl-3">
-                        <li>
-                          <button
-                            onClick={() => setActiveSection('planner')}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center gap-2 ${activeSection === 'planner'
-                              ? 'bg-blue-100 text-blue-700 font-medium'
-                              : 'text-gray-600 hover:bg-gray-100'
-                              }`}
-                          >
-                            <Calendar className="w-4 h-4" />
-                            Planner
-                          </button>
-                        </li>
-                        <li>
-                          <button
-                            onClick={() => setActiveSection('users')}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center gap-2 ${activeSection === 'users'
-                              ? 'bg-blue-100 text-blue-700 font-medium'
-                              : 'text-gray-600 hover:bg-gray-100'
-                              }`}
-                          >
-                            <Users className="w-4 h-4" />
-                            Usuários
-                          </button>
-                        </li>
-                        <li>
-                          <button
-                            onClick={() => setActiveSection('financial')}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center gap-2 ${activeSection === 'financial'
-                              ? 'bg-blue-100 text-blue-700 font-medium'
-                              : 'text-gray-600 hover:bg-gray-100'
-                              }`}
-                          >
-                            <DollarSign className="w-4 h-4" />
-                            Financeiro
-                          </button>
-                        </li>
-                      </ul>
-                    </div>
-                  </nav>
-                </div>
-              </div>
-
-              {/* Conteúdo Principal */}
-              <div className="flex-1">
-                {activeSection === 'agenda' && doctorData && (
-                  <DoctorAgenda
-                    doctorId={doctorData.id}
-                    clinicId={clinicId}
-                    onSelectPatient={(patient: any, appointment: any) => {
-                      setSelectedPatientId(patient.id);
-                      setSelectedAppointment(appointment);
-                      setShowPatientDetails(true);
-                    }}
-                  />
-                )}
-
-                {activeSection === 'reports' && (
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-2xl font-bold text-gray-900">
-                        Anamneses
-                      </h2>
-                      <div className="flex space-x-3">
-                        <Button
-                          onClick={() => setShowSearchReports(true)}
-                          variant="outline"
-                        >
-                          <Search className="w-4 h-4 mr-2" /> Buscar
-                        </Button>
-                        <Button
-                          onClick={() => setShowCreateReport(true)}
-                          className="gradient-primary text-white"
-                          disabled={!doctorData}
-                        >
-                          <Plus className="w-4 h-4 mr-2" /> Novo Anamnese
-                        </Button>
-                        <Button
-                          onClick={() => setShowCreateCertificate(true)}
-                          className="gradient-secondary text-white"
-                          disabled={!doctorData}
-                        >
-                          <FileText className="w-4 h-4 mr-2" /> Atestado
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="glass-effect rounded-xl p-8 text-center">
-                      <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">
-                        Use os botões acima para criar ou buscar Anamnese ou
-                        atestados.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {(activeSection === 'planner' || activeSection === 'users' || activeSection === 'financial') && (
-                  <ClinicAdminContent defaultTab={activeSection} />
-                )}
-              </div>
-            </div>
-          ) : (
-            // Layout original com tabs para médico sem admin
-            <Tabs defaultValue="agenda" className="space-y-6">
-              <TabsList className="glass-effect p-1">
-                <TabsTrigger
-                  value="agenda"
-                  className="data-[state=active]:gradient-primary data-[state=active]:text-white"
-                >
-                  <Calendar className="w-4 h-4 mr-2" /> Minha Agenda
-                </TabsTrigger>
-                <TabsTrigger
-                  value="reports"
-                  className="data-[state=active]:gradient-primary data-[state=active]:text-white"
-                >
-                  <FileText className="w-4 h-4 mr-2" /> Anamneses
-                </TabsTrigger>
-              </TabsList>
-
-              {/* Agenda */}
-              <TabsContent value="agenda">
-                {doctorData && (
-                  <DoctorAgenda
-                    doctorId={doctorData.id}
-                    clinicId={clinicId}
-                    onSelectPatient={(patient: any, appointment: any) => {
-                      setSelectedPatientId(patient.id);
-                      setSelectedAppointment(appointment);
-                      setShowPatientDetails(true);
-                    }}
-                  />
-                )}
-              </TabsContent>
-
-              {/* Anamneses */}
-              <TabsContent value="reports">
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-900">
-                      Anamneses
-                    </h2>
-                    <div className="flex space-x-3">
-                      <Button
-                        onClick={() => setShowSearchReports(true)}
-                        variant="outline"
-                      >
-                        <Search className="w-4 h-4 mr-2" /> Buscar
-                      </Button>
-                      <Button
-                        onClick={() => setShowCreateReport(true)}
-                        className="gradient-primary text-white"
-                        disabled={!doctorData}
-                      >
-                        <Plus className="w-4 h-4 mr-2" /> Novo Anamnese
-                      </Button>
-                      <Button
-                        onClick={() => setShowCreateCertificate(true)}
-                        className="gradient-secondary text-white"
-                        disabled={!doctorData}
-                      >
-                        <FileText className="w-4 h-4 mr-2" /> Atestado
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="glass-effect rounded-xl p-8 text-center">
-                    <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-600">
-                      Use os botões acima para criar ou buscar Anamnese ou
-                      atestados.
-                    </p>
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          )}
         </div>
       </div>
 
