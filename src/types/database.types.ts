@@ -79,6 +79,7 @@ export interface Database {
           created_at: string
           is_active: boolean
           max_users: number | null
+          default_commission_percentage: number | null
         }
         Insert: {
           id?: string
@@ -87,6 +88,7 @@ export interface Database {
           created_at?: string
           is_active?: boolean
           max_users?: number | null
+          default_commission_percentage?: number | null
         }
         Update: {
           id?: string
@@ -95,6 +97,7 @@ export interface Database {
           created_at?: string
           is_active?: boolean
           max_users?: number | null
+          default_commission_percentage?: number | null
         }
       }
       doctor_work_hours: {

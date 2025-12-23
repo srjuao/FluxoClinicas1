@@ -22,6 +22,7 @@ import type {
   ClinicCommission,
   InsurancePlan,
   DoctorWithProfileName,
+  Clinic,
 } from "@/types/database.types";
 
 interface FinancialManagementProps {
@@ -35,24 +36,38 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({
   const [pricing, setPricing] = useState<DoctorPricing[]>([]);
   const [commissions, setCommissions] = useState<ClinicCommission[]>([]);
   const [insurancePlans, setInsurancePlans] = useState<InsurancePlan[]>([]);
+  const [clinic, setClinic] = useState<Clinic | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Estados para edição
   const [editingPricing, setEditingPricing] = useState<string | null>(null);
   const [editingCommission, setEditingCommission] = useState<string | null>(null);
   const [editingInsurance, setEditingInsurance] = useState<string | null>(null);
+  const [editingDefaultCommission, setEditingDefaultCommission] = useState(false);
 
   // Estados para novos valores
   const [newPricingValue, setNewPricingValue] = useState("");
   const [newCommissionValue, setNewCommissionValue] = useState("");
   const [newInsuranceName, setNewInsuranceName] = useState("");
   const [newInsuranceDiscount, setNewInsuranceDiscount] = useState("");
+  const [newDefaultCommission, setNewDefaultCommission] = useState("");
 
   const loadData = useCallback(async () => {
     if (!clinicId) return;
     setLoading(true);
 
     try {
+      // Carregar dados da clínica
+      const { data: clinicData, error: clinicError } = await supabase
+        .from("clinics")
+        .select("*")
+        .eq("id", clinicId)
+        .single();
+
+      if (clinicError) throw clinicError;
+      setClinic(clinicData);
+      setNewDefaultCommission((clinicData?.default_commission_percentage ?? 30).toString());
+
       // Carregar médicos
       const { data: doctorsData, error: doctorsError } = await supabase
         .from("doctors")
@@ -100,6 +115,40 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({
       setLoading(false);
     }
   }, [clinicId]);
+
+  // Salvar comissão padrão da clínica
+  const handleSaveDefaultCommission = async () => {
+    const percentage = parseFloat(newDefaultCommission);
+    if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+      toast({
+        title: "Porcentagem inválida",
+        description: "Digite um valor entre 0 e 100",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("clinics")
+        .update({ default_commission_percentage: percentage })
+        .eq("id", clinicId);
+
+      if (error) throw error;
+
+      toast({ title: "Comissão padrão salva com sucesso!" });
+      setEditingDefaultCommission(false);
+      loadData();
+    } catch (error) {
+      toast({
+        title: "Erro ao salvar comissão padrão",
+        description:
+          error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   useEffect(() => {
     loadData();
@@ -455,12 +504,87 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({
 
         {/* Comissões */}
         <TabsContent value="commission">
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Card de Comissão Padrão da Clínica */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-effect rounded-xl p-5 border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-indigo-500 flex items-center justify-center">
+                    <Building2 className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">
+                      Comissão Padrão da Clínica
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Aplicada a todos os médicos sem configuração específica
+                    </p>
+                  </div>
+                </div>
+
+                {editingDefaultCommission ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={newDefaultCommission}
+                      onChange={(e) => setNewDefaultCommission(e.target.value)}
+                      className="w-24 px-3 py-2 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-lg font-bold text-center"
+                    />
+                    <span className="text-lg font-bold text-indigo-600">%</span>
+                    <Button
+                      onClick={handleSaveDefaultCommission}
+                      size="sm"
+                      className="gradient-primary text-white"
+                    >
+                      <Save className="w-4 h-4 mr-1" />
+                      Salvar
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setEditingDefaultCommission(false);
+                        setNewDefaultCommission((clinic?.default_commission_percentage ?? 30).toString());
+                      }}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <p className="text-3xl font-bold text-indigo-600">
+                      {clinic?.default_commission_percentage ?? 30}%
+                    </p>
+                    <Button
+                      onClick={() => setEditingDefaultCommission(true)}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Edit className="w-4 h-4 mr-1" />
+                      Editar
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+
+            {/* Título da seção de médicos */}
             <div className="flex justify-between items-center">
               <h3 className="text-xl font-bold text-gray-900">
-                Porcentagem da Clínica por Médico
+                Comissão Personalizada por Médico
               </h3>
+              <p className="text-sm text-gray-500">
+                Deixe vazio para usar a comissão padrão ({clinic?.default_commission_percentage ?? 30}%)
+              </p>
             </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {doctors.map((doctor) => {
@@ -524,13 +648,24 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({
                     ) : (
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-2xl font-bold text-blue-600">
-                            {doctorCommission?.commission_percentage.toFixed(2) || "0.00"}%
-                          </p>
-                          {!doctorCommission && (
-                            <p className="text-xs text-gray-500">
-                              Comissão não definida
-                            </p>
+                          {doctorCommission ? (
+                            <>
+                              <p className="text-2xl font-bold text-blue-600">
+                                {doctorCommission.commission_percentage.toFixed(2)}%
+                              </p>
+                              <span className="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+                                Personalizada
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-2xl font-bold text-indigo-600">
+                                {clinic?.default_commission_percentage ?? 30}%
+                              </p>
+                              <span className="inline-block px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-medium">
+                                Padrão da Clínica
+                              </span>
+                            </>
                           )}
                         </div>
                         <Button
@@ -639,9 +774,8 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({
                   key={plan.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`glass-effect rounded-xl p-4 ${
-                    !plan.is_active ? "opacity-60" : ""
-                  }`}
+                  className={`glass-effect rounded-xl p-4 ${!plan.is_active ? "opacity-60" : ""
+                    }`}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
@@ -653,11 +787,10 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({
                       </p>
                     </div>
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        plan.is_active
-                          ? "bg-green-100 text-green-700"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
+                      className={`px-2 py-1 rounded-full text-xs font-semibold ${plan.is_active
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-100 text-gray-700"
+                        }`}
                     >
                       {plan.is_active ? "Ativo" : "Inativo"}
                     </span>

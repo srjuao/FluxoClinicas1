@@ -11,6 +11,7 @@ import {
     Building2,
     Search,
     Printer,
+    X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -30,6 +31,9 @@ interface DoctorWithRules {
     totalProduced: number;
     totalDue: number;
     totalPaid: number;
+    consultationValue: number | null;
+    commissionPercentage: number | null;
+    isCustomCommission: boolean;
 }
 
 const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = false }) => {
@@ -37,6 +41,11 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
     const [doctors, setDoctors] = useState<DoctorWithRules[]>([]);
     const [_payments, setPayments] = useState<DoctorPaymentWithRelations[]>([]);
     const [insurancePlans, setInsurancePlans] = useState<{ id: string; name: string }[]>([]);
+    const [defaultCommission, setDefaultCommission] = useState<number>(30);
+    const [editingDefaultCommission, setEditingDefaultCommission] = useState(false);
+    const [newDefaultCommission, setNewDefaultCommission] = useState("");
+    const [editingConsultationValueId, setEditingConsultationValueId] = useState<string | null>(null);
+    const [newConsultationValue, setNewConsultationValue] = useState("");
     const [editingDoctor, setEditingDoctor] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [newRule, setNewRule] = useState({
@@ -52,6 +61,16 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
         setLoading(true);
 
         try {
+            // Carregar dados da clínica
+            const { data: clinicData } = await supabase
+                .from("clinics")
+                .select("default_commission_percentage")
+                .eq("id", clinicId)
+                .single();
+
+            const clinicDefaultCommission = clinicData?.default_commission_percentage ?? 30;
+            setDefaultCommission(clinicDefaultCommission);
+
             // Carregar médicos com perfis
             const { data: doctorsData } = await supabase
                 .from("doctors")
@@ -65,6 +84,18 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                 .eq("clinic_id", clinicId);
 
             console.log("Loaded rules:", rulesData, "Error:", rulesError);
+
+            // Carregar preços por médico
+            const { data: pricingData } = await supabase
+                .from("doctor_pricing")
+                .select("*")
+                .eq("clinic_id", clinicId);
+
+            // Carregar comissões personalizadas por médico
+            const { data: commissionsData } = await supabase
+                .from("clinic_commission")
+                .select("*")
+                .eq("clinic_id", clinicId);
 
             // Carregar pagamentos
             let paymentsQuery = supabase
@@ -123,15 +154,23 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
             });
 
             // Montar dados dos médicos
-            const doctorsList = (doctorsData || []).map((doc: any) => ({
-                id: doc.id,
-                name: doc.profile?.name || "Médico",
-                crm: doc.crm,
-                rules: (rulesData || []).filter((r: any) => r.doctor_id === doc.id),
-                totalProduced: doctorTotals[doc.id]?.produced || 0,
-                totalDue: doctorTotals[doc.id]?.due || 0,
-                totalPaid: paidByDoctor[doc.id] || 0,
-            }));
+            const doctorsList = (doctorsData || []).map((doc: any) => {
+                const pricing = (pricingData || []).find((p: any) => p.doctor_id === doc.id);
+                const commission = (commissionsData || []).find((c: any) => c.doctor_id === doc.id);
+
+                return {
+                    id: doc.id,
+                    name: doc.profile?.name || "Médico",
+                    crm: doc.crm,
+                    rules: (rulesData || []).filter((r: any) => r.doctor_id === doc.id),
+                    totalProduced: doctorTotals[doc.id]?.produced || 0,
+                    totalDue: doctorTotals[doc.id]?.due || 0,
+                    totalPaid: paidByDoctor[doc.id] || 0,
+                    consultationValue: pricing?.consultation_value || null,
+                    commissionPercentage: commission?.commission_percentage ?? clinicDefaultCommission,
+                    isCustomCommission: !!commission,
+                };
+            });
 
             setDoctors(doctorsList);
             setPayments((paymentsData as unknown as DoctorPaymentWithRelations[]) || []);
@@ -151,6 +190,90 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    const handleSaveDefaultCommission = async () => {
+        const percentage = parseFloat(newDefaultCommission);
+        if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+            toast({
+                title: "Porcentagem inválida",
+                description: "Digite um valor entre 0 e 100",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from("clinics")
+                .update({ default_commission_percentage: percentage })
+                .eq("id", clinicId);
+
+            if (error) throw error;
+
+            toast({ title: "Comissão padrão atualizada!" });
+            setEditingDefaultCommission(false);
+            loadData(); // Reload to update all doctors
+        } catch (error) {
+            console.error("Error saving default commission:", error);
+            toast({
+                title: "Erro ao salvar comissão padrão",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleSaveConsultationValue = async (doctorId: string) => {
+        const value = parseFloat(newConsultationValue);
+        if (isNaN(value) || value < 0) {
+            toast({
+                title: "Valor inválido",
+                description: "Digite um valor numérico válido",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        try {
+            // Check if exists
+            const { data: existing } = await supabase
+                .from("doctor_pricing")
+                .select("id")
+                .eq("clinic_id", clinicId)
+                .eq("doctor_id", doctorId)
+                .single();
+
+            let error;
+            if (existing) {
+                const { error: updateError } = await supabase
+                    .from("doctor_pricing")
+                    .update({ consultation_value: value })
+                    .eq("id", existing.id);
+                error = updateError;
+            } else {
+                const { error: insertError } = await supabase
+                    .from("doctor_pricing")
+                    .insert({
+                        clinic_id: clinicId,
+                        doctor_id: doctorId,
+                        consultation_value: value
+                    });
+                error = insertError;
+            }
+
+            if (error) throw error;
+
+            toast({ title: "Valor da consulta atualizado!" });
+            setEditingConsultationValueId(null);
+            setNewConsultationValue("");
+            loadData();
+        } catch (error) {
+            console.error("Error saving consultation value:", error);
+            toast({
+                title: "Erro ao salvar valor",
+                variant: "destructive",
+            });
+        }
+    };
 
     const handleSaveRule = async (doctorId: string) => {
         try {
@@ -432,6 +555,85 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                 </motion.div>
             </div>
 
+            {/* Configuração Global de Comissão */}
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="glass-effect rounded-xl p-5 border-2 border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50"
+            >
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-indigo-500 flex items-center justify-center">
+                            <Building2 className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-gray-900">
+                                Comissão Padrão da Clínica
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                                Aplicada automaticamente a todos os médicos sem regra personalizada
+                            </p>
+                        </div>
+                    </div>
+
+                    {editingDefaultCommission ? (
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                value={newDefaultCommission}
+                                onChange={(e) => setNewDefaultCommission(e.target.value)}
+                                className="w-24 px-3 py-2 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-lg font-bold text-center"
+                            />
+                            <span className="text-lg font-bold text-indigo-600">%</span>
+                            <Button
+                                onClick={handleSaveDefaultCommission}
+                                size="sm"
+                                className="gradient-primary text-white"
+                            >
+                                <Save className="w-4 h-4 mr-1" />
+                                Salvar
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    setEditingDefaultCommission(false);
+                                    setNewDefaultCommission((defaultCommission).toString());
+                                }}
+                                size="sm"
+                                variant="outline"
+                            >
+                                <X className="w-4 h-4" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            <div className="text-right">
+                                <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Valor Atual</p>
+                                <p className="text-3xl font-bold text-indigo-600">
+                                    {defaultCommission}%
+                                </p>
+                            </div>
+                            {!isRestricted && (
+                                <Button
+                                    onClick={() => {
+                                        setEditingDefaultCommission(true);
+                                        setNewDefaultCommission(defaultCommission.toString());
+                                    }}
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-10 px-4"
+                                >
+                                    <Edit className="w-4 h-4 mr-1" />
+                                    Alterar
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+
             {/* Lista de Médicos */}
             <div className="space-y-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -482,24 +684,88 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                                             </div>
                                         </div>
 
-                                        {/* Regra atual */}
-                                        {defaultRule ? (
-                                            <div className="flex flex-wrap items-center gap-2 text-sm">
-                                                <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700">
-                                                    Médico: {defaultRule.payment_type === "PERCENTAGE"
+                                        {/* Valor da Consulta e Comissão */}
+                                        <div className="flex flex-wrap items-center gap-2 text-sm mb-2">
+                                            {editingConsultationValueId === doctor.id ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-sm font-semibold text-green-700">R$</span>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={newConsultationValue}
+                                                            onChange={(e) => setNewConsultationValue(e.target.value)}
+                                                            className="w-20 px-2 py-1 text-sm rounded border border-green-300 focus:ring-1 focus:ring-green-500 min-w-[80px]"
+                                                            autoFocus
+                                                        />
+                                                    </div>
+                                                    <Button
+                                                        onClick={() => handleSaveConsultationValue(doctor.id)}
+                                                        size="sm"
+                                                        className="h-7 px-2 bg-green-600 hover:bg-green-700 text-white"
+                                                    >
+                                                        <Save className="w-3 h-3" />
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => {
+                                                            setEditingConsultationValueId(null);
+                                                            setNewConsultationValue("");
+                                                        }}
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-7 px-2 text-gray-500 hover:text-red-500"
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1">
+                                                    {doctor.consultationValue ? (
+                                                        <span className="px-2 py-1 rounded-full bg-green-100 text-green-700 flex items-center gap-1 cursor-pointer hover:bg-green-200 transition-colors"
+                                                            onClick={() => {
+                                                                if (!isRestricted) {
+                                                                    setEditingConsultationValueId(doctor.id);
+                                                                    setNewConsultationValue(doctor.consultationValue?.toString() || "");
+                                                                }
+                                                            }}
+                                                        >
+                                                            Consulta: R$ {doctor.consultationValue.toFixed(2)}
+                                                            {!isRestricted && <Edit className="w-3 h-3 ml-1 opacity-50" />}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-500 flex items-center gap-1 cursor-pointer hover:bg-gray-200 transition-colors"
+                                                            onClick={() => {
+                                                                if (!isRestricted) {
+                                                                    setEditingConsultationValueId(doctor.id);
+                                                                    setNewConsultationValue("");
+                                                                }
+                                                            }}
+                                                        >
+                                                            Definir Valor Consulta
+                                                            {!isRestricted && <Edit className="w-3 h-3 ml-1 opacity-50" />}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                            <span className={`px-2 py-1 rounded-full ${doctor.isCustomCommission ? 'bg-blue-100 text-blue-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                                                Comissão: {doctor.commissionPercentage}% {doctor.isCustomCommission ? '(Personalizada)' : `(Padrão: ${defaultCommission}%)`}
+                                            </span>
+                                            {doctor.consultationValue && doctor.commissionPercentage !== null && (
+                                                <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-700 font-semibold">
+                                                    Médico recebe: R$ {(doctor.consultationValue * (1 - doctor.commissionPercentage / 100)).toFixed(2)}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Regra atual (legado) */}
+                                        {defaultRule && (
+                                            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                                <span className="px-2 py-1 rounded-full bg-gray-50 border border-gray-200">
+                                                    Regra antiga: {defaultRule.payment_type === "PERCENTAGE"
                                                         ? `${defaultRule.default_percentage}%`
                                                         : `R$ ${defaultRule.default_fixed_value}`}
                                                 </span>
-                                                {defaultRule.payment_type === "PERCENTAGE" && (
-                                                    <span className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700">
-                                                        Clínica: {100 - (defaultRule.default_percentage || 0)}%
-                                                    </span>
-                                                )}
                                             </div>
-                                        ) : (
-                                            <p className="text-sm text-yellow-600 font-medium">
-                                                ⚠️ Sem regra configurada - clique em "Configurar"
-                                            </p>
                                         )}
 
                                         {/* Regras por convênio */}
