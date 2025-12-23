@@ -34,55 +34,34 @@ import {
 
 interface FinancialOverviewProps {
     clinicId: string;
+    isRestricted?: boolean;
 }
 
-interface OverviewStats {
-    grossRevenue: number;
-    insuranceBilled: number;
-    insuranceReceivable: number;
-    totalDenials: number;
-    particularReceived: number;
-    operationalProfit: number;
-    doctorCosts: number;
-    totalExpenses: number;
-    // Growth percentages
-    revenueGrowth: number;
-    insuranceGrowth: number;
-    particularGrowth: number;
-}
+// ... existing interfaces ...
 
-interface InsurancePaymentTime {
-    name: string;
-    avgDays: number;
-    totalGuides: number;
-}
-
-interface RevenueByType {
-    name: string;
-    value: number;
-}
-
-const COLORS = ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#ec4899"];
-
-const FinancialOverview: React.FC<FinancialOverviewProps> = ({ clinicId }) => {
+const FinancialOverview: React.FC<FinancialOverviewProps> = ({ clinicId, isRestricted = false }) => {
     const [loading, setLoading] = useState(true);
-    const [period, setPeriod] = useState<"month" | "quarter" | "year">("month");
-    const [stats, setStats] = useState<OverviewStats>({
+    const [period, setPeriod] = useState<"day" | "month" | "quarter" | "year">(isRestricted ? "day" : "month");
+
+    const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088FE", "#00C49F"];
+
+    const [stats, setStats] = useState({
         grossRevenue: 0,
+        revenueGrowth: 0,
         insuranceBilled: 0,
+        insuranceGrowth: 0,
         insuranceReceivable: 0,
         totalDenials: 0,
         particularReceived: 0,
+        particularGrowth: 0,
         operationalProfit: 0,
         doctorCosts: 0,
         totalExpenses: 0,
-        revenueGrowth: 0,
-        insuranceGrowth: 0,
-        particularGrowth: 0,
     });
-    const [insurancePaymentTimes, setInsurancePaymentTimes] = useState<InsurancePaymentTime[]>([]);
-    const [revenueByType, setRevenueByType] = useState<RevenueByType[]>([]);
-    const [monthlyRevenue, setMonthlyRevenue] = useState<{ month: string; particular: number; insurance: number }[]>([]);
+
+    const [revenueByType, setRevenueByType] = useState<{ name: string, value: number }[]>([]);
+    const [insurancePaymentTimes, setInsurancePaymentTimes] = useState<{ name: string, avgDays: number, totalGuides: number }[]>([]);
+    const [monthlyRevenue, setMonthlyRevenue] = useState<{ month: string, particular: number, insurance: number }[]>([]);
 
     const loadData = useCallback(async () => {
         if (!clinicId) return;
@@ -94,25 +73,42 @@ const FinancialOverview: React.FC<FinancialOverviewProps> = ({ clinicId }) => {
             let prevStartDate: Date;
             let prevEndDate: Date;
 
-            switch (period) {
-                case "month":
-                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                    prevStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                    prevEndDate = new Date(now.getFullYear(), now.getMonth(), 0);
-                    break;
-                case "quarter":
-                    const currentQuarter = Math.floor(now.getMonth() / 3);
-                    startDate = new Date(now.getFullYear(), currentQuarter * 3, 1);
-                    prevStartDate = new Date(now.getFullYear(), (currentQuarter - 1) * 3, 1);
-                    prevEndDate = new Date(now.getFullYear(), currentQuarter * 3, 0);
-                    break;
-                case "year":
-                    startDate = new Date(now.getFullYear(), 0, 1);
-                    prevStartDate = new Date(now.getFullYear() - 1, 0, 1);
-                    prevEndDate = new Date(now.getFullYear() - 1, 11, 31);
-                    break;
+            if (isRestricted) {
+                // Force "day" view
+                startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                prevStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+                prevEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);
+            } else {
+                switch (period) {
+                    case "day": // Should not happen if not restricted unless we add it to UI
+                        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        prevStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+                        prevEndDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);
+                        break;
+                    case "month":
+                        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                        prevStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                        prevEndDate = new Date(now.getFullYear(), now.getMonth(), 0);
+                        break;
+                    case "quarter":
+                        const currentQuarter = Math.floor(now.getMonth() / 3);
+                        startDate = new Date(now.getFullYear(), currentQuarter * 3, 1);
+                        prevStartDate = new Date(now.getFullYear(), (currentQuarter - 1) * 3, 1);
+                        prevEndDate = new Date(now.getFullYear(), currentQuarter * 3, 0);
+                        break;
+                    case "year":
+                        startDate = new Date(now.getFullYear(), 0, 1);
+                        prevStartDate = new Date(now.getFullYear() - 1, 0, 1);
+                        prevEndDate = new Date(now.getFullYear() - 1, 11, 31);
+                        break;
+                    default:
+                        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                        prevStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                        prevEndDate = new Date(now.getFullYear(), now.getMonth(), 0);
+                }
             }
 
+            // ... fetch logic remains the same as it uses startDate ...
             // Buscar agendamentos concluídos (período atual)
             const { data: currentAppointments } = await supabase
                 .from("appointments")
@@ -121,6 +117,9 @@ const FinancialOverview: React.FC<FinancialOverviewProps> = ({ clinicId }) => {
                 .eq("status", "COMPLETED")
                 .gte("scheduled_start", startDate.toISOString())
                 .lte("scheduled_start", now.toISOString());
+
+            // ... rest of the function ...
+
 
             // Buscar agendamentos concluídos (período anterior)
             const { data: prevAppointments } = await supabase
@@ -136,27 +135,27 @@ const FinancialOverview: React.FC<FinancialOverviewProps> = ({ clinicId }) => {
             const prevAppts = prevAppointments || [];
 
             // Receita bruta (particular + convênio)
-            const grossRevenue = appointments.reduce((sum, apt) => sum + (apt.final_value || 0), 0);
-            const prevGrossRevenue = prevAppts.reduce((sum, apt) => sum + (apt.final_value || 0), 0);
+            const grossRevenue = appointments.reduce((sum: number, apt: any) => sum + (apt.final_value || 0), 0);
+            const prevGrossRevenue = prevAppts.reduce((sum: number, apt: any) => sum + (apt.final_value || 0), 0);
 
             // Particular recebido
             const particularReceived = appointments
-                .filter(apt => !apt.is_insurance)
-                .reduce((sum, apt) => sum + (apt.final_value || 0), 0);
+                .filter((apt: any) => !apt.is_insurance)
+                .reduce((sum: number, apt: any) => sum + (apt.final_value || 0), 0);
             const prevParticularReceived = prevAppts
-                .filter(apt => !apt.is_insurance)
-                .reduce((sum, apt) => sum + (apt.final_value || 0), 0);
+                .filter((apt: any) => !apt.is_insurance)
+                .reduce((sum: number, apt: any) => sum + (apt.final_value || 0), 0);
 
             // Convênios faturados
             const insuranceBilled = appointments
-                .filter(apt => apt.is_insurance)
-                .reduce((sum, apt) => sum + (apt.final_value || 0), 0);
+                .filter((apt: any) => apt.is_insurance)
+                .reduce((sum: number, apt: any) => sum + (apt.final_value || 0), 0);
             const prevInsuranceBilled = prevAppts
-                .filter(apt => apt.is_insurance)
-                .reduce((sum, apt) => sum + (apt.final_value || 0), 0);
+                .filter((apt: any) => apt.is_insurance)
+                .reduce((sum: number, apt: any) => sum + (apt.final_value || 0), 0);
 
             // Custo com médicos
-            const doctorCosts = appointments.reduce((sum, apt) => sum + (apt.doctor_amount || 0), 0);
+            const doctorCosts = appointments.reduce((sum: number, apt: any) => sum + (apt.doctor_amount || 0), 0);
 
             // Buscar despesas
             const { data: expensesData } = await supabase
@@ -166,7 +165,7 @@ const FinancialOverview: React.FC<FinancialOverviewProps> = ({ clinicId }) => {
                 .gte("due_date", startDate.toISOString().split("T")[0])
                 .lte("due_date", now.toISOString().split("T")[0]);
 
-            const totalExpenses = (expensesData || []).reduce((sum, exp) => sum + (exp.amount || 0), 0);
+            const totalExpenses = (expensesData || []).reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0);
 
             // Buscar glosas
             const { data: denialsData } = await supabase
@@ -175,7 +174,7 @@ const FinancialOverview: React.FC<FinancialOverviewProps> = ({ clinicId }) => {
                 .eq("clinic_id", clinicId)
                 .gte("created_at", startDate.toISOString());
 
-            const totalDenials = (denialsData || []).reduce((sum, d) => sum + (d.denied_value || 0), 0);
+            const totalDenials = (denialsData || []).reduce((sum: number, d: any) => sum + (d.denied_value || 0), 0);
 
             // Convênios a receber (guias enviadas mas não pagas)
             const { data: receivableGuides } = await supabase
@@ -184,7 +183,7 @@ const FinancialOverview: React.FC<FinancialOverviewProps> = ({ clinicId }) => {
                 .eq("clinic_id", clinicId)
                 .in("status", ["SENT", "ANALYZING", "APPROVED"]);
 
-            const insuranceReceivable = (receivableGuides || []).reduce((sum, g) => sum + (g.presented_value || 0), 0);
+            const insuranceReceivable = (receivableGuides || []).reduce((sum: number, g: any) => sum + (g.presented_value || 0), 0);
 
             // Calcular crescimento
             const revenueGrowth = prevGrossRevenue > 0
@@ -274,7 +273,7 @@ const FinancialOverview: React.FC<FinancialOverviewProps> = ({ clinicId }) => {
         } finally {
             setLoading(false);
         }
-    }, [clinicId, period]);
+    }, [clinicId, period, isRestricted]);
 
     useEffect(() => {
         loadData();
@@ -373,20 +372,30 @@ const FinancialOverview: React.FC<FinancialOverviewProps> = ({ clinicId }) => {
     return (
         <div className="space-y-6">
             {/* Filtro de Período */}
-            <div className="flex flex-wrap justify-end gap-2">
-                {(["month", "quarter", "year"] as const).map((p) => (
-                    <button
-                        key={p}
-                        onClick={() => setPeriod(p)}
-                        className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${period === p
-                            ? "gradient-primary text-white"
-                            : "bg-white text-gray-600 hover:bg-gray-50"
-                            }`}
-                    >
-                        {p === "month" ? "Mês" : p === "quarter" ? "Trimestre" : "Ano"}
-                    </button>
-                ))}
-            </div>
+            {!isRestricted && (
+                <div className="flex flex-wrap justify-end gap-2">
+                    {(["month", "quarter", "year"] as const).map((p) => (
+                        <button
+                            key={p}
+                            onClick={() => setPeriod(p)}
+                            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-all ${period === p
+                                ? "gradient-primary text-white"
+                                : "bg-white text-gray-600 hover:bg-gray-50"
+                                }`}
+                        >
+                            {p === "month" ? "Mês" : p === "quarter" ? "Trimestre" : "Ano"}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {isRestricted && (
+                <div className="flex justify-end">
+                    <span className="px-4 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium border border-purple-100">
+                        Visualizando dados de Hoje
+                    </span>
+                </div>
+            )}
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

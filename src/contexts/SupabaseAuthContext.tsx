@@ -18,6 +18,7 @@ interface CreateProfileData {
   clinic_id?: string;
   role: UserRole;
   is_admin?: boolean;
+  has_financial_access?: boolean;
 }
 
 interface AuthContextType {
@@ -30,6 +31,10 @@ interface AuthContextType {
     password: string,
     profileData: CreateProfileData
   ) => Promise<{ user: User | null; error: AuthError | Error | null }>;
+  updateProfile: (
+    userId: string,
+    updates: Partial<CreateProfileData>
+  ) => Promise<{ error: AuthError | Error | null }>;
   updateUserPassword: (
     userId: string,
     newPassword: string
@@ -136,7 +141,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       password: string,
       profileData: CreateProfileData
     ): Promise<{ user: User | null; error: AuthError | Error | null }> => {
-      const { name, clinic_id, role, is_admin } = profileData;
+      console.log("DEBUG: createProfile called with:", profileData);
+      const { name, clinic_id, role, is_admin, has_financial_access } = profileData;
 
       const { data: authData, error: authError } =
         await supabaseAdmin.auth.admin.createUser({
@@ -164,6 +170,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             role,
             clinic_id,
             is_admin: is_admin || false,
+            has_financial_access: has_financial_access || false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
@@ -180,6 +187,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       return { user: authData.user, error: null };
+    },
+    [toast]
+  );
+
+  const updateProfile = useCallback(
+    async (
+      userId: string,
+      updates: Partial<CreateProfileData>
+    ): Promise<{ error: AuthError | Error | null }> => {
+      console.log("DEBUG: updateProfile called with:", userId, updates);
+
+      const { error } = await supabaseAdmin
+        .from("profiles")
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+
+      if (error) {
+        console.error("Profile Update Error:", error);
+        toast({
+          variant: "destructive",
+          title: "Erro ao atualizar perfil",
+          description: error.message,
+        });
+        return { error };
+      }
+
+      return { error: null };
     },
     [toast]
   );
@@ -266,6 +303,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       profile,
       loading,
       createProfile,
+      updateProfile,
       updateUserPassword,
       signIn,
       signOut,
@@ -278,6 +316,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       profile,
       loading,
       createProfile,
+      updateProfile,
       updateUserPassword,
       signIn,
       signOut,

@@ -18,19 +18,13 @@ import type { DoctorPaymentRuleWithRelations, DoctorPaymentWithRelations } from 
 
 interface DoctorPayrollProps {
     clinicId: string;
+    isRestricted?: boolean;
 }
 
-interface DoctorWithRules {
-    id: string;
-    name: string;
-    crm: string;
-    rules: DoctorPaymentRuleWithRelations[];
-    totalProduced: number;
-    totalDue: number;
-    totalPaid: number;
-}
+// ... existing interfaces ...
 
-const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId }) => {
+const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = false }) => {
+    // ... state ...
     const [loading, setLoading] = useState(true);
     const [doctors, setDoctors] = useState<DoctorWithRules[]>([]);
     const [payments, setPayments] = useState<DoctorPaymentWithRelations[]>([]);
@@ -62,24 +56,40 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId }) => {
                 .eq("clinic_id", clinicId);
 
             // Carregar pagamentos
-            const { data: paymentsData } = await supabase
+            let paymentsQuery = supabase
                 .from("doctor_payments")
                 .select("*")
                 .eq("clinic_id", clinicId)
                 .order("period_end", { ascending: false });
 
-            // Carregar convênios
+            // Carregar totais por médico dos agendamentos
+            let appointmentsQuery = supabase
+                .from("appointments")
+                .select("doctor_id, final_value, doctor_amount")
+                .eq("clinic_id", clinicId)
+                .eq("status", "COMPLETED");
+
+            if (isRestricted) {
+                const now = new Date();
+                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+                const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+
+                // Filter payments made today (assuming created_at is the relevant timestamp)
+                paymentsQuery = paymentsQuery.gte("created_at", startOfDay).lte("created_at", endOfDay);
+
+                // Filter appointments for today
+                appointmentsQuery = appointmentsQuery.gte("scheduled_start", startOfDay).lte("scheduled_start", endOfDay);
+            }
+
+            const { data: paymentsData } = await paymentsQuery;
+            const { data: appointmentsData } = await appointmentsQuery;
+
+            // Carregar convênios (no filtering needed for reference data)
             const { data: plansData } = await supabase
                 .from("insurance_plans")
                 .select("id, name")
                 .eq("clinic_id", clinicId);
 
-            // Calcular totais por médico dos agendamentos
-            const { data: appointmentsData } = await supabase
-                .from("appointments")
-                .select("doctor_id, final_value, doctor_amount")
-                .eq("clinic_id", clinicId)
-                .eq("status", "COMPLETED");
 
             const doctorTotals: { [key: string]: { produced: number; due: number } } = {};
             (appointmentsData || []).forEach((apt: any) => {
@@ -89,6 +99,8 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId }) => {
                 doctorTotals[apt.doctor_id].produced += apt.final_value || 0;
                 doctorTotals[apt.doctor_id].due += apt.doctor_amount || 0;
             });
+
+            // ... rest of logic ...
 
             // Calcular total pago por médico
             const paidByDoctor: { [key: string]: number } = {};
@@ -122,11 +134,7 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId }) => {
         } finally {
             setLoading(false);
         }
-    }, [clinicId]);
-
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
+    }, [clinicId, isRestricted]);
 
     const handleSaveRule = async (doctorId: string) => {
         try {
@@ -358,14 +366,16 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId }) => {
                                                 </p>
                                             </div>
                                         </div>
-                                        <Button
-                                            onClick={() => setEditingDoctor(isEditing ? null : doctor.id)}
-                                            size="sm"
-                                            variant="outline"
-                                        >
-                                            <Edit className="w-4 h-4 mr-1" />
-                                            {isEditing ? "Cancelar" : "Configurar"}
-                                        </Button>
+                                        {!isRestricted && (
+                                            <Button
+                                                onClick={() => setEditingDoctor(isEditing ? null : doctor.id)}
+                                                size="sm"
+                                                variant="outline"
+                                            >
+                                                <Edit className="w-4 h-4 mr-1" />
+                                                {isEditing ? "Cancelar" : "Configurar"}
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
 

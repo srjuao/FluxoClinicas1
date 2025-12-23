@@ -151,9 +151,14 @@ const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps)
     if (!item.roles) return true;
     // Check if user has one of the allowed roles
     if (profile?.is_admin) return true; // Super admin access everything
+
+    // Allow financial access if user has the flag
+    if (item.id === 'financial' && profile?.has_financial_access) return true;
+
     return item.roles.includes(profile?.role || "");
   });
 
+  const isFinancialRestricted = !profile?.is_admin && !['CLINIC_ADMIN', 'ADMIN'].includes(profile?.role || "") && profile?.has_financial_access;
 
   return (
     <div className="flex bg-gray-50 min-h-screen">
@@ -245,7 +250,11 @@ const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps)
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden ml-9 pt-1 space-y-1 border-l-2 border-purple-100 pl-2"
                     >
-                      {financialMenuItems.map((subItem) => {
+                      {financialMenuItems.filter(subItem => {
+                        if (!isFinancialRestricted) return true;
+                        // For restricted users (Cashier), only show specific tabs
+                        return ["dashboard", "particular", "payroll"].includes(subItem.id);
+                      }).map((subItem) => {
                         const SubIcon = subItem.icon;
                         const isSubActive = financialSubTab === subItem.id;
                         return (
@@ -494,10 +503,16 @@ const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps)
                     <h2 className="text-2xl font-bold text-gray-900">
                       {financialMenuItems.find(i => i.id === financialSubTab)?.label || "Financeiro"}
                     </h2>
-                    <p className="text-gray-500">Gestão financeira completa</p>
+                    <p className="text-gray-500">
+                      {isFinancialRestricted ? " Modo Caixa (Acesso do Dia)" : "Gestão financeira completa"}
+                    </p>
                   </div>
                   <div className="flex-1">
-                    <FinancialModule clinicId={clinicId || ""} activeTab={financialSubTab} />
+                    <FinancialModule
+                      clinicId={clinicId || ""}
+                      activeTab={financialSubTab}
+                      isRestricted={!!isFinancialRestricted}
+                    />
                   </div>
                 </div>
               )}

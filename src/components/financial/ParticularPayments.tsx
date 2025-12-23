@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-    CreditCard,
     Search,
     Filter,
     CheckCircle,
@@ -16,21 +15,31 @@ import { PAYMENT_METHODS, PAYMENT_STATUS_LABELS, type PaymentStatus } from "@/ty
 
 interface ParticularPaymentsProps {
     clinicId: string;
+    isRestricted?: boolean;
 }
 
 interface AppointmentWithPatient {
     id: string;
     scheduled_start: string;
-    final_value: number | null;
+    final_value: number;
     payment_method: string | null;
-    payment_status: string | null;
+    payment_status: string;
     paid_at: string | null;
     installments: number | null;
-    patient: { name: string; cpf: string | null } | null;
-    doctor: { profile: { name: string } } | null;
+    patient: {
+        name: string;
+        cpf?: string;
+    } | null;
+    doctor: {
+        profile: {
+            name: string;
+        } | null;
+    } | null;
+    is_insurance?: boolean;
 }
 
-const ParticularPayments: React.FC<ParticularPaymentsProps> = ({ clinicId }) => {
+const ParticularPayments: React.FC<ParticularPaymentsProps> = ({ clinicId, isRestricted = false }) => {
+    // ... existing state ...
     const [loading, setLoading] = useState(true);
     const [appointments, setAppointments] = useState<AppointmentWithPatient[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -46,7 +55,7 @@ const ParticularPayments: React.FC<ParticularPaymentsProps> = ({ clinicId }) => 
         setLoading(true);
 
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from("appointments")
                 .select(`
           id,
@@ -62,8 +71,18 @@ const ParticularPayments: React.FC<ParticularPaymentsProps> = ({ clinicId }) => 
                 .eq("clinic_id", clinicId)
                 .eq("is_insurance", false)
                 .eq("status", "COMPLETED")
-                .order("scheduled_start", { ascending: false })
-                .limit(100);
+                .order("scheduled_start", { ascending: false });
+
+            if (isRestricted) {
+                const now = new Date();
+                const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+                const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+                query = query.gte("scheduled_start", startOfDay).lte("scheduled_start", endOfDay);
+            } else {
+                query = query.limit(100);
+            }
+
+            const { data, error } = await query;
 
             if (error) throw error;
             setAppointments((data as unknown as AppointmentWithPatient[]) || []);
@@ -76,7 +95,7 @@ const ParticularPayments: React.FC<ParticularPaymentsProps> = ({ clinicId }) => 
         } finally {
             setLoading(false);
         }
-    }, [clinicId]);
+    }, [clinicId, isRestricted]);
 
     useEffect(() => {
         loadData();
@@ -295,81 +314,79 @@ const ParticularPayments: React.FC<ParticularPaymentsProps> = ({ clinicId }) => 
                                                 size="sm"
                                                 className="gradient-primary text-white"
                                             >
-                                                <CreditCard className="w-4 h-4 mr-1" />
-                                                Receber
+                                                <CheckCircle className="w-4 h-4 mr-1" />
+                                                Confirmar
                                             </Button>
                                         )}
                                     </div>
                                 </div>
 
-                                {/* Formulário de Pagamento */}
                                 {isEditing && (
-                                    <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: "auto" }}
-                                        className="mt-4 pt-4 border-t border-gray-200"
-                                    >
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Forma de Pagamento
-                                                </label>
-                                                <select
-                                                    value={paymentForm.method}
-                                                    onChange={(e) =>
-                                                        setPaymentForm({ ...paymentForm, method: e.target.value })
-                                                    }
-                                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500"
-                                                >
-                                                    {PAYMENT_METHODS.filter((m) => m.value !== "INSURANCE").map((m) => (
-                                                        <option key={m.value} value={m.value}>
-                                                            {m.label}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
+                                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                                        <select
+                                            value={paymentForm.method}
+                                            onChange={(e) =>
+                                                setPaymentForm({ ...paymentForm, method: e.target.value })
+                                            }
+                                            className="px-3 py-2 rounded-lg border border-gray-200"
+                                        >
+                                            {PAYMENT_METHODS.map((method) => (
+                                                <option key={method.value} value={method.value}>
+                                                    {method.label}
+                                                </option>
+                                            ))}
+                                        </select>
 
-                                            {paymentForm.method === "CREDIT_CARD" && (
-                                                <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Parcelas
-                                                    </label>
-                                                    <select
-                                                        value={paymentForm.installments}
-                                                        onChange={(e) =>
-                                                            setPaymentForm({
-                                                                ...paymentForm,
-                                                                installments: parseInt(e.target.value),
-                                                            })
-                                                        }
-                                                        className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500"
-                                                    >
-                                                        {[1, 2, 3, 4, 5, 6, 10, 12].map((n) => (
-                                                            <option key={n} value={n}>
-                                                                {n}x {n === 1 ? "à vista" : ""}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            )}
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => setEditingPayment(null)}
+                                            size="sm"
+                                        >
+                                            Cancelar
+                                        </Button>
+                                        <Button
+                                            onClick={() => handleMarkAsPaid(apt.id)}
+                                            size="sm"
+                                            className="gradient-primary text-white"
+                                        >
+                                            <CheckCircle className="w-4 h-4 mr-2" />
+                                            Confirmar Recebimento
+                                        </Button>
+                                    </div>
+                                )}
 
-                                            <div className="flex items-end gap-2">
-                                                <Button
-                                                    onClick={() => handleMarkAsPaid(apt.id)}
-                                                    className="flex-1 gradient-primary text-white"
-                                                >
-                                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                                    Confirmar
-                                                </Button>
-                                                <Button
-                                                    onClick={() => setEditingPayment(null)}
-                                                    variant="outline"
-                                                >
-                                                    Cancelar
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </motion.div>
+                                {isEditing && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                                        <select
+                                            value={paymentForm.method}
+                                            onChange={(e) =>
+                                                setPaymentForm({ ...paymentForm, method: e.target.value })
+                                            }
+                                            className="px-3 py-2 rounded-lg border border-gray-200"
+                                        >
+                                            {PAYMENT_METHODS.map((method) => (
+                                                <option key={method.value} value={method.value}>
+                                                    {method.label}
+                                                </option>
+                                            ))}
+                                        </select>
+
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => setEditingPayment(null)}
+                                            size="sm"
+                                        >
+                                            Cancelar
+                                        </Button>
+                                        <Button
+                                            onClick={() => handleMarkAsPaid(apt.id)}
+                                            size="sm"
+                                            className="gradient-primary text-white"
+                                        >
+                                            <CheckCircle className="w-4 h-4 mr-2" />
+                                            Confirmar Recebimento
+                                        </Button>
+                                    </div>
                                 )}
                             </motion.div>
                         );
@@ -381,3 +398,7 @@ const ParticularPayments: React.FC<ParticularPaymentsProps> = ({ clinicId }) => 
 };
 
 export default ParticularPayments;
+
+
+
+

@@ -23,9 +23,7 @@ import DoctorPayroll from "./financial/DoctorPayroll";
 import ExpenseManagement from "./financial/ExpenseManagement";
 import FinancialReports from "./financial/FinancialReports";
 
-interface FinancialModuleProps {
-    clinicId: string;
-}
+
 
 export const financialMenuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -41,21 +39,23 @@ export const financialMenuItems = [
 interface FinancialModuleProps {
     clinicId: string;
     activeTab?: string;
+    isRestricted?: boolean;
 }
 
-const FinancialModule: React.FC<FinancialModuleProps> = ({ clinicId, activeTab = "dashboard" }) => {
+const FinancialModule: React.FC<FinancialModuleProps> = ({ clinicId, activeTab = "dashboard", isRestricted = false }) => {
     // Determine which component to render
     const renderContent = () => {
+        const commonProps = { clinicId, isRestricted };
         switch (activeTab) {
-            case "dashboard": return <FinancialOverview clinicId={clinicId} />;
-            case "particular": return <ParticularPayments clinicId={clinicId} />;
-            case "insurance": return <InsuranceBilling clinicId={clinicId} />;
-            case "denials": return <DenialManagement clinicId={clinicId} />;
-            case "receivable": return <AccountsReceivable clinicId={clinicId} />;
-            case "payroll": return <DoctorPayroll clinicId={clinicId} />;
-            case "expenses": return <ExpenseManagement clinicId={clinicId} />;
-            case "reports": return <FinancialReports clinicId={clinicId} />;
-            default: return <FinancialOverview clinicId={clinicId} />;
+            case "dashboard": return <FinancialOverview {...commonProps} />;
+            case "particular": return <ParticularPayments {...commonProps} />;
+            case "insurance": return <InsuranceBilling {...commonProps} />;
+            case "denials": return <DenialManagement {...commonProps} />;
+            case "receivable": return <AccountsReceivable {...commonProps} />;
+            case "payroll": return <DoctorPayroll {...commonProps} />;
+            case "expenses": return <ExpenseManagement {...commonProps} />;
+            case "reports": return <FinancialReports {...commonProps} />;
+            default: return <FinancialOverview {...commonProps} />;
         }
     };
 

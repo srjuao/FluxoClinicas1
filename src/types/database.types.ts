@@ -324,6 +324,7 @@ export interface Database {
           clinic_id: string | null
           role: UserRole
           is_admin: boolean
+          has_financial_access: boolean
           created_at: string
           updated_at: string | null
         }
@@ -334,6 +335,7 @@ export interface Database {
           clinic_id?: string | null
           role: UserRole
           is_admin?: boolean
+          has_financial_access?: boolean
           created_at?: string
           updated_at?: string | null
         }
@@ -344,6 +346,7 @@ export interface Database {
           clinic_id?: string | null
           role?: UserRole
           is_admin?: boolean
+          has_financial_access?: boolean
           created_at?: string
           updated_at?: string | null
         }
