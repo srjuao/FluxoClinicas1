@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Tv } from "lucide-react";
 import { supabase } from "@/lib/customSupabaseClient";

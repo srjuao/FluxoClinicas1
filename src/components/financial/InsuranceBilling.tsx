@@ -13,14 +13,19 @@ import {
     Edit,
     Eye,
 } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/customSupabaseClient";
 import { toast } from "@/components/ui/use-toast";
 import {
-    GUIDE_STATUS_LABELS,
     type GuideStatus,
     type InsuranceGuideWithRelations,
 } from "@/types/financial.types";
+import { InsurancePlanManager } from "./InsurancePlanManager";
 
 interface InsuranceBillingProps {
     clinicId: string;
@@ -280,15 +285,28 @@ const InsuranceBilling: React.FC<InsuranceBillingProps> = ({ clinicId }) => {
             </div>
 
             {/* Botão Nova Guia */}
-            <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">Guias de Convênio</h3>
-                <Button
-                    onClick={() => setShowNewGuide(!showNewGuide)}
-                    className="gradient-primary text-white"
-                >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Nova Guia
-                </Button>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Faturamento de Convênios</h2>
+                    <p className="text-gray-500">Gerencie guias e faturamento</p>
+                </div>
+                <div className="flex gap-2">
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="outline">
+                                <Building2 className="w-4 h-4 mr-2" />
+                                Gerenciar Convênios
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-3xl">
+                            <InsurancePlanManager clinicId={clinicId} />
+                        </DialogContent>
+                    </Dialog>
+                    <Button onClick={() => setShowNewGuide(true)} className="gradient-primary text-white">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Nova Guia
+                    </Button>
+                </div>
             </div>
 
             {/* Formulário Nova Guia */}

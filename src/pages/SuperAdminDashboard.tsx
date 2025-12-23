@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import { motion } from "framer-motion";
 import { Building2, Plus, Users, LogOut, UserPlus, Settings, AlertCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -85,28 +85,28 @@ const SuperAdminDashboard = () => {
       // Excluir dados relacionados em ordem (devido às foreign keys)
       // 1. Excluir consultas
       await supabase.from("appointments").delete().eq("clinic_id", clinic.id);
-      
+
       // 2. Excluir prescrições
       await supabase.from("prescriptions").delete().eq("clinic_id", clinic.id);
-      
+
       // 3. Excluir atestados
       await supabase.from("medical_certificates").delete().eq("clinic_id", clinic.id);
-      
+
       // 4. Excluir laudos
       await supabase.from("medical_reports").delete().eq("clinic_id", clinic.id);
-      
+
       // 5. Excluir horários dos médicos
       await supabase.from("doctor_work_hours").delete().eq("clinic_id", clinic.id);
-      
+
       // 6. Excluir médicos
       await supabase.from("doctors").delete().eq("clinic_id", clinic.id);
-      
+
       // 7. Excluir pacientes
       await supabase.from("patients").delete().eq("clinic_id", clinic.id);
-      
+
       // 8. Excluir perfis/usuários
       await supabase.from("profiles").delete().eq("clinic_id", clinic.id);
-      
+
       // 9. Finalmente excluir a clínica
       const { error } = await supabase.from("clinics").delete().eq("id", clinic.id);
 
@@ -116,7 +116,7 @@ const SuperAdminDashboard = () => {
         title: "Clínica excluída com sucesso!",
         description: `${clinic.name} foi removida da plataforma.`,
       });
-      
+
       loadClinics();
     } catch (error) {
       toast({
@@ -192,9 +192,8 @@ const SuperAdminDashboard = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className={`glass-effect rounded-2xl p-6 hover:shadow-2xl transition-all ${
-                  !clinic.is_active ? "opacity-60" : ""
-                }`}
+                className={`glass-effect rounded-2xl p-6 hover:shadow-2xl transition-all ${!clinic.is_active ? "opacity-60" : ""
+                  }`}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="w-12 h-12 rounded-xl gradient-secondary flex items-center justify-center">
@@ -202,11 +201,10 @@ const SuperAdminDashboard = () => {
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        clinic.is_active
+                      className={`px-3 py-1 rounded-full text-xs font-semibold ${clinic.is_active
                           ? "bg-green-100 text-green-700"
                           : "bg-red-100 text-red-700"
-                      }`}
+                        }`}
                     >
                       {clinic.is_active ? "Ativa" : "Inativa"}
                     </span>

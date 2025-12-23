@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Helmet } from "react-helmet";
+import { Helmet } from "react-helmet-async";
 import { Toaster } from "@/components/ui/toaster";
 import LoginPage from "@/pages/LoginPage";
 import SuperAdminDashboard from "@/pages/SuperAdminDashboard";
