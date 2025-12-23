@@ -58,11 +58,13 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                 .select("id, crm, profile:profiles(name)")
                 .eq("clinic_id", clinicId);
 
-            // Carregar regras de repasse
-            const { data: rulesData } = await supabase
+            // Carregar regras de repasse (sem join - relacionamento pode não existir)
+            const { data: rulesData, error: rulesError } = await supabase
                 .from("doctor_payment_rules")
-                .select("*, insurance_plan:insurance_plans(name)")
+                .select("*")
                 .eq("clinic_id", clinicId);
+
+            console.log("Loaded rules:", rulesData, "Error:", rulesError);
 
             // Carregar pagamentos
             let paymentsQuery = supabase
@@ -201,6 +203,7 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
 
             if (error) throw error;
 
+            console.log("Rule saved successfully, reloading data...");
             toast({ title: "Regra de repasse salva!" });
             setEditingDoctor(null);
             setNewRule({
@@ -210,7 +213,10 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                 insurance_plan_id: "",
                 custom_value: "",
             });
-            loadData();
+            // Small delay to ensure database is updated
+            await new Promise(resolve => setTimeout(resolve, 300));
+            await loadData();
+            console.log("Data reloaded after save");
         } catch (error) {
             console.error("Error saving rule:", error);
             toast({
