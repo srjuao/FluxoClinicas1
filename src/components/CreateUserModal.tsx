@@ -4,6 +4,7 @@ import { X, UserPlus, Key, Shield, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
+import { supabase } from "@/lib/customSupabaseClient";
 import type { UserRole } from "@/types/database.types";
 import type { CreateUserModalProps } from "@/types/components.types";
 
@@ -45,6 +46,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
   const [hasFinancialAccess, setHasFinancialAccess] = useState(userToEdit?.has_financial_access || false);
   const [loading, setLoading] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [userLimitReached, setUserLimitReached] = useState(false);
 
   useEffect(() => {
     if (userToEdit) {
@@ -64,7 +66,45 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
     }
   }, [userToEdit]);
 
-  // ... (keep useEffect for user limit)
+  useEffect(() => {
+    const checkUserLimit = async () => {
+      if (!clinicId || isEdit) return;
+
+      try {
+        // Fetch clinic details for max_users
+        const { data: clinic, error: clinicError } = await supabase
+          .from("clinics")
+          .select("max_users")
+          .eq("id", clinicId)
+          .single();
+
+        if (clinicError) throw clinicError;
+
+        if (clinic?.max_users) {
+          // Count existing users
+          const { count, error: countError } = await supabase
+            .from("profiles")
+            .select("*", { count: "exact", head: true })
+            .eq("clinic_id", clinicId);
+
+          if (countError) throw countError;
+
+          if (count !== null && count >= clinic.max_users) {
+            setUserLimitReached(true);
+            toast({
+              title: "Limite de usuários atingido",
+              description: "Você atingiu o limite de usuários do seu plano.",
+              variant: "destructive",
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error checking user limit:", error);
+      }
+    };
+
+    checkUserLimit();
+  }, [clinicId, isEdit]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
