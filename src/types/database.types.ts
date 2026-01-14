@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type AppointmentStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
+export type AppointmentStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW' | 'PRE_SCHEDULED'
 export type UserRole = 'SUPER_ADMIN' | 'CLINIC_ADMIN' | 'DOCTOR' | 'RECEPTIONIST'
 
 export interface Database {
@@ -17,7 +17,7 @@ export interface Database {
           id: string
           clinic_id: string
           doctor_id: string
-          patient_id: string
+          patient_id: string | null
           scheduled_start: string
           scheduled_end: string
           status: AppointmentStatus
@@ -31,12 +31,14 @@ export interface Database {
           clinic_commission_percentage?: number | null
           clinic_commission_amount?: number | null
           doctor_amount?: number | null
+          pre_schedule_name?: string | null
+          pre_schedule_phone?: string | null
         }
         Insert: {
           id?: string
           clinic_id: string
           doctor_id: string
-          patient_id: string
+          patient_id?: string | null
           scheduled_start: string
           scheduled_end: string
           status?: AppointmentStatus
@@ -50,12 +52,14 @@ export interface Database {
           clinic_commission_percentage?: number | null
           clinic_commission_amount?: number | null
           doctor_amount?: number | null
+          pre_schedule_name?: string | null
+          pre_schedule_phone?: string | null
         }
         Update: {
           id?: string
           clinic_id?: string
           doctor_id?: string
-          patient_id?: string
+          patient_id?: string | null
           scheduled_start?: string
           scheduled_end?: string
           status?: AppointmentStatus
@@ -69,6 +73,8 @@ export interface Database {
           clinic_commission_percentage?: number | null
           clinic_commission_amount?: number | null
           doctor_amount?: number | null
+          pre_schedule_name?: string | null
+          pre_schedule_phone?: string | null
         }
       }
       clinics: {
