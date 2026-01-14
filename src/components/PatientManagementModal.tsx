@@ -166,6 +166,31 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
     setLoading(true);
 
     const cleanedCPF = cleanCPF(patientForm.cpf);
+
+    // Verificar se já existe um paciente com este CPF NESTA clínica
+    const { data: existingPatient, error: checkError } = await supabase
+      .from("patients")
+      .select("id, name")
+      .eq("clinic_id", clinicId)
+      .eq("cpf", cleanedCPF)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("Erro ao verificar CPF:", checkError);
+    }
+
+    // Se encontrou um paciente com o mesmo CPF nesta clínica (e não é o paciente sendo editado)
+    if (existingPatient && existingPatient.id !== editingPatient?.id) {
+      setCpfError(`CPF já cadastrado para ${existingPatient.name}`);
+      toast({
+        title: "CPF já cadastrado",
+        description: `Este CPF já pertence a ${existingPatient.name} nesta clínica`,
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
     const dataToSave = { ...patientForm, cpf: cleanedCPF };
 
     if (editingPatient) {

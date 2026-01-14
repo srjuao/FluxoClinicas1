@@ -117,12 +117,38 @@ const ConfirmPreScheduleModal: React.FC<ConfirmPreScheduleModalProps> = ({
         setSubmitting(true);
 
         try {
+            const cleanedCPF = formData.cpf.replace(/\D/g, "");
+
+            // Verificar CPF duplicado na mesma clínica
+            if (cleanedCPF) {
+                const { data: existingPatient, error: checkError } = await supabase
+                    .from("patients")
+                    .select("id, name")
+                    .eq("clinic_id", clinicId)
+                    .eq("cpf", cleanedCPF)
+                    .maybeSingle();
+
+                if (checkError) {
+                    console.error("Erro ao verificar CPF:", checkError);
+                }
+
+                if (existingPatient) {
+                    toast({
+                        title: "CPF já cadastrado",
+                        description: `Este CPF já pertence a ${existingPatient.name} nesta clínica`,
+                        variant: "destructive",
+                    });
+                    setSubmitting(false);
+                    return;
+                }
+            }
+
             const { data: newPatient, error } = await supabase
                 .from("patients")
                 .insert({
                     clinic_id: clinicId,
                     name: formData.name.trim(),
-                    cpf: formData.cpf.replace(/\D/g, "") || null,
+                    cpf: cleanedCPF || null,
                     birth_date: formData.birth_date || null,
                     sexo: formData.sexo || null,
                     telefone: formData.telefone || null,
@@ -276,8 +302,8 @@ const ConfirmPreScheduleModal: React.FC<ConfirmPreScheduleModalProps> = ({
                     <button
                         onClick={() => setMode("search")}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${mode === "search"
-                                ? "bg-purple-100 text-purple-700"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            ? "bg-purple-100 text-purple-700"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                             }`}
                     >
                         <Search className="w-4 h-4 inline mr-1" />
@@ -286,8 +312,8 @@ const ConfirmPreScheduleModal: React.FC<ConfirmPreScheduleModalProps> = ({
                     <button
                         onClick={() => setMode("create")}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${mode === "create"
-                                ? "bg-purple-100 text-purple-700"
-                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            ? "bg-purple-100 text-purple-700"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                             }`}
                     >
                         <Plus className="w-4 h-4 inline mr-1" />
@@ -335,8 +361,8 @@ const ConfirmPreScheduleModal: React.FC<ConfirmPreScheduleModalProps> = ({
                                                 setMode("select");
                                             }}
                                             className={`w-full p-3 rounded-lg border-2 text-left transition-all ${selectedPatient?.id === patient.id
-                                                    ? "border-green-500 bg-green-50"
-                                                    : "border-gray-200 hover:border-purple-300"
+                                                ? "border-green-500 bg-green-50"
+                                                : "border-gray-200 hover:border-purple-300"
                                                 }`}
                                         >
                                             <p className="font-medium text-gray-900">{patient.name}</p>

@@ -181,7 +181,13 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
     adicao: "",
     observacoes: "",
   });
-  const [selectedExams, setSelectedExams] = useState<string[]>([]);
+  // Tipo para exames oftalmológicos com detalhes (olho e observação)
+  interface OphthalmologyExamDetail {
+    exam: string;
+    eye: 'OD' | 'OE' | 'AO'; // Olho Direito, Olho Esquerdo, Ambos os Olhos
+    observation: string;
+  }
+  const [selectedExams, setSelectedExams] = useState<OphthalmologyExamDetail[]>([]);
   const [selectedUrologyExams, setSelectedUrologyExams] = useState<string[]>([]);
   const [selectedCardiologyExams, setSelectedCardiologyExams] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -240,9 +246,32 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
   }, [doctorId]);
 
   const toggleExam = (exam: string) => {
+    setSelectedExams((prev) => {
+      const existingIndex = prev.findIndex(e => e.exam === exam);
+      if (existingIndex >= 0) {
+        // Remove o exame
+        return prev.filter(e => e.exam !== exam);
+      } else {
+        // Adiciona o exame com valores padrão
+        return [...prev, { exam, eye: 'AO' as const, observation: '' }];
+      }
+    });
+  };
+
+  const updateExamEye = (exam: string, eye: 'OD' | 'OE' | 'AO') => {
     setSelectedExams((prev) =>
-      prev.includes(exam) ? prev.filter((e) => e !== exam) : [...prev, exam]
+      prev.map(e => e.exam === exam ? { ...e, eye } : e)
     );
+  };
+
+  const updateExamObservation = (exam: string, observation: string) => {
+    setSelectedExams((prev) =>
+      prev.map(e => e.exam === exam ? { ...e, observation } : e)
+    );
+  };
+
+  const isExamSelected = (exam: string): boolean => {
+    return selectedExams.some(e => e.exam === exam);
   };
 
   const toggleUrologyExam = (exam: string) => {
@@ -325,8 +354,21 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
     }
 
     if (type === "exams" && parsed.selectedExams?.length) {
+      const eyeLabels: { [key: string]: string } = {
+        'OD': 'Olho Direito',
+        'OE': 'Olho Esquerdo',
+        'AO': 'Ambos os Olhos'
+      };
       printContent += `<div class="content"><h3>Exames Oftalmológicos</h3><ul>${parsed.selectedExams
-        .map((exam: string) => `<li>${exam}</li>`)
+        .map((examDetail: { exam: string; eye: string; observation: string }) => {
+          const eyeText = eyeLabels[examDetail.eye] || examDetail.eye;
+          let examLine = `<li><strong>${examDetail.exam}</strong> - <em>${eyeText}</em>`;
+          if (examDetail.observation?.trim()) {
+            examLine += `<br/><span style="margin-left: 20px; color: #555;">Obs: ${examDetail.observation}</span>`;
+          }
+          examLine += `</li>`;
+          return examLine;
+        })
         .join("")}</ul></div>`;
     }
 
@@ -647,28 +689,100 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
             {/* Subaba: Exames */}
             {subTab === "exames" && doctorData?.can_prescribe_exams && (
               <div>
-                <div className="grid grid-cols-2 gap-2 max-h-60 overflow-y-auto border p-3 rounded mb-4">
-                  {examOptions.map((exam) => (
-                    <label key={exam} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedExams.includes(exam)}
-                        onChange={() => toggleExam(exam)}
-                      />
-                      <span>{exam}</span>
-                    </label>
-                  ))}
+                <div className="max-h-80 overflow-y-auto border p-3 rounded mb-4 space-y-3">
+                  {/* Lista de exames disponíveis */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {examOptions.map((exam) => (
+                      <label key={exam} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                        <input
+                          type="checkbox"
+                          checked={isExamSelected(exam)}
+                          onChange={() => toggleExam(exam)}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-sm">{exam}</span>
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* Detalhes dos exames selecionados */}
+                  {selectedExams.length > 0 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <h4 className="font-semibold text-sm text-gray-700 mb-3 flex items-center gap-2">
+                        👁️ Detalhes dos Exames Selecionados
+                      </h4>
+                      <div className="space-y-3">
+                        {selectedExams.map((examDetail) => (
+                          <div key={examDetail.exam} className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-medium text-gray-900">{examDetail.exam}</span>
+                              <div className="flex gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => updateExamEye(examDetail.exam, 'OD')}
+                                  className={`px-3 py-1 text-xs rounded-full transition-all ${examDetail.eye === 'OD'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                  OD
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateExamEye(examDetail.exam, 'OE')}
+                                  className={`px-3 py-1 text-xs rounded-full transition-all ${examDetail.eye === 'OE'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                  OE
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => updateExamEye(examDetail.exam, 'AO')}
+                                  className={`px-3 py-1 text-xs rounded-full transition-all ${examDetail.eye === 'AO'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                  AO
+                                </button>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                              <span className="font-medium">Olho selecionado:</span>
+                              <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                                {examDetail.eye === 'OD' ? 'Olho Direito' : examDetail.eye === 'OE' ? 'Olho Esquerdo' : 'Ambos os Olhos'}
+                              </span>
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Observações do exame (opcional)"
+                              value={examDetail.observation}
+                              onChange={(e) => updateExamObservation(examDetail.exam, e.target.value)}
+                              className="w-full text-sm border border-gray-300 rounded p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-end gap-3">
-                  <Button variant="outline" onClick={onClose}>
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={() => handleSave("exams")}
-                    disabled={loading}
-                  >
-                    {loading ? "Salvando..." : "Criar & Imprimir Exames"}
-                  </Button>
+                <div className="flex justify-between items-center gap-3">
+                  <span className="text-xs text-gray-500">
+                    {selectedExams.length} exame(s) selecionado(s)
+                  </span>
+                  <div className="flex gap-3">
+                    <Button variant="outline" onClick={onClose}>
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={() => handleSave("exams")}
+                      disabled={loading}
+                    >
+                      {loading ? "Salvando..." : "Criar & Imprimir Exames"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}

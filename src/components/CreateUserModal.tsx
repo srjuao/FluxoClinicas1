@@ -122,6 +122,28 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
         });
 
         if (updateError) throw updateError;
+
+        // Se for médico, atualizar também a tabela doctors
+        if (role === "DOCTOR" && doctorData?.id) {
+          const { error: doctorUpdateError } = await supabase
+            .from("doctors")
+            .update({
+              crm,
+              specialties: specialties.split(",").map((s) => s.trim()).filter(Boolean),
+              can_prescribe_exams: canPrescribeExams,
+              can_prescribe_lenses: canPrescribeLenses,
+              can_prescribe_urology_exams: canPrescribeUrologyExams,
+              can_prescribe_cardiology_exams: canPrescribeCardiologyExams,
+              does_ultrasound_exams: doesUltrasoundExams,
+              room: room || null,
+            })
+            .eq("id", doctorData.id);
+
+          if (doctorUpdateError) {
+            console.error("Error updating doctor:", doctorUpdateError);
+            throw doctorUpdateError;
+          }
+        }
       } else {
         // Criar novo usuário
         const trimmedEmail = email.trim();
