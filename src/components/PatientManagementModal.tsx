@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { X, User, Search, Edit, Trash2, Plus } from "lucide-react";
+import { X, User, Search, Edit, Trash2, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -54,7 +54,10 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
     endereco: "",
   });
   const [cpfError, setCpfError] = useState<string | null>(null);
+  const [searchingPatients, setSearchingPatients] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Carrega pacientes iniciais (recentes)
   const loadPatients = useCallback(async () => {
     if (!clinicId) return;
     setLoading(true);
@@ -63,7 +66,8 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
       .from("patients")
       .select("*")
       .eq("clinic_id", clinicId)
-      .order("name");
+      .order("created_at", { ascending: false })
+      .limit(50);
 
     if (error) {
       toast({
@@ -77,15 +81,63 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
     setLoading(false);
   }, [clinicId]);
 
+  // Busca dinâmica de pacientes no banco de dados
+  const searchPatientsInDatabase = useCallback(async (searchValue: string) => {
+    if (!clinicId) return;
+
+    if (!searchValue || searchValue.length < 2) {
+      // Recarrega pacientes recentes se não há termo de busca
+      loadPatients();
+      setSearchingPatients(false);
+      return;
+    }
+
+    setSearchingPatients(true);
+
+    // Remove formatação do CPF para busca
+    const cleanedSearch = searchValue.replace(/\D/g, "");
+    const isSearchingByCPF = cleanedSearch.length >= 3;
+
+    let query = supabase
+      .from("patients")
+      .select("*")
+      .eq("clinic_id", clinicId);
+
+    if (isSearchingByCPF && cleanedSearch.length >= 3) {
+      // Busca por CPF ou por nome
+      query = query.or(`cpf.ilike.%${cleanedSearch}%,name.ilike.%${searchValue}%`);
+    } else {
+      // Busca apenas por nome
+      query = query.ilike("name", `%${searchValue}%`);
+    }
+
+    const { data, error } = await query.order("name").limit(100);
+
+    if (error) {
+      console.error("Erro ao buscar pacientes:", error);
+    } else {
+      setPatients(data || []);
+    }
+
+    setSearchingPatients(false);
+  }, [clinicId, loadPatients]);
+
+  // Debounce da busca
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      searchPatientsInDatabase(value);
+    }, 300);
+  }, [searchPatientsInDatabase]);
+
   useEffect(() => {
     loadPatients();
   }, [loadPatients]);
-
-  const filteredPatients = patients.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.cpf && p.cpf.includes(searchTerm))
-  );
 
   const handleNewPatient = () => {
     setEditingPatient(null);
@@ -268,9 +320,12 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
                   type="text"
                   placeholder="Buscar por nome ou CPF..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
+                {searchingPatients && (
+                  <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-purple-500 animate-spin" />
+                )}
               </div>
               <Button
                 onClick={handleNewPatient}
@@ -283,16 +338,16 @@ const PatientManagementModal: React.FC<PatientManagementModalProps> = ({
 
             {/* Patients List */}
             <div className="space-y-2 max-h-[500px] overflow-y-auto">
-              {loading ? (
+              {loading || searchingPatients ? (
                 <p className="text-center text-gray-500 py-8">Carregando...</p>
-              ) : filteredPatients.length === 0 ? (
+              ) : patients.length === 0 ? (
                 <p className="text-center text-gray-500 py-8">
                   {searchTerm
                     ? "Nenhum paciente encontrado"
                     : "Nenhum paciente cadastrado"}
                 </p>
               ) : (
-                filteredPatients.map((patient) => (
+                patients.map((patient) => (
                   <div
                     key={patient.id}
                     className="glass-effect rounded-lg p-4 flex justify-between items-center hover:shadow-md transition-all"

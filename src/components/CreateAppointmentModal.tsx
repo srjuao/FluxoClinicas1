@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, FormEvent } from "react";
+import React, { useState, useEffect, useCallback, FormEvent, useRef } from "react";
 import { motion } from "framer-motion";
-import { X, Calendar, Edit } from "lucide-react";
+import { X, Calendar, Edit, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -53,8 +53,10 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [cpfError, setCpfError] = useState<string | null>(null);
+  const [searchingPatients, setSearchingPatients] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Carrega médicos e pacientes
+  // Carrega médicos e pacientes iniciais
   const loadInitialData = useCallback(async () => {
     if (!clinicId) return;
     setLoading(true);
@@ -68,11 +70,13 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
       toast({ title: "Erro ao buscar médicos", variant: "destructive" });
     else setDoctors((doctorsData as DoctorWithProfileName[]) || []);
 
+    // Carrega pacientes recentes para exibição inicial
     const { data: patientsData, error: patientsError } = await supabase
       .from("patients")
       .select("*")
       .eq("clinic_id", clinicId)
-      .limit(50);
+      .order("created_at", { ascending: false })
+      .limit(20);
 
     if (patientsError)
       toast({ title: "Erro ao buscar pacientes", variant: "destructive" });
@@ -80,6 +84,69 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
 
     setLoading(false);
   }, [clinicId]);
+
+  // Busca dinâmica de pacientes no banco de dados
+  const searchPatientsInDatabase = useCallback(async (searchTerm: string) => {
+    if (!clinicId || !searchTerm || searchTerm.length < 2) {
+      // Se não há termo de busca, recarrega os pacientes recentes
+      if (!searchTerm) {
+        const { data } = await supabase
+          .from("patients")
+          .select("*")
+          .eq("clinic_id", clinicId)
+          .order("created_at", { ascending: false })
+          .limit(20);
+        setPatients(data || []);
+      }
+      setSearchingPatients(false);
+      return;
+    }
+
+    setSearchingPatients(true);
+
+    // Remove formatação do CPF para busca
+    const cleanedSearch = searchTerm.replace(/\D/g, "");
+    const isSearchingByCPF = cleanedSearch.length >= 3;
+
+    let query = supabase
+      .from("patients")
+      .select("*")
+      .eq("clinic_id", clinicId);
+
+    if (isSearchingByCPF && cleanedSearch.length >= 3) {
+      // Busca por CPF ou por nome
+      query = query.or(`cpf.ilike.%${cleanedSearch}%,name.ilike.%${searchTerm}%`);
+    } else {
+      // Busca apenas por nome
+      query = query.ilike("name", `%${searchTerm}%`);
+    }
+
+    const { data, error } = await query.order("name").limit(50);
+
+    if (error) {
+      console.error("Erro ao buscar pacientes:", error);
+    } else {
+      setPatients(data || []);
+    }
+
+    setSearchingPatients(false);
+  }, [clinicId]);
+
+  // Debounce da busca de pacientes
+  const handlePatientSearchChange = useCallback((value: string) => {
+    setPatientSearch(value);
+    setSelectedPatient(null);
+
+    // Cancela busca anterior
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Agenda nova busca com debounce de 300ms
+    searchTimeoutRef.current = setTimeout(() => {
+      searchPatientsInDatabase(value);
+    }, 300);
+  }, [searchPatientsInDatabase]);
 
   useEffect(() => {
     loadInitialData();
@@ -160,11 +227,6 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
     d.profile?.name.toLowerCase().includes(doctorSearch.toLowerCase())
   );
 
-  const filteredPatients = patients.filter(
-    (p) =>
-      p.name.toLowerCase().includes(patientSearch.toLowerCase()) ||
-      (p.cpf && p.cpf.includes(patientSearch))
-  );
 
   const handleEditPatient = (patient: Patient) => {
     setEditingPatient(patient);
@@ -388,11 +450,10 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
                     key={slot}
                     type="button"
                     onClick={() => setSelectedSlot(slot)}
-                    className={`p-2 rounded-lg text-sm font-medium transition-all ${
-                      selectedSlot === slot
-                        ? "gradient-primary text-white"
-                        : "bg-white border"
-                    }`}
+                    className={`p-2 rounded-lg text-sm font-medium transition-all ${selectedSlot === slot
+                      ? "gradient-primary text-white"
+                      : "bg-white border"
+                      }`}
                   >
                     {slot}
                   </button>
@@ -417,40 +478,52 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Paciente
               </label>
-              <input
-                type="text"
-                placeholder="Nome ou CPF"
-                value={patientSearch}
-                onChange={(e) => {
-                  setPatientSearch(e.target.value);
-                  setSelectedPatient(null);
-                }}
-                className="w-full px-4 py-2 rounded-lg border border-gray-200"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Digite o nome ou CPF do paciente..."
+                  value={patientSearch}
+                  onChange={(e) => handlePatientSearchChange(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border border-gray-200"
+                />
+                {searchingPatients && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <Loader2 className="w-4 h-4 text-purple-500 animate-spin" />
+                  </div>
+                )}
+              </div>
               {patientSearch && (
                 <div className="absolute z-50 w-full max-h-48 overflow-y-auto border mt-1 rounded-lg bg-white shadow-lg">
-                  {filteredPatients.map((patient) => (
-                    <div
-                      key={patient.id}
-                      className="p-2 cursor-pointer hover:bg-purple-100 flex justify-between items-center"
-                      onClick={() => {
-                        setSelectedPatient(patient);
-                        setPatientSearch("");
-                      }}
-                    >
-                      <div>
-                        <p className="font-medium">{patient.name}</p>
-                        <p className="text-sm text-gray-600">
-                          CPF: {formatCPF(patient.cpf || "")}
-                        </p>
+                  {searchingPatients ? (
+                    <p className="p-3 text-gray-500 text-center">
+                      Buscando pacientes...
+                    </p>
+                  ) : patients.length > 0 ? (
+                    patients.map((patient) => (
+                      <div
+                        key={patient.id}
+                        className="p-2 cursor-pointer hover:bg-purple-100 flex justify-between items-center"
+                        onClick={() => {
+                          setSelectedPatient(patient);
+                          setPatientSearch("");
+                        }}
+                      >
+                        <div>
+                          <p className="font-medium">{patient.name}</p>
+                          <p className="text-sm text-gray-600">
+                            CPF: {formatCPF(patient.cpf || "")}
+                          </p>
+                        </div>
+                        <Edit
+                          className="cursor-pointer text-gray-400 hover:text-gray-600"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditPatient(patient);
+                          }}
+                        />
                       </div>
-                      <Edit
-                        className="cursor-pointer text-gray-400 hover:text-gray-600"
-                        onClick={() => handleEditPatient(patient)}
-                      />
-                    </div>
-                  ))}
-                  {filteredPatients.length === 0 && (
+                    ))
+                  ) : (
                     <p className="p-2 text-gray-500 text-center">
                       Nenhum paciente encontrado
                     </p>
@@ -504,9 +577,8 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
                       if (cpfError) setCpfError(null);
                     }}
                     maxLength={14}
-                    className={`w-full px-3 py-2 rounded-lg border ${
-                      cpfError ? "border-red-500" : ""
-                    }`}
+                    className={`w-full px-3 py-2 rounded-lg border ${cpfError ? "border-red-500" : ""
+                      }`}
                   />
                   {cpfError && (
                     <p className="text-xs text-red-500">{cpfError}</p>
