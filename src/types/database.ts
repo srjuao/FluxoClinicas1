@@ -1,6 +1,6 @@
 // Database types based on Supabase schema
 
-export type AppointmentStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED" | "PRE_SCHEDULED";
+export type AppointmentStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED" | "PRE_SCHEDULED" | "CONFIRMED";
 
 export interface Appointment {
   id: string;

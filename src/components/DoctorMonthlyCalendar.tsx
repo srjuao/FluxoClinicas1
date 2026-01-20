@@ -10,8 +10,10 @@ import {
   Printer,
   Phone,
   CheckCircle,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
 import { getDaysInMonth } from "@/utils/calendar";
 import { AppointmentWithPatientName, DoctorWorkHours } from "@/types/database";
@@ -65,7 +67,6 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
     AppointmentWithPatientName[]
   >([]);
   const [workHours, setWorkHours] = useState<DoctorWorkHours[]>([]);
-  const [loading, setLoading] = useState(false);
   const [showQuickAppointment, setShowQuickAppointment] = useState(false);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
   const [editingAppointment, setEditingAppointment] =
@@ -110,7 +111,6 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
   const loadMonthData = async () => {
     if (!doctorId) return;
 
-    setLoading(true);
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDay = new Date(year, month, 1).toISOString().split("T")[0];
@@ -144,7 +144,22 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
       .eq("doctor_id", doctorId);
 
     setWorkHours((workHoursData as DoctorWorkHours[]) || []);
-    setLoading(false);
+  };
+
+  const setStatusToConfirmed = async (appointmentId: string) => {
+    try {
+      const { error } = await supabase
+        .from("appointments")
+        .update({ status: "CONFIRMED" })
+        .eq("id", appointmentId);
+
+      if (error) throw error;
+      toast({ title: "Agendamento confirmado!" });
+      loadMonthData();
+    } catch (error) {
+      console.error("Erro ao confirmar:", error);
+      toast({ title: "Erro ao confirmar", variant: "destructive" });
+    }
   };
 
   // Memoize day statuses for all days in the month
@@ -590,7 +605,10 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
   const handlePrintPreSchedules = () => {
     if (!selectedDate) return;
 
-    const preSchedules = selectedDateAppointments.filter(apt => apt.status === "PRE_SCHEDULED");
+    // Incluir PRE_SCHEDULED e CONFIRMED que não tem paciente vinculado
+    const preSchedules = selectedDateAppointments.filter(apt =>
+      (apt.status === "PRE_SCHEDULED" || apt.status === "CONFIRMED") && !apt.patient_id
+    );
     if (preSchedules.length === 0) return;
 
     const formattedDate = selectedDate.toLocaleDateString("pt-BR", {
@@ -619,7 +637,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
             <td class="patient">${name}</td>
             <td class="phone">${phone}</td>
             <td class="reason">${apt.reason || "-"}</td>
-            <td class="status">⏳ Aguardando</td>
+            <td class="status">${apt.status === "CONFIRMED" ? "✅ Confirmado" : "⏳ Aguardando"}</td>
             <td class="notes"></td>
           </tr>
         `;
@@ -1038,13 +1056,13 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
                 </div>
               )}
 
-              {/* Pré-Agendamentos */}
-              {selectedDateAppointments.filter(apt => apt.status === "PRE_SCHEDULED").length > 0 && (
+              {/* Pré-Agendamentos (PRE_SCHEDULED e CONFIRMED sem paciente) */}
+              {selectedDateAppointments.filter(apt => (apt.status === "PRE_SCHEDULED" || apt.status === "CONFIRMED") && !apt.patient_id).length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-sm font-semibold text-amber-700 flex items-center gap-2">
                       <Phone className="w-4 h-4" />
-                      Pré-Agendamentos ({selectedDateAppointments.filter(apt => apt.status === "PRE_SCHEDULED").length})
+                      Pré-Agendamentos ({selectedDateAppointments.filter(apt => (apt.status === "PRE_SCHEDULED" || apt.status === "CONFIRMED") && !apt.patient_id).length})
                     </h4>
                     <Button
                       onClick={handlePrintPreSchedules}
@@ -1058,16 +1076,23 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
                   </div>
                   <div className="space-y-2 max-h-40 overflow-y-auto">
                     {selectedDateAppointments
-                      .filter(apt => apt.status === "PRE_SCHEDULED")
+                      .filter(apt => (apt.status === "PRE_SCHEDULED" || apt.status === "CONFIRMED") && !apt.patient_id)
                       .map((apt) => (
                         <div
                           key={apt.id}
-                          className="p-3 bg-amber-50 rounded-lg border border-amber-300 hover:border-amber-500 transition-all group"
+                          className={`p-3 rounded-lg border transition-all group ${apt.status === "CONFIRMED"
+                            ? "bg-blue-50 border-blue-300 hover:border-blue-500"
+                            : "bg-amber-50 border-amber-300 hover:border-amber-500"
+                            }`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <p className="font-medium text-gray-900 text-sm flex items-center gap-1">
-                                <Phone className="w-3 h-3 text-amber-600" />
+                                {apt.status === "CONFIRMED" ? (
+                                  <CheckCircle className="w-3 h-3 text-blue-600" />
+                                ) : (
+                                  <Phone className="w-3 h-3 text-amber-600" />
+                                )}
                                 {(apt as any).pre_schedule_name || "Nome não informado"}
                               </p>
                               <p className="text-xs text-gray-600">
@@ -1076,20 +1101,32 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
                             </div>
                             <div className="flex items-center gap-2">
                               <div className="text-right">
-                                <p className="text-sm font-semibold text-amber-700">
+                                <p className={`text-sm font-semibold ${apt.status === "CONFIRMED" ? "text-blue-700" : "text-amber-700"}`}>
                                   {new Date(apt.scheduled_start).toLocaleTimeString("pt-BR", {
                                     hour: "2-digit",
                                     minute: "2-digit",
                                   })}
                                 </p>
-                                <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">
-                                  Aguardando
+                                <span className={`text-xs px-2 py-1 rounded-full ${apt.status === "CONFIRMED" ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-700"
+                                  }`}>
+                                  {apt.status === "CONFIRMED" ? "Confirmado" : "Aguardando"}
                                 </span>
                               </div>
+
+                              {apt.status !== "CONFIRMED" && (
+                                <button
+                                  onClick={() => setStatusToConfirmed(apt.id)}
+                                  className="p-2 rounded-lg bg-blue-100 hover:bg-blue-200 transition-colors"
+                                  title="Confirmar Presença"
+                                >
+                                  <Check className="w-4 h-4 text-blue-600" />
+                                </button>
+                              )}
+
                               <button
                                 onClick={() => setConfirmingPreSchedule(apt)}
                                 className="p-2 rounded-lg bg-green-100 hover:bg-green-200 transition-colors"
-                                title="Confirmar agendamento"
+                                title="Cadastrar Paciente"
                               >
                                 <CheckCircle className="w-4 h-4 text-green-600" />
                               </button>

@@ -4,6 +4,7 @@ import { X, Calendar, Clock, Phone, User, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
+import type { DoctorWorkHours } from "@/types/database";
 
 interface PreScheduleModalProps {
     clinicId: string;
@@ -27,8 +28,12 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
     const [patientName, setPatientName] = useState("");
     const [patientPhone, setPatientPhone] = useState("");
     const [reason, setReason] = useState("consulta");
+    const [examType, setExamType] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [doctorName, setDoctorName] = useState("");
+    const [currentTime, setCurrentTime] = useState(selectedTime);
+    const [availableSlots, setAvailableSlots] = useState<{ time: string; available: boolean }[]>([]);
+    const [loadingSlots, setLoadingSlots] = useState(false);
 
     // Carregar nome do médico
     const loadDoctorName = useCallback(async () => {
@@ -51,6 +56,90 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
     useEffect(() => {
         loadDoctorName();
     }, [loadDoctorName]);
+
+    // Carregar slots disponíveis
+    const loadAvailableSlots = useCallback(async () => {
+        if (!doctorId || !selectedDate) return;
+        setLoadingSlots(true);
+
+        try {
+            // 1. Buscar horários de trabalho
+            const { data: workHours } = await supabase
+                .from("doctor_work_hours")
+                .select("*")
+                .eq("doctor_id", doctorId);
+
+            if (!workHours || workHours.length === 0) {
+                setAvailableSlots([]);
+                return;
+            }
+
+            const dateObj = new Date(selectedDate);
+            const dayOfWeek = dateObj.getDay();
+            const dateStr = selectedDate;
+
+            const workHour = workHours.find((wh: DoctorWorkHours) => wh.specific_date === dateStr) ||
+                workHours.find((wh: DoctorWorkHours) => wh.weekday === dayOfWeek);
+
+            if (!workHour) {
+                setAvailableSlots([]);
+                return;
+            }
+
+            // 2. Buscar agendamentos do dia
+            const { data: appmts } = await supabase
+                .from("appointments")
+                .select("scheduled_start")
+                .eq("doctor_id", doctorId)
+                .gte("scheduled_start", `${dateStr}T00:00:00`)
+                .lte("scheduled_start", `${dateStr}T23:59:59`)
+                .neq("status", "CANCELLED");
+
+            const bookedTimes = appmts?.map((a: { scheduled_start: string }) =>
+                new Date(a.scheduled_start).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+            ) || [];
+
+            // 3. Gerar slots
+            const slots = [];
+            const [startH, startM] = workHour.start_time.split(":").map(Number);
+            const [endH, endM] = workHour.end_time.split(":").map(Number);
+            const slotMin = workHour.slot_minutes || 30;
+
+            let current = new Date(2000, 0, 1, startH, startM);
+            const end = new Date(2000, 0, 1, endH, endM);
+
+            while (current < end) {
+                const timeStr = current.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+                // Verificar se está no horário de almoço
+                let isLunch = false;
+                if (workHour.lunch_start && workHour.lunch_end) {
+                    const [lsh, lsm] = workHour.lunch_start.split(":").map(Number);
+                    const [leh, lem] = workHour.lunch_end.split(":").map(Number);
+                    const lStart = new Date(2000, 0, 1, lsh, lsm);
+                    const lEnd = new Date(2000, 0, 1, leh, lem);
+                    if (current >= lStart && current < lEnd) isLunch = true;
+                }
+
+                if (!isLunch) {
+                    slots.push({
+                        time: timeStr,
+                        available: !bookedTimes.includes(timeStr) || timeStr === selectedTime
+                    });
+                }
+                current = new Date(current.getTime() + slotMin * 60000);
+            }
+            setAvailableSlots(slots);
+        } catch (error) {
+            console.error("Erro ao carregar slots:", error);
+        } finally {
+            setLoadingSlots(false);
+        }
+    }, [doctorId, selectedDate, selectedTime]);
+
+    useEffect(() => {
+        loadAvailableSlots();
+    }, [loadAvailableSlots]);
 
     // Formatar telefone
     const formatPhone = (value: string) => {
@@ -87,10 +176,10 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
         setSubmitting(true);
 
         try {
-            const startDate = new Date(`${selectedDate}T${selectedTime}:00`);
+            const startDate = new Date(`${selectedDate}T${currentTime}:00`);
             const endDate = new Date(startDate.getTime() + slotMinutes * 60000);
 
-            const reasonText =
+            let reasonText =
                 reason === "consulta"
                     ? "Consulta"
                     : reason === "retorno"
@@ -99,13 +188,17 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
                             ? "Exame"
                             : "Consulta";
 
+            if (reason === "exame" && examType.trim()) {
+                reasonText += `: ${examType.trim()}`;
+            }
+
             const { error } = await supabase.from("appointments").insert({
                 clinic_id: clinicId,
                 doctor_id: doctorId,
-                patient_id: null, // Sem paciente cadastrado ainda
+                patient_id: null,
                 scheduled_start: startDate.toISOString(),
                 scheduled_end: endDate.toISOString(),
-                status: "PRE_SCHEDULED", // Status especial para pré-agendamento
+                status: "PRE_SCHEDULED",
                 reason: reasonText,
                 pre_schedule_name: patientName.trim(),
                 pre_schedule_phone: patientPhone.trim(),
@@ -183,7 +276,7 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
                         </div>
                         <div className="flex items-center gap-2">
                             <Clock className="w-4 h-4 text-gray-500" />
-                            <span className="text-gray-700">{selectedTime}</span>
+                            <span className="text-gray-700">{currentTime}</span>
                         </div>
                     </div>
                     {doctorName && (
@@ -239,6 +332,55 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
                             <option value="retorno">Retorno</option>
                             <option value="exame">Exame</option>
                         </select>
+                    </div>
+
+                    {/* Exam Type (Conditional) */}
+                    {reason === "exame" && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                        >
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Tipo de Exame *
+                            </label>
+                            <input
+                                type="text"
+                                value={examType}
+                                onChange={(e) => setExamType(e.target.value)}
+                                placeholder="Ex: Ultrassom, Raio-X..."
+                                className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                            />
+                        </motion.div>
+                    )}
+
+                    {/* Time Slot Selector */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Escolher Horário *
+                        </label>
+                        {loadingSlots ? (
+                            <div className="text-xs text-gray-500 py-2">Carregando horários...</div>
+                        ) : availableSlots.length > 0 ? (
+                            <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto p-1">
+                                {availableSlots.map((slot) => (
+                                    <button
+                                        key={slot.time}
+                                        onClick={() => slot.available && setCurrentTime(slot.time)}
+                                        disabled={!slot.available}
+                                        className={`py-2 text-xs font-medium rounded-md transition-all ${currentTime === slot.time
+                                            ? "bg-amber-500 text-white shadow-md scale-105"
+                                            : slot.available
+                                                ? "bg-white border border-gray-200 text-gray-700 hover:border-amber-300 hover:bg-amber-50"
+                                                : "bg-gray-100 text-gray-400 cursor-not-allowed opacity-50"
+                                            }`}
+                                    >
+                                        {slot.time}
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-xs text-red-500 py-2">Médico não atende nesta data.</div>
+                        )}
                     </div>
                 </div>
 
