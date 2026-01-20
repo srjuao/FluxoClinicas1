@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
 import { supabase } from "@/lib/customSupabaseClient";
+import { supabaseAdmin } from "@/lib/customSupabaseAdmin";
 import { toast } from "@/components/ui/use-toast";
 import CreateUserModal from "@/components/CreateUserModal";
 import ManageWorkHoursModal from "@/components/ManageWorkHoursModal";
@@ -107,24 +108,63 @@ const ClinicAdminContent = ({ defaultTab = 'planner', hideSidebar = false }: Cli
 
   const handleDeleteUser = async (user: Profile) => {
     const confirmDelete = window.confirm(
-      `Tem certeza que deseja excluir ${user.name}?`
+      `Tem certeza que deseja excluir ${user.name}? Esta ação é irreversível e removerá o acesso do usuário.`
     );
     if (!confirmDelete) return;
 
+    if (user.id === profile?.id) {
+      toast({
+        title: "Operação não permitida",
+        description: "Você não pode excluir sua própria conta.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       if (user.role === "DOCTOR") {
-        const { error: doctorError } = await supabase
+        // Primeiro, remover horários de trabalho (foreign key)
+        await supabaseAdmin
+          .from("doctor_work_hours")
+          .delete()
+          .eq("user_id", user.id);
+
+        const { data: doc } = await supabaseAdmin
+          .from("doctors")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (doc) {
+          await supabaseAdmin
+            .from("doctor_work_hours")
+            .delete()
+            .eq("doctor_id", doc.id);
+        }
+
+        const { error: doctorError } = await supabaseAdmin
           .from("doctors")
           .delete()
           .eq("user_id", user.id);
+
         if (doctorError) throw doctorError;
       }
 
-      const { error: userError } = await supabase
+      // Remover da tabela profiles
+      const { error: profileError } = await supabaseAdmin
         .from("profiles")
         .delete()
         .eq("id", user.id);
-      if (userError) throw userError;
+
+      if (profileError) throw profileError;
+
+      // Remover do Supabase Auth
+      const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+
+      if (authError) {
+        console.error("Auth Delete Error:", authError);
+        // Não lançamos erro aqui para não travar o fluxo se o usuário já não existir no Auth
+      }
 
       toast({ title: "Usuário excluído com sucesso!" });
       loadData();
