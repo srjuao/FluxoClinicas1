@@ -11,6 +11,8 @@ import {
   Phone,
   CheckCircle,
   Check,
+  CheckCheck,
+  Ban,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
@@ -154,11 +156,27 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
         .eq("id", appointmentId);
 
       if (error) throw error;
-      toast({ title: "Agendamento confirmado!" });
+      toast({ title: "Presença confirmada!" });
       loadMonthData();
     } catch (error) {
       console.error("Erro ao confirmar:", error);
       toast({ title: "Erro ao confirmar", variant: "destructive" });
+    }
+  };
+
+  const updateAppointmentStatus = async (appointmentId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("appointments")
+        .update({ status: newStatus })
+        .eq("id", appointmentId);
+
+      if (error) throw error;
+      toast({ title: `Status atualizado para ${newStatus === 'COMPLETED' ? 'Concluído' : 'Cancelado'}!` });
+      loadMonthData();
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error);
+      toast({ title: "Erro ao atualizar status", variant: "destructive" });
     }
   };
 
@@ -1123,16 +1141,35 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
                                 </button>
                               )}
 
+                              {apt.status === "CONFIRMED" && (
+                                <>
+                                  <button
+                                    onClick={() => updateAppointmentStatus(apt.id, "COMPLETED")}
+                                    className="p-2 rounded-lg bg-green-100 hover:bg-green-200 transition-colors"
+                                    title="Marcar como Concluído"
+                                  >
+                                    <CheckCheck className="w-4 h-4 text-green-600" />
+                                  </button>
+                                  <button
+                                    onClick={() => updateAppointmentStatus(apt.id, "CANCELLED")}
+                                    className="p-2 rounded-lg bg-red-100 hover:bg-red-200 transition-colors"
+                                    title="Cancelar Agendamento"
+                                  >
+                                    <Ban className="w-4 h-4 text-red-600" />
+                                  </button>
+                                </>
+                              )}
+
                               <button
                                 onClick={() => setConfirmingPreSchedule(apt)}
-                                className="p-2 rounded-lg bg-green-100 hover:bg-green-200 transition-colors"
-                                title="Cadastrar Paciente"
+                                className="p-2 rounded-lg bg-purple-100 hover:bg-purple-200 transition-colors"
+                                title="Vincular ao Cadastro"
                               >
-                                <CheckCircle className="w-4 h-4 text-green-600" />
+                                <Plus className="w-4 h-4 text-purple-600" />
                               </button>
                               <button
                                 onClick={() => handleEditAppointment(apt)}
-                                className="p-2 rounded-lg hover:bg-amber-100 transition-colors opacity-0 group-hover:opacity-100"
+                                className="p-2 rounded-lg hover:border-amber-300 transition-colors opacity-0 group-hover:opacity-100"
                                 title="Editar"
                               >
                                 <Edit className="w-4 h-4 text-amber-600" />

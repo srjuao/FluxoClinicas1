@@ -27,8 +27,7 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
 }) => {
     const [patientName, setPatientName] = useState("");
     const [patientPhone, setPatientPhone] = useState("");
-    const [reason, setReason] = useState("consulta");
-    const [examType, setExamType] = useState("");
+    const [reason, setReason] = useState("Consulta");
     const [submitting, setSubmitting] = useState(false);
     const [doctorName, setDoctorName] = useState("");
     const [currentTime, setCurrentTime] = useState(selectedTime);
@@ -179,19 +178,6 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
             const startDate = new Date(`${selectedDate}T${currentTime}:00`);
             const endDate = new Date(startDate.getTime() + slotMinutes * 60000);
 
-            let reasonText =
-                reason === "consulta"
-                    ? "Consulta"
-                    : reason === "retorno"
-                        ? "Retorno"
-                        : reason === "exame"
-                            ? "Exame"
-                            : "Consulta";
-
-            if (reason === "exame" && examType.trim()) {
-                reasonText += `: ${examType.trim()}`;
-            }
-
             const { error } = await supabase.from("appointments").insert({
                 clinic_id: clinicId,
                 doctor_id: doctorId,
@@ -199,7 +185,7 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
                 scheduled_start: startDate.toISOString(),
                 scheduled_end: endDate.toISOString(),
                 status: "PRE_SCHEDULED",
-                reason: reasonText,
+                reason: reason.trim() || "Consulta",
                 pre_schedule_name: patientName.trim(),
                 pre_schedule_phone: patientPhone.trim(),
             });
@@ -321,37 +307,47 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
                     {/* Reason */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Motivo
+                            Motivo / Tipo de Exame *
                         </label>
-                        <select
-                            value={reason}
-                            onChange={(e) => setReason(e.target.value)}
-                            className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
-                        >
-                            <option value="consulta">Consulta</option>
-                            <option value="retorno">Retorno</option>
-                            <option value="exame">Exame</option>
-                        </select>
-                    </div>
-
-                    {/* Exam Type (Conditional) */}
-                    {reason === "exame" && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                        >
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Tipo de Exame *
-                            </label>
+                        <div className="space-y-2">
                             <input
                                 type="text"
-                                value={examType}
-                                onChange={(e) => setExamType(e.target.value)}
-                                placeholder="Ex: Ultrassom, Raio-X..."
+                                value={reason}
+                                onChange={(e) => setReason(e.target.value)}
+                                placeholder="Ex: Consulta, Retorno, Exame: Vista..."
                                 className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                             />
-                        </motion.div>
-                    )}
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setReason("Consulta")}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${reason === "Consulta"
+                                        ? "bg-amber-500 text-white"
+                                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                        }`}
+                                >
+                                    Consulta
+                                </button>
+                                <button
+                                    onClick={() => setReason("Retorno")}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${reason === "Retorno"
+                                        ? "bg-amber-500 text-white"
+                                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                        }`}
+                                >
+                                    Retorno
+                                </button>
+                                <button
+                                    onClick={() => setReason("Exame: ")}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${reason.startsWith("Exame")
+                                        ? "bg-amber-500 text-white"
+                                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                        }`}
+                                >
+                                    Exame
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
                     {/* Time Slot Selector */}
                     <div>
