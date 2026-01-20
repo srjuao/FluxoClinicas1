@@ -224,7 +224,7 @@ const DoctorDashboard = () => {
             )}
 
             {(activeSection === 'planner' || activeSection === 'users' || activeSection === 'financial') && (
-              <ClinicAdminContent defaultTab={activeSection} />
+              <ClinicAdminContent defaultTab={activeSection} hideSidebar={true} />
             )}
           </div>
         </div>
