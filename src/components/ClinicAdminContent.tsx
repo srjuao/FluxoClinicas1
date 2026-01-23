@@ -31,6 +31,7 @@ import type {
 } from "@/types/database.types";
 
 import DoctorAutocomplete from "@/components/DoctorAutocomplete";
+import DoctorsByDateSearch from "@/components/DoctorsByDateSearch";
 import UnifiedSidebar, { SidebarItem, SidebarSection } from "@/components/UnifiedSidebar";
 
 interface ClinicAdminContentProps {
@@ -305,7 +306,7 @@ const ClinicAdminContent = ({ defaultTab = 'planner', hideSidebar = false }: Cli
                         Pacientes
                       </Button>
 
-                      {plannerSelectedDoctor && (
+                      {plannerSelectedDoctor && (profile?.is_admin || ['CLINIC_ADMIN', 'ADMIN'].includes(profile?.role || '')) && (
                         <Button
                           onClick={() => {
                             const doc = doctors.find(d => d.id === plannerSelectedDoctor);
@@ -323,6 +324,21 @@ const ClinicAdminContent = ({ defaultTab = 'planner', hideSidebar = false }: Cli
                       )}
                     </div>
                   </div>
+
+                  {/* Date Search for Receptionists */}
+                  {clinicId && (
+                    <DoctorsByDateSearch
+                      clinicId={clinicId}
+                      onSelectDoctor={(doctorId) => setPlannerSelectedDoctor(doctorId)}
+                    />
+                  )}
+
+                  {/* Exibir nome do médico selecionado */}
+                  {plannerSelectedDoctor && (
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                      Calendário do Dr(a). {doctors.find(d => d.id === plannerSelectedDoctor)?.profile?.name || 'Médico'}
+                    </h3>
+                  )}
 
                   <DoctorMonthlyCalendar
                     clinicId={clinicId || ""}

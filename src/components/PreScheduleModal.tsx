@@ -175,15 +175,26 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
         setSubmitting(true);
 
         try {
-            const startDate = new Date(`${selectedDate}T${currentTime}:00`);
+            // Parse date parts to avoid timezone issues
+            const [year, month, day] = selectedDate.split('-').map(Number);
+            const [hours, minutes] = currentTime.split(':').map(Number);
+
+            // Create dates using local timezone components
+            const startDate = new Date(year, month - 1, day, hours, minutes, 0);
             const endDate = new Date(startDate.getTime() + slotMinutes * 60000);
+
+            // Format as ISO string preserving local date (YYYY-MM-DDTHH:MM:SS)
+            const formatLocalISO = (date: Date) => {
+                const pad = (n: number) => n.toString().padStart(2, '0');
+                return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+            };
 
             const { error } = await supabase.from("appointments").insert({
                 clinic_id: clinicId,
                 doctor_id: doctorId,
                 patient_id: null,
-                scheduled_start: startDate.toISOString(),
-                scheduled_end: endDate.toISOString(),
+                scheduled_start: formatLocalISO(startDate),
+                scheduled_end: formatLocalISO(endDate),
                 status: "PRE_SCHEDULED",
                 reason: reason.trim() || "Consulta",
                 pre_schedule_name: patientName.trim(),
@@ -257,7 +268,11 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
                         <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-gray-500" />
                             <span className="text-gray-700">
-                                {new Date(selectedDate).toLocaleDateString("pt-BR")}
+                                {/* Parse date manually to avoid UTC timezone shift */}
+                                {(() => {
+                                    const [year, month, day] = selectedDate.split('-').map(Number);
+                                    return `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
+                                })()}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
