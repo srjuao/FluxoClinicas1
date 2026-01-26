@@ -206,7 +206,9 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
       if (!workHour) return "completed";
 
       // Fast lookup using memoized map
-      const dayAppointments = appointmentsByDate.get(dateStr) || [];
+      const dayAppointments = (appointmentsByDate.get(dateStr) || []).filter(
+        (apt) => apt.status !== "CANCELLED"
+      );
 
       // If no appointments, day is available
       if (dayAppointments.length === 0) return "available";
@@ -300,8 +302,10 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
       lunchEnd = lunchEndHour * 60 + lunchEndMin;
     }
 
-    // Get appointments for this day using memoized map
-    const dayAppointments = appointmentsByDate.get(dateStr) || [];
+    // Get appointments for this day using memoized map (exclude cancelled)
+    const dayAppointments = (appointmentsByDate.get(dateStr) || []).filter(
+      (apt) => apt.status !== "CANCELLED"
+    );
 
     // Create appointment time map for O(1) lookup
     const appointmentTimeMap = new Map<string, AppointmentWithPatientName>();

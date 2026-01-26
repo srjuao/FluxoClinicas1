@@ -92,8 +92,8 @@ const PreScheduleModal = ({
                 .from("appointments")
                 .select("scheduled_start")
                 .eq("doctor_id", doctorId)
-                .gte("scheduled_start", `${dateStr}T00:00:00Z`) // Importante buscar com Z se estiver comparando com strings no banco
-                .lte("scheduled_start", `${dateStr}T23:59:59Z`)
+                .gte("scheduled_start", dateStr)
+                .lte("scheduled_start", `${dateStr}T23:59:59`)
                 .neq("status", "CANCELLED");
 
             // No frontend, o scheduled_start que vem do Supabase (timestamptz) será convertido para o Date local
@@ -124,9 +124,10 @@ const PreScheduleModal = ({
                 }
 
                 if (!isLunch) {
+                    const isBooked = bookedTimes.includes(timeStr);
                     slots.push({
                         time: timeStr,
-                        available: !bookedTimes.includes(timeStr) || timeStr === selectedTime
+                        available: !isBooked || timeStr === selectedTime
                     });
                 }
                 current = new Date(current.getTime() + slotMin * 60000);
@@ -382,7 +383,7 @@ const PreScheduleModal = ({
                         ) : availableSlots.length > 0 ? (
                             <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto p-1">
                                 {availableSlots
-                                    .filter(slot => slot.available || slot.time === currentTime)
+                                    .filter(slot => slot.available)
                                     .map((slot: { time: string; available: boolean }) => (
                                         <button
                                             key={slot.time}
