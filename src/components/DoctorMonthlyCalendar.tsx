@@ -310,10 +310,10 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
     // Create appointment time map for O(1) lookup
     const appointmentTimeMap = new Map<string, AppointmentWithPatientName>();
     dayAppointments.forEach((apt) => {
-      const time = new Date(apt.scheduled_start).toLocaleTimeString("pt-BR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      const d = new Date(apt.scheduled_start);
+      const h = String(d.getHours()).padStart(2, '0');
+      const m = String(d.getMinutes()).padStart(2, '0');
+      const time = `${h}:${m}`;
       appointmentTimeMap.set(time, apt);
     });
 
@@ -1287,6 +1287,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
           selectedDate={getDateString(selectedDate)}
           selectedTime={selectedTimeSlot}
           slotMinutes={getCurrentSlotMinutes()}
+          appointments={selectedDateAppointments}
           onClose={() => {
             setShowPreSchedule(false);
             setSelectedTimeSlot(null);

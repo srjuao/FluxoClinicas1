@@ -192,12 +192,12 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
     }
 
     const bookedSlots = new Set(
-      appointments?.map((a: { scheduled_start: string }) =>
-        new Date(a.scheduled_start).toLocaleTimeString("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      ) || []
+      appointments?.map((a: { scheduled_start: string }) => {
+        const d = new Date(a.scheduled_start);
+        const h = String(d.getHours()).padStart(2, '0');
+        const m = String(d.getMinutes()).padStart(2, '0');
+        return `${h}:${m}`;
+      }) || []
     );
 
     const slots = [];

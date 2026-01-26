@@ -14,6 +14,7 @@ interface PreScheduleModalProps {
     slotMinutes: number;
     onClose: () => void;
     onSuccess: () => void;
+    appointments?: any[]; // Opcional: passar agendamentos já carregados
 }
 
 const PreScheduleModal = ({
@@ -24,6 +25,7 @@ const PreScheduleModal = ({
     slotMinutes,
     onClose,
     onSuccess,
+    appointments,
 }: PreScheduleModalProps) => {
     const [patientName, setPatientName] = useState("");
     const [patientPhone, setPatientPhone] = useState("");
@@ -87,19 +89,30 @@ const PreScheduleModal = ({
                 return;
             }
 
-            // 2. Buscar agendamentos do dia
-            const { data: appmts } = await supabase
-                .from("appointments")
-                .select("scheduled_start")
-                .eq("doctor_id", doctorId)
-                .gte("scheduled_start", dateStr)
-                .lte("scheduled_start", `${dateStr}T23:59:59`)
-                .neq("status", "CANCELLED");
+            // 2. Buscar agendamentos do dia (se não foram passados via props)
+            let dayAppmts = appointments;
 
-            // No frontend, o scheduled_start que vem do Supabase (timestamptz) será convertido para o Date local
-            const bookedTimes = appmts?.map((a: { scheduled_start: string }) =>
-                new Date(a.scheduled_start).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
-            ) || [];
+            if (!dayAppmts) {
+                const { data } = await supabase
+                    .from("appointments")
+                    .select("scheduled_start, status")
+                    .eq("doctor_id", doctorId)
+                    .gte("scheduled_start", `${dateStr}T00:00:00Z`)
+                    .lte("scheduled_start", `${dateStr}T23:59:59Z`)
+                    .neq("status", "CANCELLED");
+                dayAppmts = data || [];
+            }
+
+            // Converter agendamentos para formato HH:MM manual para comparação robusta
+            // Filtramos aqui também para garantir que não pegamos cancelados se vierem da prop
+            const bookedTimes = dayAppmts
+                ?.filter((a: any) => a.status !== "CANCELLED")
+                .map((a: { scheduled_start: string }) => {
+                    const d = new Date(a.scheduled_start);
+                    const h = String(d.getHours()).padStart(2, '0');
+                    const m = String(d.getMinutes()).padStart(2, '0');
+                    return `${h}:${m}`;
+                }) || [];
 
             // 3. Gerar slots
             const slots = [];
@@ -107,30 +120,32 @@ const PreScheduleModal = ({
             const [endH, endM] = workHour.end_time.split(":").map(Number);
             const slotMin = workHour.slot_minutes || 30;
 
-            let current = new Date(2000, 0, 1, startH, startM);
-            const end = new Date(2000, 0, 1, endH, endM);
+            let currentTimeInMinutes = startH * 60 + startM;
+            const endTimeInMinutes = endH * 60 + endM;
 
-            while (current < end) {
-                const timeStr = current.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+            while (currentTimeInMinutes < endTimeInMinutes) {
+                const h = Math.floor(currentTimeInMinutes / 60);
+                const m = currentTimeInMinutes % 60;
+                const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
                 // Verificar se está no horário de almoço
                 let isLunch = false;
                 if (workHour.lunch_start && workHour.lunch_end) {
                     const [lsh, lsm] = workHour.lunch_start.split(":").map(Number);
                     const [leh, lem] = workHour.lunch_end.split(":").map(Number);
-                    const lStart = new Date(2000, 0, 1, lsh, lsm);
-                    const lEnd = new Date(2000, 0, 1, leh, lem);
-                    if (current >= lStart && current < lEnd) isLunch = true;
+                    const lStart = lsh * 60 + lsm;
+                    const lEnd = leh * 60 + lem;
+                    if (currentTimeInMinutes >= lStart && currentTimeInMinutes < lEnd) isLunch = true;
                 }
 
                 if (!isLunch) {
                     const isBooked = bookedTimes.includes(timeStr);
                     slots.push({
                         time: timeStr,
-                        available: !isBooked || timeStr === selectedTime
+                        available: !isBooked
                     });
                 }
-                current = new Date(current.getTime() + slotMin * 60000);
+                currentTimeInMinutes += slotMin;
             }
             setAvailableSlots(slots);
         } catch (error) {
@@ -138,7 +153,7 @@ const PreScheduleModal = ({
         } finally {
             setLoadingSlots(false);
         }
-    }, [doctorId, selectedDate, selectedTime]);
+    }, [doctorId, selectedDate]);
 
     useEffect(() => {
         loadAvailableSlots();
