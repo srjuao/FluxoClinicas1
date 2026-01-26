@@ -203,7 +203,10 @@ const DoctorsByDateSearch: React.FC<DoctorsByDateSearchProps> = ({
                 return a.doctorName.localeCompare(b.doctorName, "pt-BR");
             });
 
-            setDoctors(availability);
+            // Filter out doctors who are not working
+            const workingDoctors = availability.filter(doc => doc.status !== "not_working");
+
+            setDoctors(workingDoctors);
         } catch (error) {
             console.error("Erro ao buscar disponibilidade:", error);
         } finally {

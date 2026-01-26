@@ -332,9 +332,11 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
 
     const workHour = workHours[0];
     const slotMinutes = workHour.slot_minutes || 30;
-    // Parse time slot for date construction
-    const [,] = selectedSlot.split(":").map(Number);
-    const startDate = new Date(`${selectedDate}T${selectedSlot}:00`);
+    const [hours, minutes] = selectedSlot.split(":").map(Number);
+    const [year, month, day] = selectedDate.split("-").map(Number);
+
+    // Create date using local time constructor to avoid timezone issues
+    const startDate = new Date(year, month - 1, day, hours, minutes);
     const endDate = new Date(startDate.getTime() + slotMinutes * 60000);
 
     const { error } = await supabase.from("appointments").insert({

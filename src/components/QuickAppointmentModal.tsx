@@ -360,7 +360,11 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
     setSubmitting(true);
 
     try {
-      const startDate = new Date(`${selectedDate}T${selectedTime}:00`);
+      const [year, month, day] = selectedDate.split("-").map(Number);
+      const [hours, minutes] = selectedTime.split(":").map(Number);
+
+      // Create date using local time constructor to avoid timezone issues
+      const startDate = new Date(year, month - 1, day, hours, minutes);
       const endDate = new Date(startDate.getTime() + slotMinutes * 60000);
 
       // Convert reason value to text
