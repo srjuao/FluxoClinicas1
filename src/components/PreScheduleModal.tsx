@@ -16,7 +16,7 @@ interface PreScheduleModalProps {
     onSuccess: () => void;
 }
 
-const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
+const PreScheduleModal = ({
     clinicId,
     doctorId,
     selectedDate,
@@ -24,7 +24,7 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
     slotMinutes,
     onClose,
     onSuccess,
-}) => {
+}: PreScheduleModalProps) => {
     const [patientName, setPatientName] = useState("");
     const [patientPhone, setPatientPhone] = useState("");
     const [reason, setReason] = useState("Consulta");
@@ -167,6 +167,17 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
             toast({
                 title: "Telefone obrigatório",
                 description: "Informe o telefone do paciente para contato",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Validar se o horário selecionado ainda está disponível
+        const isSelectedTimeAvailable = availableSlots.find((s: { time: string; available: boolean }) => s.time === currentTime)?.available;
+        if (!isSelectedTimeAvailable) {
+            toast({
+                title: "Horário indisponível",
+                description: "O horário selecionado não está mais disponível ou é inválido.",
                 variant: "destructive",
             });
             return;
@@ -373,7 +384,7 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
                             <div className="text-xs text-gray-500 py-2">Carregando horários...</div>
                         ) : availableSlots.length > 0 ? (
                             <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto p-1">
-                                {availableSlots.map((slot) => (
+                                {availableSlots.map((slot: { time: string; available: boolean }) => (
                                     <button
                                         key={slot.time}
                                         onClick={() => slot.available && setCurrentTime(slot.time)}
@@ -408,7 +419,12 @@ const PreScheduleModal: React.FC<PreScheduleModalProps> = ({
                     <Button
                         onClick={handleSubmit}
                         className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
-                        disabled={!patientName.trim() || !patientPhone.trim() || submitting}
+                        disabled={
+                            !patientName.trim() ||
+                            !patientPhone.trim() ||
+                            submitting ||
+                            !availableSlots.find((s: { time: string; available: boolean }) => s.time === currentTime)?.available
+                        }
                     >
                         {submitting ? "Salvando..." : "Criar Pré-Agendamento"}
                     </Button>

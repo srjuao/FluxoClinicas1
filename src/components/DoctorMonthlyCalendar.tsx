@@ -46,6 +46,13 @@ const monthNames = [
 
 const weekDays = ["D", "S", "T", "Q", "QU", "S", "S"];
 
+const getDateString = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const getStatusColor = (status: string) => {
   switch (status) {
     case "completed":
@@ -115,8 +122,8 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    const firstDay = new Date(year, month, 1).toISOString().split("T")[0];
-    const lastDay = new Date(year, month + 1, 0).toISOString().split("T")[0];
+    const firstDay = getDateString(new Date(year, month, 1));
+    const lastDay = getDateString(new Date(year, month + 1, 0));
 
     // Load doctor name
     const { data: doctorData } = await supabase
@@ -187,7 +194,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
     const calculateStatus = (date: Date): DayStatus => {
       if (!date || workHoursMap.size === 0) return "available";
 
-      const dateStr = date.toISOString().split("T")[0];
+      const dateStr = getDateString(date);
       const dayOfWeek = date.getDay();
 
       // Fast lookup using memoized map
@@ -246,7 +253,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
-      const dateStr = date.toISOString().split("T")[0];
+      const dateStr = getDateString(date);
       map.set(dateStr, calculateStatus(date));
     }
 
@@ -255,7 +262,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
 
   const getDayStatus = useCallback(
     (date: Date) => {
-      const dateStr = date.toISOString().split("T")[0];
+      const dateStr = getDateString(date);
       return dayStatusMap.get(dateStr) || "available";
     },
     [dayStatusMap]
@@ -264,7 +271,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
   const generateTimeSlots = useMemo((): TimeSlot[] => {
     if (!selectedDate || workHoursMap.size === 0) return [];
 
-    const dateStr = selectedDate.toISOString().split("T")[0];
+    const dateStr = getDateString(selectedDate);
     const dayOfWeek = selectedDate.getDay();
 
     // Fast lookup using memoized map
@@ -1273,7 +1280,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
         <PreScheduleModal
           clinicId={clinicId}
           doctorId={doctorId}
-          selectedDate={selectedDate.toISOString().split("T")[0]}
+          selectedDate={getDateString(selectedDate)}
           selectedTime={selectedTimeSlot}
           slotMinutes={getCurrentSlotMinutes()}
           onClose={() => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { motion } from "framer-motion";
 import { Search, Calendar, Users, Clock, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -48,10 +48,10 @@ interface DoctorsByDateSearchProps {
     onSelectDoctor: (doctorId: string) => void;
 }
 
-const DoctorsByDateSearch: React.FC<DoctorsByDateSearchProps> = ({
+const DoctorsByDateSearch = ({
     clinicId,
     onSelectDoctor,
-}) => {
+}: DoctorsByDateSearchProps) => {
     const [dateInput, setDateInput] = useState("");
     const [searchDate, setSearchDate] = useState<string | null>(null);
     const [doctors, setDoctors] = useState<DoctorAvailability[]>([]);
@@ -66,7 +66,7 @@ const DoctorsByDateSearch: React.FC<DoctorsByDateSearchProps> = ({
         return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
     };
 
-    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleDateChange = (e: ChangeEvent<HTMLInputElement>) => {
         const formatted = formatDateInput(e.target.value);
         setDateInput(formatted);
 
@@ -130,17 +130,20 @@ const DoctorsByDateSearch: React.FC<DoctorsByDateSearchProps> = ({
                 const doctorName = profile?.name || "Sem nome";
 
                 // Find work hours for this doctor on this day
-                const workHour = (workHoursData as WorkHourData[] | null)?.find(
-                    (wh: WorkHourData) =>
-                        wh.doctor_id === doctor.id &&
-                        (wh.specific_date === searchDate || wh.weekday === dayOfWeek)
-                );
-
-                // Prioritize specific date over weekday
+                // Priority 1: Specific date rule
                 const specificWorkHour = (workHoursData as WorkHourData[] | null)?.find(
                     (wh: WorkHourData) => wh.doctor_id === doctor.id && wh.specific_date === searchDate
                 );
-                const finalWorkHour = specificWorkHour || workHour;
+
+                // Priority 2: Weekday rule (only if no specific rule for this day)
+                const weekdayWorkHour = (workHoursData as WorkHourData[] | null)?.find(
+                    (wh: WorkHourData) =>
+                        wh.doctor_id === doctor.id &&
+                        (!wh.specific_date || wh.specific_date === "") &&
+                        wh.weekday === dayOfWeek
+                );
+
+                const finalWorkHour = specificWorkHour || weekdayWorkHour;
 
                 if (!finalWorkHour) {
                     return {
@@ -169,6 +172,18 @@ const DoctorsByDateSearch: React.FC<DoctorsByDateSearchProps> = ({
 
                 const totalWorkMinutes = (endH * 60 + endM) - (startH * 60 + startM);
                 const totalSlots = Math.floor(totalWorkMinutes / slotMinutes) - lunchSlots;
+
+                if (totalSlots <= 0) {
+                    return {
+                        doctorId: doctor.id,
+                        doctorName,
+                        crm: doctor.crm,
+                        totalSlots: 0,
+                        bookedSlots: 0,
+                        availableSlots: 0,
+                        status: "not_working" as const,
+                    };
+                }
 
                 // Count booked appointments
                 const bookedSlots = (appointmentsData as AppointmentData[] | null)?.filter(
@@ -303,7 +318,7 @@ const DoctorsByDateSearch: React.FC<DoctorsByDateSearchProps> = ({
                         </p>
                     ) : (
                         <div className="grid gap-2 max-h-[300px] overflow-y-auto">
-                            {doctors.map((doctor, index) => (
+                            {doctors.map((doctor: DoctorAvailability, index: number) => (
                                 <motion.div
                                     key={doctor.doctorId}
                                     initial={{ opacity: 0, x: -10 }}
