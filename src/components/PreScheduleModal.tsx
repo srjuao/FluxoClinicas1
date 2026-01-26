@@ -73,12 +73,14 @@ const PreScheduleModal = ({
                 return;
             }
 
-            const dateObj = new Date(selectedDate);
+            // Usar Date object para pegar o dia da semana corretamente (evitando shift de timezone)
+            const [year, month, day] = selectedDate.split("-").map(Number);
+            const dateObj = new Date(year, month - 1, day, 12, 0, 0); // Meio dia para evitar bordas de data
             const dayOfWeek = dateObj.getDay();
             const dateStr = selectedDate;
 
             const workHour = workHours.find((wh: DoctorWorkHours) => wh.specific_date === dateStr) ||
-                workHours.find((wh: DoctorWorkHours) => wh.weekday === dayOfWeek);
+                workHours.find((wh: DoctorWorkHours) => wh.weekday === dayOfWeek && (!wh.specific_date || wh.specific_date === ""));
 
             if (!workHour) {
                 setAvailableSlots([]);
@@ -90,10 +92,11 @@ const PreScheduleModal = ({
                 .from("appointments")
                 .select("scheduled_start")
                 .eq("doctor_id", doctorId)
-                .gte("scheduled_start", `${dateStr}T00:00:00`)
-                .lte("scheduled_start", `${dateStr}T23:59:59`)
+                .gte("scheduled_start", `${dateStr}T00:00:00Z`) // Importante buscar com Z se estiver comparando com strings no banco
+                .lte("scheduled_start", `${dateStr}T23:59:59Z`)
                 .neq("status", "CANCELLED");
 
+            // No frontend, o scheduled_start que vem do Supabase (timestamptz) será convertido para o Date local
             const bookedTimes = appmts?.map((a: { scheduled_start: string }) =>
                 new Date(a.scheduled_start).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
             ) || [];
@@ -194,18 +197,12 @@ const PreScheduleModal = ({
             const startDate = new Date(year, month - 1, day, hours, minutes, 0);
             const endDate = new Date(startDate.getTime() + slotMinutes * 60000);
 
-            // Format as ISO string preserving local date (YYYY-MM-DDTHH:MM:SS)
-            const formatLocalISO = (date: Date) => {
-                const pad = (n: number) => n.toString().padStart(2, '0');
-                return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-            };
-
             const { error } = await supabase.from("appointments").insert({
                 clinic_id: clinicId,
                 doctor_id: doctorId,
                 patient_id: null,
-                scheduled_start: formatLocalISO(startDate),
-                scheduled_end: formatLocalISO(endDate),
+                scheduled_start: startDate.toISOString(),
+                scheduled_end: endDate.toISOString(),
                 status: "PRE_SCHEDULED",
                 reason: reason.trim() || "Consulta",
                 pre_schedule_name: patientName.trim(),
@@ -384,21 +381,23 @@ const PreScheduleModal = ({
                             <div className="text-xs text-gray-500 py-2">Carregando horários...</div>
                         ) : availableSlots.length > 0 ? (
                             <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto p-1">
-                                {availableSlots.map((slot: { time: string; available: boolean }) => (
-                                    <button
-                                        key={slot.time}
-                                        onClick={() => slot.available && setCurrentTime(slot.time)}
-                                        disabled={!slot.available}
-                                        className={`py-2 text-xs font-medium rounded-md transition-all ${currentTime === slot.time
-                                            ? "bg-amber-500 text-white shadow-md scale-105"
-                                            : slot.available
-                                                ? "bg-white border border-gray-200 text-gray-700 hover:border-amber-300 hover:bg-amber-50"
-                                                : "bg-gray-100 text-gray-400 cursor-not-allowed opacity-50"
-                                            }`}
-                                    >
-                                        {slot.time}
-                                    </button>
-                                ))}
+                                {availableSlots
+                                    .filter(slot => slot.available || slot.time === currentTime)
+                                    .map((slot: { time: string; available: boolean }) => (
+                                        <button
+                                            key={slot.time}
+                                            onClick={() => slot.available && setCurrentTime(slot.time)}
+                                            disabled={!slot.available}
+                                            className={`py-2 text-xs font-medium rounded-md transition-all ${currentTime === slot.time
+                                                ? "bg-amber-500 text-white shadow-md scale-105"
+                                                : slot.available
+                                                    ? "bg-white border border-gray-200 text-gray-700 hover:border-amber-300 hover:bg-amber-50"
+                                                    : "bg-gray-100 text-gray-400 cursor-not-allowed opacity-50"
+                                                }`}
+                                        >
+                                            {slot.time}
+                                        </button>
+                                    ))}
                             </div>
                         ) : (
                             <div className="text-xs text-red-500 py-2">Médico não atende nesta data.</div>

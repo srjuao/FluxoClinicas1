@@ -117,12 +117,13 @@ const DoctorsByDateSearch = ({
                 .from("appointments")
                 .select("doctor_id, scheduled_start")
                 .in("doctor_id", doctorIds)
-                .gte("scheduled_start", `${searchDate}T00:00:00`)
-                .lte("scheduled_start", `${searchDate}T23:59:59`)
+                .gte("scheduled_start", `${searchDate}T00:00:00Z`)
+                .lte("scheduled_start", `${searchDate}T23:59:59Z`)
                 .neq("status", "CANCELLED");
 
             // 5. Calculate availability for each doctor
-            const dateObj = new Date(searchDate + "T12:00:00"); // Add time to avoid timezone issues
+            const [year, month, day] = searchDate.split("-").map(Number);
+            const dateObj = new Date(year, month - 1, day, 12, 0, 0);
             const dayOfWeek = dateObj.getDay();
 
             const availability: DoctorAvailability[] = doctorsData.map((doctor: DoctorData) => {

@@ -157,23 +157,26 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
     if (!selectedDoctor || !selectedDate) return;
     setLoading(true);
 
-    const date = new Date(selectedDate + "T00:00:00");
+    const [year, month, day] = selectedDate.split("-").map(Number);
+    const date = new Date(year, month - 1, day, 12, 0, 0);
     const weekday = date.getDay();
 
     const { data: workHours, error: whError } = await supabase
       .from("doctor_work_hours")
       .select("*")
-      .eq("doctor_id", selectedDoctor.id)
-      .eq("weekday", weekday);
+      .eq("doctor_id", selectedDoctor.id);
 
-    if (whError || !workHours || workHours.length === 0) {
+    // Pegar regras de data específica primeiro, depois dia da semana
+    const workHour = workHours.find((wh: any) => wh.specific_date === selectedDate) ||
+      workHours.find((wh: any) => wh.weekday === weekday && (!wh.specific_date || wh.specific_date === ""));
+
+    if (!workHour) {
       setAvailableSlots([]);
       setLoading(false);
       return;
     }
 
-    const workHour = workHours[0];
-    const slotMinutes = workHour.slot_minutes || 30;
+    const slotMinutes = (workHour as any).slot_minutes || 30;
 
     const { data: appointments, error: aptError } = await supabase
       .from("appointments")
