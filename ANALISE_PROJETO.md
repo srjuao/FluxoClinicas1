@@ -329,7 +329,7 @@ Ao excluir uma clínica, remove automaticamente:
 5. **appointments**
    - `id`, `clinic_id`, `doctor_id`, `patient_id`
    - `scheduled_start`, `scheduled_end`
-   - `status` (SCHEDULED, COMPLETED, CANCELLED, NO_SHOW)
+   - `status` (SCHEDULED, COMPLETED, CANCELED, NO_SHOW)
 
 6. **medical_reports**
    - `id`, `clinic_id`, `doctor_id`, `patient_id`

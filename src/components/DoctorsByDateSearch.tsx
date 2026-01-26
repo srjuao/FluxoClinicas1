@@ -119,7 +119,7 @@ const DoctorsByDateSearch = ({
                 .in("doctor_id", doctorIds)
                 .gte("scheduled_start", `${searchDate}T00:00:00Z`)
                 .lte("scheduled_start", `${searchDate}T23:59:59Z`)
-                .neq("status", "CANCELLED");
+                .neq("status", "CANCELED");
 
             // 5. Calculate availability for each doctor
             const [year, month, day] = searchDate.split("-").map(Number);

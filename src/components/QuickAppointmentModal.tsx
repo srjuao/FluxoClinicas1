@@ -375,7 +375,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
         .select("id")
         .eq("doctor_id", targetDoctorId)
         .eq("scheduled_start", startDate.toISOString())
-        .neq("status", "CANCELLED")
+        .neq("status", "CANCELED")
         .maybeSingle();
 
       if (checkError) throw checkError;

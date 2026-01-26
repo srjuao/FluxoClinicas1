@@ -348,7 +348,7 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
       .select("id")
       .eq("doctor_id", selectedDoctor.id)
       .eq("scheduled_start", startDate.toISOString())
-      .neq("status", "CANCELLED")
+      .neq("status", "CANCELED")
       .maybeSingle();
 
     if (checkError) {

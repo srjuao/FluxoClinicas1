@@ -207,7 +207,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
 
       // Fast lookup using memoized map
       const dayAppointments = (appointmentsByDate.get(dateStr) || []).filter(
-        (apt) => apt.status !== "CANCELLED"
+        (apt) => apt.status !== "CANCELED"
       );
 
       // If no appointments, day is available
@@ -304,7 +304,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
 
     // Get appointments for this day using memoized map (exclude cancelled)
     const dayAppointments = (appointmentsByDate.get(dateStr) || []).filter(
-      (apt) => apt.status !== "CANCELLED"
+      (apt) => apt.status !== "CANCELED"
     );
 
     // Create appointment time map for O(1) lookup
@@ -419,13 +419,13 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
         const statusText =
           apt.status === "COMPLETED"
             ? "Concluído"
-            : apt.status === "CANCELLED"
+            : apt.status === "CANCELED"
               ? "Cancelado"
               : "Agendado";
         const statusClass =
           apt.status === "COMPLETED"
             ? "status-completed"
-            : apt.status === "CANCELLED"
+            : apt.status === "CANCELED"
               ? "status-cancelled"
               : "status-scheduled";
 
@@ -593,7 +593,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
               <div class="label">Concluídos</div>
             </div>
             <div class="summary-item">
-              <div class="number">${selectedDateAppointments.filter(a => a.status === "CANCELLED").length}</div>
+              <div class="number">${selectedDateAppointments.filter(a => a.status === "CANCELED").length}</div>
               <div class="label">Cancelados</div>
             </div>
           </div>
@@ -1058,14 +1058,14 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
                               <span
                                 className={`text-xs px-2 py-1 rounded-full ${apt.status === "COMPLETED"
                                   ? "bg-green-100 text-green-700"
-                                  : apt.status === "CANCELLED"
+                                  : apt.status === "CANCELED"
                                     ? "bg-red-100 text-red-700"
                                     : "bg-purple-100 text-purple-700"
                                   }`}
                               >
                                 {apt.status === "COMPLETED"
                                   ? "Concluído"
-                                  : apt.status === "CANCELLED"
+                                  : apt.status === "CANCELED"
                                     ? "Cancelado"
                                     : "Agendado"}
                               </span>
@@ -1162,7 +1162,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
                                     <CheckCheck className="w-4 h-4 text-green-600" />
                                   </button>
                                   <button
-                                    onClick={() => updateAppointmentStatus(apt.id, "CANCELLED")}
+                                    onClick={() => updateAppointmentStatus(apt.id, "CANCELED")}
                                     className="p-2 rounded-lg bg-red-100 hover:bg-red-200 transition-colors"
                                     title="Cancelar Agendamento"
                                   >

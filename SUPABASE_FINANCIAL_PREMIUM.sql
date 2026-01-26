@@ -199,7 +199,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   due_date DATE NOT NULL,
   paid_at TIMESTAMP WITH TIME ZONE,
   
-  -- Status: PENDING, PAID, OVERDUE, CANCELLED
+  -- Status: PENDING, PAID, OVERDUE, CANCELED
   status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
   
   -- Recorrência: ONCE, MONTHLY, YEARLY
@@ -330,7 +330,7 @@ BEGIN
 END $$;
 
 COMMENT ON COLUMN appointments.payment_method IS 'PIX, CREDIT_CARD, DEBIT_CARD, CASH, BANK_SLIP';
-COMMENT ON COLUMN appointments.payment_status IS 'PENDING, PAID, OVERDUE, CANCELLED';
+COMMENT ON COLUMN appointments.payment_status IS 'PENDING, PAID, OVERDUE, CANCELED';
 COMMENT ON COLUMN appointments.installments IS 'Número de parcelas (cartão de crédito)';
 
 -- ============================================

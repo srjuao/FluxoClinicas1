@@ -99,14 +99,14 @@ const PreScheduleModal = ({
                     .eq("doctor_id", doctorId)
                     .gte("scheduled_start", `${dateStr}T00:00:00Z`)
                     .lte("scheduled_start", `${dateStr}T23:59:59Z`)
-                    .neq("status", "CANCELLED");
+                    .neq("status", "CANCELED");
                 dayAppmts = data || [];
             }
 
             // Converter agendamentos para formato HH:MM manual para comparação robusta
             // Filtramos aqui também para garantir que não pegamos cancelados se vierem da prop
             const bookedTimes = dayAppmts
-                ?.filter((a: any) => a.status !== "CANCELLED")
+                ?.filter((a: any) => a.status !== "CANCELED")
                 .map((a: { scheduled_start: string }) => {
                     const d = new Date(a.scheduled_start);
                     const h = String(d.getHours()).padStart(2, '0');
@@ -219,7 +219,7 @@ const PreScheduleModal = ({
                 .select("id")
                 .eq("doctor_id", doctorId)
                 .eq("scheduled_start", startDate.toISOString())
-                .neq("status", "CANCELLED")
+                .neq("status", "CANCELED")
                 .maybeSingle();
 
             if (checkError) throw checkError;

@@ -36,7 +36,7 @@ type AppointmentUpdate = Updates<'appointments'>;
 type UserRole = 'SUPER_ADMIN' | 'CLINIC_ADMIN' | 'DOCTOR' | 'RECEPTIONIST';
 
 // Appointment statuses
-type AppointmentStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+type AppointmentStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELED' | 'NO_SHOW';
 ```
 
 ## Supabase Client Usage

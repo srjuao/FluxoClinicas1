@@ -589,7 +589,7 @@ const EditAppointmentModal: React.FC<EditAppointmentModalProps> = ({
             >
               <option value="SCHEDULED">Agendado</option>
               <option value="COMPLETED">Concluído</option>
-              <option value="CANCELLED">Cancelado</option>
+              <option value="CANCELED">Cancelado</option>
             </select>
           </div>
 
