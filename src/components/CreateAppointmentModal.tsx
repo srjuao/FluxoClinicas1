@@ -342,6 +342,28 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
     const startDate = new Date(year, month - 1, day, hours, minutes);
     const endDate = new Date(startDate.getTime() + slotMinutes * 60000);
 
+    // Verificação final no banco de dados para evitar duplicidade
+    const { data: existingAppmt, error: checkError } = await supabase
+      .from("appointments")
+      .select("id")
+      .eq("doctor_id", selectedDoctor.id)
+      .eq("scheduled_start", startDate.toISOString())
+      .neq("status", "CANCELLED")
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("Erro ao verificar disponibilidade:", checkError);
+    } else if (existingAppmt) {
+      toast({
+        title: "Horário já ocupado",
+        description: "Este horário acabou de ser preenchido por outro agendamento.",
+        variant: "destructive",
+      });
+      loadAvailableSlots(); // Recarregar slots
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.from("appointments").insert({
       clinic_id: clinicId,
       doctor_id: selectedDoctor.id,

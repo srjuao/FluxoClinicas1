@@ -367,6 +367,29 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
       const startDate = new Date(year, month - 1, day, hours, minutes);
       const endDate = new Date(startDate.getTime() + slotMinutes * 60000);
 
+      const targetDoctorId = reason === "exame" && selectedUltrasoundDoctor ? selectedUltrasoundDoctor : doctorId;
+
+      // Verificação final no banco de dados para evitar duplicidade
+      const { data: existingAppmt, error: checkError } = await supabase
+        .from("appointments")
+        .select("id")
+        .eq("doctor_id", targetDoctorId)
+        .eq("scheduled_start", startDate.toISOString())
+        .neq("status", "CANCELLED")
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existingAppmt) {
+        toast({
+          title: "Horário já ocupado",
+          description: "Este horário acabou de ser preenchido por outro agendamento. Por favor, escolha outro horário ou verifique a disponibilidade.",
+          variant: "destructive",
+        });
+        setSubmitting(false);
+        return;
+      }
+
       // Convert reason value to text
       let reasonText =
         reason === "consulta"
@@ -384,7 +407,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
 
       const { error } = await supabase.from("appointments").insert({
         clinic_id: clinicId,
-        doctor_id: reason === "exame" && selectedUltrasoundDoctor ? selectedUltrasoundDoctor : doctorId,
+        doctor_id: targetDoctorId,
         patient_id: selectedPatient.id,
         scheduled_start: startDate.toISOString(),
         scheduled_end: endDate.toISOString(),
