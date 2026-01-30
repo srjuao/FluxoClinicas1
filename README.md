@@ -9,7 +9,7 @@ Multi-tenant SaaS medical clinic management system built with React, TypeScript,
 - **Appointment Management**: Scheduling with doctor availability
 - **Medical Records**: Anamneses, prescriptions, certificates
 - **Modern UI**: Glass-morphism design with Tailwind CSS
-- **Type-safe**: Full TypeScript with Supabase database types
+- **Type-safe**: Full TypeScript with Supabase dfffatabase types
 
 ## 🛠️ Tech Stack
 
@@ -88,7 +88,7 @@ See `src/types/database.types.ts` for complete schema types.
    - Create and manage clinics
    - Create clinic administrators
 
-2. **CLINIC_ADMIN**: Clinic-level management
+2. **CLINIC_ADMIN**: Clinic-level managementss
    - Manage doctors and receptionists
    - Configure work hours
    - View clinic calendar
