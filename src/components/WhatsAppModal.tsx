@@ -4,8 +4,6 @@ import {
   X,
   MessageCircle,
   QrCode,
-  Phone,
-  Send,
   Loader2,
   CheckCircle2,
   XCircle,
@@ -15,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { whatsappClient, type WhatsAppStatus } from "@/lib/whatsappClient";
+import { WhatsAppChatInterface } from "./whatsapp/WhatsAppChatInterface";
 
 interface WhatsAppModalProps {
   onClose: () => void;
@@ -24,9 +23,6 @@ const WhatsAppModal = ({ onClose }: WhatsAppModalProps) => {
   const [status, setStatus] = useState<WhatsAppStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
-  const [sendingMessage, setSendingMessage] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [messageText, setMessageText] = useState("");
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -117,55 +113,6 @@ const WhatsAppModal = ({ onClose }: WhatsAppModalProps) => {
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!phoneNumber.trim() || !messageText.trim()) {
-      toast({
-        title: "Preencha todos os campos",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const cleanNumber = phoneNumber.replace(/\D/g, "");
-    if (cleanNumber.length < 10 || cleanNumber.length > 13) {
-      toast({
-        title: "Número inválido",
-        description: "Digite um número válido com DDD (ex: 11999999999)",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSendingMessage(true);
-    try {
-      await whatsappClient.sendTextMessage({
-        to: cleanNumber,
-        text: messageText,
-      });
-      toast({ title: "Mensagem enviada com sucesso!" });
-      setPhoneNumber("");
-      setMessageText("");
-    } catch (error) {
-      toast({
-        title: "Erro ao enviar mensagem",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
-      });
-    } finally {
-      setSendingMessage(false);
-    }
-  };
-
-  const formatPhoneNumber = (value: string) => {
-    const numbers = value.replace(/\D/g, "");
-    if (numbers.length <= 2) return numbers;
-    if (numbers.length <= 7) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-    if (numbers.length <= 11) {
-      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
-    }
-    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
-  };
-
   const renderStatusBadge = () => {
     if (!status) return null;
 
@@ -217,7 +164,11 @@ const WhatsAppModal = ({ onClose }: WhatsAppModalProps) => {
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden"
+          className={`bg-white rounded-2xl shadow-2xl w-full overflow-hidden ${
+            status?.status === "connected"
+              ? "max-w-7xl h-[90vh]"
+              : "max-w-lg max-h-[90vh]"
+          }`}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-green-500 to-green-600">
@@ -241,139 +192,88 @@ const WhatsAppModal = ({ onClose }: WhatsAppModalProps) => {
           </div>
 
           {/* Content */}
-          <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-180px)]">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-green-500" />
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-green-500" />
+            </div>
+          ) : status?.status === "connected" ? (
+            /* Full Chat Interface */
+            <div className="h-[calc(90vh-80px)]">
+              <WhatsAppChatInterface />
+            </div>
+          ) : (
+            /* Connection Management */
+            <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+              {/* Status */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">Status da conexão:</span>
+                {renderStatusBadge()}
               </div>
-            ) : (
-              <>
-                {/* Status */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-500">Status da conexão:</span>
-                  {renderStatusBadge()}
-                </div>
 
-                {/* QR Code Section */}
-                {status?.status === "qr_pending" && status.qr && (
-                  <div className="flex flex-col items-center gap-4 p-6 bg-gray-50 rounded-xl">
-                    <p className="text-sm text-gray-600 text-center">
-                      Escaneie o QR Code com o WhatsApp do seu celular
-                    </p>
-                    <div className="bg-white p-4 rounded-xl shadow-inner">
-                      <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(status.qr)}`}
-                        alt="QR Code WhatsApp"
-                        className="w-48 h-48"
-                      />
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={fetchStatus}
-                      className="gap-2"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                      Atualizar QR Code
-                    </Button>
+              {/* QR Code Section */}
+              {status?.status === "qr_pending" && status.qr && (
+                <div className="flex flex-col items-center gap-4 p-6 bg-gray-50 rounded-xl">
+                  <p className="text-sm text-gray-600 text-center">
+                    Escaneie o QR Code com o WhatsApp do seu celular
+                  </p>
+                  <div className="bg-white p-4 rounded-xl shadow-inner">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(status.qr)}`}
+                      alt="QR Code WhatsApp"
+                      className="w-48 h-48"
+                    />
                   </div>
-                )}
-
-                {/* Connection Actions */}
-                {status?.status === "disconnected" && (
                   <Button
-                    onClick={handleConnect}
-                    disabled={connecting}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white gap-2"
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchStatus}
+                    className="gap-2"
                   >
-                    {connecting ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <QrCode className="w-4 h-4" />
-                    )}
-                    {connecting ? "Conectando..." : "Conectar WhatsApp"}
+                    <RefreshCw className="w-4 h-4" />
+                    Atualizar QR Code
                   </Button>
-                )}
+                </div>
+              )}
 
-                {status?.status === "connected" && (
-                  <>
-                    {/* Send Message Form */}
-                    <div className="space-y-4 p-4 bg-green-50 rounded-xl border border-green-100">
-                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                        <Send className="w-4 h-4 text-green-600" />
-                        Enviar Mensagem
-                      </h3>
+              {/* Connection Actions */}
+              {status?.status === "disconnected" && (
+                <Button
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white gap-2"
+                >
+                  {connecting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <QrCode className="w-4 h-4" />
+                  )}
+                  {connecting ? "Conectando..." : "Conectar WhatsApp"}
+                </Button>
+              )}
 
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Número de telefone
-                          </label>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input
-                              type="text"
-                              value={phoneNumber}
-                              onChange={(e) => setPhoneNumber(formatPhoneNumber(e.target.value))}
-                              placeholder="(11) 99999-9999"
-                              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                              maxLength={16}
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Mensagem
-                          </label>
-                          <textarea
-                            value={messageText}
-                            onChange={(e) => setMessageText(e.target.value)}
-                            placeholder="Digite sua mensagem..."
-                            rows={3}
-                            className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
-                          />
-                        </div>
-
-                        <Button
-                          onClick={handleSendMessage}
-                          disabled={sendingMessage || !phoneNumber || !messageText}
-                          className="w-full bg-green-500 hover:bg-green-600 text-white gap-2"
-                        >
-                          {sendingMessage ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Send className="w-4 h-4" />
-                          )}
-                          {sendingMessage ? "Enviando..." : "Enviar Mensagem"}
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Disconnect Actions */}
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleDisconnect}
-                        variant="outline"
-                        className="flex-1 gap-2"
-                      >
-                        <XCircle className="w-4 h-4" />
-                        Desconectar
-                      </Button>
-                      <Button
-                        onClick={handleLogout}
-                        variant="outline"
-                        className="flex-1 gap-2 text-red-600 border-red-200 hover:bg-red-50"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Remover Sessão
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </>
-            )}
-          </div>
+              {/* Disconnect Actions (shown when connecting/qr_pending) */}
+              {(status?.status === "connecting" || status?.status === "qr_pending") && (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleDisconnect}
+                    variant="outline"
+                    className="flex-1 gap-2"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleLogout}
+                    variant="outline"
+                    className="flex-1 gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Remover Sessão
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>

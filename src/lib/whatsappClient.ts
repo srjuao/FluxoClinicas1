@@ -1,4 +1,13 @@
 import { supabase } from "./customSupabaseClient";
+import type {
+  WhatsAppMessage,
+  SendMediaPayload,
+  ChatListResponse,
+  MessagesResponse,
+  ContactInfoResponse,
+  ProfilePictureResponse,
+  ApiResponse,
+} from "@/types/whatsapp.types";
 
 const WHATSAPP_API_URL = import.meta.env.VITE_WHATSAPP_API_URL || "http://localhost:9000";
 
@@ -12,12 +21,7 @@ interface WhatsAppStatus {
 interface SendMessagePayload {
   to: string;
   text: string;
-}
-
-interface ApiResponse<T = unknown> {
-  success?: boolean;
-  error?: string;
-  data?: T;
+  quoted_message_id?: string;
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
@@ -87,6 +91,138 @@ export const whatsappClient = {
     return apiRequest<ApiResponse>("/api/messages/text", {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  },
+
+  // Chat Management
+  async getChats(): Promise<ChatListResponse> {
+    return apiRequest<ChatListResponse>("/api/chats");
+  },
+
+  async getChatInfo(chatId: string): Promise<{ chat: any }> {
+    return apiRequest<{ chat: any }>(`/api/chats/${chatId}`);
+  },
+
+  async archiveChat(chatId: string): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>(`/api/chats/${chatId}/archive`, {
+      method: "POST",
+    });
+  },
+
+  async unarchiveChat(chatId: string): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>(`/api/chats/${chatId}/unarchive`, {
+      method: "POST",
+    });
+  },
+
+  async pinChat(chatId: string): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>(`/api/chats/${chatId}/pin`, {
+      method: "POST",
+    });
+  },
+
+  async unpinChat(chatId: string): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>(`/api/chats/${chatId}/unpin`, {
+      method: "POST",
+    });
+  },
+
+  async muteChat(chatId: string, duration?: number): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>(`/api/chats/${chatId}/mute`, {
+      method: "POST",
+      body: JSON.stringify({ duration }),
+    });
+  },
+
+  async unmuteChat(chatId: string): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>(`/api/chats/${chatId}/unmute`, {
+      method: "POST",
+    });
+  },
+
+  async markAsRead(chatId: string): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>(`/api/chats/${chatId}/mark-read`, {
+      method: "POST",
+    });
+  },
+
+  async markAsUnread(chatId: string): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>(`/api/chats/${chatId}/mark-unread`, {
+      method: "POST",
+    });
+  },
+
+  async deleteChat(chatId: string): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>(`/api/chats/${chatId}`, {
+      method: "DELETE",
+    });
+  },
+
+  // Message Management
+  async getMessages(
+    chatId: string,
+    limit: number = 50,
+    offset: number = 0
+  ): Promise<MessagesResponse> {
+    return apiRequest<MessagesResponse>(
+      `/api/messages/${chatId}?limit=${limit}&offset=${offset}`
+    );
+  },
+
+  async sendImage(payload: SendMediaPayload): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>("/api/messages/image", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async sendVideo(payload: SendMediaPayload): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>("/api/messages/video", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async sendAudio(payload: SendMediaPayload): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>("/api/messages/audio", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async sendDocument(payload: SendMediaPayload): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>("/api/messages/document", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteMessage(messageId: string, chatId: string): Promise<ApiResponse> {
+    return apiRequest<ApiResponse>(`/api/messages/${messageId}`, {
+      method: "DELETE",
+      body: JSON.stringify({ chat_id: chatId }),
+    });
+  },
+
+  // Contact Management
+  async getContactInfo(phoneNumber: string): Promise<ContactInfoResponse> {
+    return apiRequest<ContactInfoResponse>(`/api/contacts/${phoneNumber}`);
+  },
+
+  async getProfilePicture(phoneNumber: string): Promise<ProfilePictureResponse> {
+    return apiRequest<ProfilePictureResponse>(
+      `/api/contacts/${phoneNumber}/profile-picture`
+    );
+  },
+
+  async checkExists(phones: string[]): Promise<{
+    results: Array<{ phone: string; exists: boolean; jid: string }>;
+  }> {
+    return apiRequest<{
+      results: Array<{ phone: string; exists: boolean; jid: string }>;
+    }>("/api/contacts/check-exists", {
+      method: "POST",
+      body: JSON.stringify({ phones }),
     });
   },
 };
