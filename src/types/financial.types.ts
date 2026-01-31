@@ -6,7 +6,7 @@
 export type GuideStatus = 'DRAFT' | 'SENT' | 'ANALYZING' | 'APPROVED' | 'PAID' | 'DENIED' | 'PARTIALLY_DENIED';
 export type DenialStatus = 'PENDING' | 'APPEALING' | 'RECOVERED' | 'PARTIALLY_RECOVERED' | 'LOST';
 export type PaymentRuleType = 'PERCENTAGE' | 'FIXED' | 'PER_PROCEDURE';
-export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' | 'CANCELED';
 export type ExpenseCategory = 'MEDICAL_STAFF' | 'RECEPTION' | 'RENT' | 'EQUIPMENT' | 'MATERIALS' | 'MARKETING' | 'SYSTEMS' | 'UTILITIES' | 'OTHER';
 export type ExpenseType = 'ADMINISTRATIVE' | 'ASSISTENTIAL';
 export type PaymentMethod = 'PIX' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'CASH' | 'BANK_SLIP' | 'INSURANCE';
@@ -242,5 +242,5 @@ export const PAYMENT_STATUS_LABELS: { [key in PaymentStatus]: { label: string; c
   PARTIAL: { label: 'Parcial', color: 'bg-blue-100 text-blue-700' },
   PAID: { label: 'Pago', color: 'bg-green-100 text-green-700' },
   OVERDUE: { label: 'Atrasado', color: 'bg-red-100 text-red-700' },
-  CANCELLED: { label: 'Cancelado', color: 'bg-gray-100 text-gray-700' },
+  CANCELED: { label: 'Cancelado', color: 'bg-gray-100 text-gray-700' },
 };

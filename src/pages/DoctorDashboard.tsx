@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
-import { Calendar, FileText, LogOut, Plus, Search, Users, DollarSign, Menu, X, Stethoscope } from "lucide-react";
+import { Calendar, FileText, LogOut, Plus, Search, Users, DollarSign, Menu, X, Stethoscope, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -14,8 +14,9 @@ import { SearchReportsModal } from "@/components/SearchReportsModal";
 import PatientDetailsPage from "@/pages/PatientDetailsPage";
 import ClinicAdminContent from "@/components/ClinicAdminContent";
 import UnifiedSidebar, { SidebarItem, SidebarSection } from "@/components/UnifiedSidebar";
+import { ProtocolTemplatesPage } from "@/components/protocols";
 
-type ActiveSection = 'agenda' | 'reports' | 'planner' | 'users' | 'financial';
+type ActiveSection = 'agenda' | 'reports' | 'protocols' | 'planner' | 'users' | 'financial';
 
 const DoctorDashboard = () => {
   const { signOut, profile, user } = useAuth();
@@ -103,6 +104,7 @@ const DoctorDashboard = () => {
   const medicalItems: SidebarItem[] = [
     { id: 'agenda', label: 'Minha Agenda', icon: Calendar },
     { id: 'reports', label: 'Anamneses', icon: FileText },
+    { id: 'protocols', label: 'Protocolos', icon: ClipboardList },
   ];
 
   const adminItems: SidebarItem[] = [
@@ -223,8 +225,15 @@ const DoctorDashboard = () => {
               </div>
             )}
 
+            {activeSection === 'protocols' && doctorData && clinicId && (
+              <ProtocolTemplatesPage
+                clinicId={clinicId}
+                doctorId={doctorData.id}
+              />
+            )}
+
             {(activeSection === 'planner' || activeSection === 'users' || activeSection === 'financial') && (
-              <ClinicAdminContent defaultTab={activeSection} />
+              <ClinicAdminContent defaultTab={activeSection} hideSidebar={true} />
             )}
           </div>
         </div>

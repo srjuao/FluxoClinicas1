@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
 import { supabase } from "@/lib/customSupabaseClient";
+import { supabaseAdmin } from "@/lib/customSupabaseAdmin";
 import type { UserRole } from "@/types/database.types";
 import type { CreateUserModalProps } from "@/types/components.types";
 
@@ -115,13 +116,47 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
         // Atualizar usuário existente
         const { error: updateError } = await updateProfile(userToEdit.id, {
           name,
-          email,
           role,
           is_admin: isAdmin,
           has_financial_access: hasFinancialAccess,
         });
 
         if (updateError) throw updateError;
+
+        // Se for médico, atualizar ou inserir na tabela doctors
+        if (role === "DOCTOR") {
+          const doctorFields = {
+            crm,
+            specialties: specialties.split(",").map((s) => s.trim()).filter(Boolean),
+            can_prescribe_exams: canPrescribeExams,
+            can_prescribe_lenses: canPrescribeLenses,
+            can_prescribe_urology_exams: canPrescribeUrologyExams,
+            can_prescribe_cardiology_exams: canPrescribeCardiologyExams,
+            does_ultrasound_exams: doesUltrasoundExams,
+            room: room || null,
+          };
+
+          if (doctorData?.id) {
+            // Se já existe registro, atualiza
+            const { error: doctorUpdateError } = await supabaseAdmin
+              .from("doctors")
+              .update(doctorFields)
+              .eq("id", doctorData.id);
+
+            if (doctorUpdateError) throw doctorUpdateError;
+          } else {
+            // Se não existe (médico antigo sem registro), insere
+            const { error: doctorInsertError } = await supabaseAdmin
+              .from("doctors")
+              .insert({
+                ...doctorFields,
+                user_id: userToEdit.id,
+                clinic_id: clinicId,
+              });
+
+            if (doctorInsertError) throw doctorInsertError;
+          }
+        }
       } else {
         // Criar novo usuário
         const trimmedEmail = email.trim();
@@ -136,11 +171,38 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
         );
 
         if (signUpError) throw signUpError;
+
+        // Se for médico e foi criado com sucesso, inserir também na tabela doctors
+        if (role === "DOCTOR" && user?.id) {
+          const { error: doctorInsertError } = await supabaseAdmin
+            .from("doctors")
+            .insert({
+              user_id: user.id,
+              clinic_id: clinicId,
+              crm,
+              specialties: specialties.split(",").map((s) => s.trim()).filter(Boolean),
+              can_prescribe_exams: canPrescribeExams,
+              can_prescribe_lenses: canPrescribeLenses,
+              can_prescribe_urology_exams: canPrescribeUrologyExams,
+              can_prescribe_cardiology_exams: canPrescribeCardiologyExams,
+              does_ultrasound_exams: doesUltrasoundExams,
+              room: room || null,
+            });
+
+          if (doctorInsertError) {
+            console.error("Error creating doctor record:", doctorInsertError);
+            // Not throwing here because user was already created, but we should inform
+            toast({
+              title: "Usuário criado, mas erro ao registrar como médico",
+              description: doctorInsertError.message,
+              variant: "destructive",
+            });
+          }
+        }
       }
 
       toast({
         title: isEdit ? "Usuário atualizado" : "Usuário criado com sucesso!",
-        className: "bg-green-50 border-green-200",
       });
 
       if (onSuccess) onSuccess();

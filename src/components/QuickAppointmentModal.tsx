@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
-import { X, Calendar, Clock, User, CreditCard, Search } from "lucide-react";
+import { X, Calendar, Clock, User, CreditCard, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -73,6 +73,8 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
   const [examTypeSearch, setExamTypeSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [searchingPatients, setSearchingPatients] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Estados para exames do médico
   const [doctorExamTypes, setDoctorExamTypes] = useState<string[]>([]);
   // Estados para médicos de ultrassom
@@ -93,6 +95,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
   const [clinicCommissionAmount, setClinicCommissionAmount] = useState<number>(0);
   const [doctorAmount, setDoctorAmount] = useState<number>(0);
 
+  // Carrega pacientes iniciais (recentes)
   const loadPatients = useCallback(async () => {
     if (!clinicId) return;
     setLoading(true);
@@ -101,7 +104,8 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
       .from("patients")
       .select("*")
       .eq("clinic_id", clinicId)
-      .order("name");
+      .order("created_at", { ascending: false })
+      .limit(30);
 
     if (error) {
       toast({
@@ -114,6 +118,56 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
 
     setLoading(false);
   }, [clinicId]);
+
+  // Busca dinâmica de pacientes no banco de dados
+  const searchPatientsInDatabase = useCallback(async (searchValue: string) => {
+    if (!clinicId) return;
+
+    if (!searchValue || searchValue.length < 2) {
+      loadPatients();
+      setSearchingPatients(false);
+      return;
+    }
+
+    setSearchingPatients(true);
+
+    const cleanedSearch = searchValue.replace(/\D/g, "");
+    const isSearchingByCPF = cleanedSearch.length >= 3;
+
+    let query = supabase
+      .from("patients")
+      .select("*")
+      .eq("clinic_id", clinicId);
+
+    if (isSearchingByCPF && cleanedSearch.length >= 3) {
+      query = query.or(`cpf.ilike.%${cleanedSearch}%,name.ilike.%${searchValue}%`);
+    } else {
+      query = query.ilike("name", `%${searchValue}%`);
+    }
+
+    const { data, error } = await query.order("name").limit(100);
+
+    if (error) {
+      console.error("Erro ao buscar pacientes:", error);
+    } else {
+      setPatients(data || []);
+    }
+
+    setSearchingPatients(false);
+  }, [clinicId, loadPatients]);
+
+  // Debounce da busca
+  const handlePatientSearchChange = useCallback((value: string) => {
+    setPatientSearch(value);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      searchPatientsInDatabase(value);
+    }, 300);
+  }, [searchPatientsInDatabase]);
 
   const loadFinancialData = useCallback(async () => {
     if (!clinicId || !doctorId) return;
@@ -284,11 +338,6 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
     clinicCommissionPercentage,
   ]);
 
-  const filteredPatients = patients.filter(
-    (p) =>
-      p.name.toLowerCase().includes(patientSearch.toLowerCase()) ||
-      (p.cpf && p.cpf.includes(patientSearch))
-  );
 
   // Filtrar tipos de exame - usa exames do médico se configurado, senão todos
   const availableExamTypes = doctorExamTypes.length > 0 ? doctorExamTypes : EXAM_TYPES;
@@ -311,8 +360,35 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
     setSubmitting(true);
 
     try {
-      const startDate = new Date(`${selectedDate}T${selectedTime}:00`);
+      const [year, month, day] = selectedDate.split("-").map(Number);
+      const [hours, minutes] = selectedTime.split(":").map(Number);
+
+      // Create date using local time constructor to avoid timezone issues
+      const startDate = new Date(year, month - 1, day, hours, minutes);
       const endDate = new Date(startDate.getTime() + slotMinutes * 60000);
+
+      const targetDoctorId = reason === "exame" && selectedUltrasoundDoctor ? selectedUltrasoundDoctor : doctorId;
+
+      // Verificação final no banco de dados para evitar duplicidade
+      const { data: existingAppmt, error: checkError } = await supabase
+        .from("appointments")
+        .select("id")
+        .eq("doctor_id", targetDoctorId)
+        .eq("scheduled_start", startDate.toISOString())
+        .neq("status", "CANCELED")
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existingAppmt) {
+        toast({
+          title: "Horário já ocupado",
+          description: "Este horário acabou de ser preenchido por outro agendamento. Por favor, escolha outro horário ou verifique a disponibilidade.",
+          variant: "destructive",
+        });
+        setSubmitting(false);
+        return;
+      }
 
       // Convert reason value to text
       let reasonText =
@@ -331,7 +407,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
 
       const { error } = await supabase.from("appointments").insert({
         clinic_id: clinicId,
-        doctor_id: reason === "exame" && selectedUltrasoundDoctor ? selectedUltrasoundDoctor : doctorId,
+        doctor_id: targetDoctorId,
         patient_id: selectedPatient.id,
         scheduled_start: startDate.toISOString(),
         scheduled_end: endDate.toISOString(),
@@ -416,13 +492,18 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
                 <User className="w-4 h-4 inline mr-1" />
                 Paciente
               </label>
-              <input
-                type="text"
-                placeholder="Buscar por nome ou CPF..."
-                value={patientSearch}
-                onChange={(e) => setPatientSearch(e.target.value)}
-                className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Buscar por nome ou CPF..."
+                  value={patientSearch}
+                  onChange={(e) => handlePatientSearchChange(e.target.value)}
+                  className="w-full px-4 py-2 pr-10 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                {searchingPatients && (
+                  <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-purple-500 animate-spin" />
+                )}
+              </div>
             </div>
 
             {/* Reason */}
@@ -628,18 +709,18 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
             )}
 
             {/* Patient List */}
-            {loading ? (
+            {loading || searchingPatients ? (
               <div className="text-center py-8 text-gray-500">
                 Carregando pacientes...
               </div>
             ) : (
               <div className="space-y-2 max-h-60 overflow-y-auto">
-                {filteredPatients.length === 0 ? (
+                {patients.length === 0 ? (
                   <p className="text-center text-gray-500 py-4">
                     Nenhum paciente encontrado
                   </p>
                 ) : (
-                  filteredPatients.map((patient) => (
+                  patients.map((patient) => (
                     <button
                       key={patient.id}
                       onClick={() => setSelectedPatient(patient)}

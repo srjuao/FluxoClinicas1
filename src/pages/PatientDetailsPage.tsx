@@ -9,6 +9,7 @@ import {
   Plus,
   Calendar,
   Paperclip,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
@@ -18,6 +19,7 @@ import CreateReportModal from "@/components/CreateReportModal";
 import CreateCertificateModal from "@/components/CreateCertificateModal";
 import CreatePrescriptionModal from "@/components/CreatePrescriptionModal";
 import AddExamModal from "@/components/AddExamModal";
+import { PatientProtocolsTab } from "@/components/protocols";
 
 import { calculateAge, formatDate, formatCPF } from "@/utils";
 
@@ -800,6 +802,20 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
               </motion.div>
             </div>
           </div>
+
+          {/* Protocolos Clínicos Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="mt-8 glass-effect rounded-2xl p-6"
+          >
+            <PatientProtocolsTab
+              patientId={patientId}
+              clinicId={patient.clinic_id}
+              doctorId={doctorData?.id}
+            />
+          </motion.div>
         </div>
       </div>
 

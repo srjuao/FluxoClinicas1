@@ -6,8 +6,13 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type AppointmentStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
+export type AppointmentStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELED' | 'NO_SHOW' | 'PRE_SCHEDULED' | 'CONFIRMED'
 export type UserRole = 'SUPER_ADMIN' | 'CLINIC_ADMIN' | 'DOCTOR' | 'RECEPTIONIST'
+
+// Protocol types
+export type ProtocolPhaseItemType = 'orientation' | 'task' | 'exam' | 'return'
+export type PatientProtocolStatus = 'active' | 'paused' | 'completed' | 'cancelled'
+export type CheckpointStatus = 'pending' | 'completed' | 'skipped' | 'overdue'
 
 export interface Database {
   public: {
@@ -17,7 +22,7 @@ export interface Database {
           id: string
           clinic_id: string
           doctor_id: string
-          patient_id: string
+          patient_id: string | null
           scheduled_start: string
           scheduled_end: string
           status: AppointmentStatus
@@ -31,12 +36,14 @@ export interface Database {
           clinic_commission_percentage?: number | null
           clinic_commission_amount?: number | null
           doctor_amount?: number | null
+          pre_schedule_name?: string | null
+          pre_schedule_phone?: string | null
         }
         Insert: {
           id?: string
           clinic_id: string
           doctor_id: string
-          patient_id: string
+          patient_id?: string | null
           scheduled_start: string
           scheduled_end: string
           status?: AppointmentStatus
@@ -50,12 +57,14 @@ export interface Database {
           clinic_commission_percentage?: number | null
           clinic_commission_amount?: number | null
           doctor_amount?: number | null
+          pre_schedule_name?: string | null
+          pre_schedule_phone?: string | null
         }
         Update: {
           id?: string
           clinic_id?: string
           doctor_id?: string
-          patient_id?: string
+          patient_id?: string | null
           scheduled_start?: string
           scheduled_end?: string
           status?: AppointmentStatus
@@ -69,6 +78,8 @@ export interface Database {
           clinic_commission_percentage?: number | null
           clinic_commission_amount?: number | null
           doctor_amount?: number | null
+          pre_schedule_name?: string | null
+          pre_schedule_phone?: string | null
         }
       }
       clinics: {
@@ -517,4 +528,93 @@ export type DoctorWithProfileName = Doctor & {
 export type TimeSlot = {
   time: string
   available: boolean
+}
+
+// Protocol Types (not in Database interface as they're new tables)
+export interface Protocol {
+  id: string
+  clinic_id: string
+  created_by: string
+  name: string
+  description: string | null
+  objective: string | null
+  duration_days: number | null
+  patient_type: string | null
+  specialty: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ProtocolPhase {
+  id: string
+  protocol_id: string
+  phase_number: number
+  name: string
+  description: string | null
+  duration_days: number | null
+  created_at: string
+}
+
+export interface ProtocolPhaseItem {
+  id: string
+  phase_id: string
+  item_type: ProtocolPhaseItemType
+  title: string
+  description: string | null
+  is_required: boolean
+  order_index: number
+  created_at: string
+}
+
+export interface PatientProtocol {
+  id: string
+  patient_id: string
+  protocol_id: string
+  doctor_id: string
+  clinic_id: string
+  status: PatientProtocolStatus
+  current_phase_id: string | null
+  started_at: string
+  paused_at: string | null
+  completed_at: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PatientProtocolCheckpoint {
+  id: string
+  patient_protocol_id: string
+  phase_item_id: string | null
+  status: CheckpointStatus
+  completed_at: string | null
+  notes: string | null
+  completed_by: string | null
+  created_at: string
+}
+
+// Extended protocol types with relations
+export interface ProtocolWithPhases extends Protocol {
+  phases: ProtocolPhaseWithItems[]
+  created_by_doctor?: {
+    profile: {
+      name: string
+    }
+  }
+}
+
+export interface ProtocolPhaseWithItems extends ProtocolPhase {
+  items: ProtocolPhaseItem[]
+}
+
+export interface PatientProtocolWithDetails extends PatientProtocol {
+  protocol: Protocol
+  checkpoints: PatientProtocolCheckpoint[]
+  current_phase?: ProtocolPhase
+  doctor?: {
+    profile: {
+      name: string
+    }
+  }
 }

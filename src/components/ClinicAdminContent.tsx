@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Users,
   Calendar,
+  Clock,
   UserPlus,
   Search,
   Shield,
@@ -17,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
 import { supabase } from "@/lib/customSupabaseClient";
+import { supabaseAdmin } from "@/lib/customSupabaseAdmin";
 import { toast } from "@/components/ui/use-toast";
 import CreateUserModal from "@/components/CreateUserModal";
 import ManageWorkHoursModal from "@/components/ManageWorkHoursModal";
@@ -31,17 +33,24 @@ import type {
 } from "@/types/database.types";
 
 import DoctorAutocomplete from "@/components/DoctorAutocomplete";
+import DoctorsByDateSearch from "@/components/DoctorsByDateSearch";
 import UnifiedSidebar, { SidebarItem, SidebarSection } from "@/components/UnifiedSidebar";
 
 interface ClinicAdminContentProps {
   defaultTab?: 'planner' | 'users' | 'whatsapp' | 'financial';
+  hideSidebar?: boolean;
 }
 
-const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps) => {
+const ClinicAdminContent = ({ defaultTab = 'planner', hideSidebar = false }: ClinicAdminContentProps) => {
   const { profile, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [financialSubTab, setFinancialSubTab] = useState("dashboard");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Sync activeTab with defaultTab prop when it changes
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
 
   const [users, setUsers] = useState<Profile[]>([]);
   const [doctors, setDoctors] = useState<DoctorWithProfileName[]>([]);
@@ -103,24 +112,63 @@ const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps)
 
   const handleDeleteUser = async (user: Profile) => {
     const confirmDelete = window.confirm(
-      `Tem certeza que deseja excluir ${user.name}?`
+      `Tem certeza que deseja excluir ${user.name}? Esta ação é irreversível e removerá o acesso do usuário.`
     );
     if (!confirmDelete) return;
 
+    if (user.id === profile?.id) {
+      toast({
+        title: "Operação não permitida",
+        description: "Você não pode excluir sua própria conta.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       if (user.role === "DOCTOR") {
-        const { error: doctorError } = await supabase
+        // Primeiro, remover horários de trabalho (foreign key)
+        await supabaseAdmin
+          .from("doctor_work_hours")
+          .delete()
+          .eq("user_id", user.id);
+
+        const { data: doc } = await supabaseAdmin
+          .from("doctors")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (doc) {
+          await supabaseAdmin
+            .from("doctor_work_hours")
+            .delete()
+            .eq("doctor_id", doc.id);
+        }
+
+        const { error: doctorError } = await supabaseAdmin
           .from("doctors")
           .delete()
           .eq("user_id", user.id);
+
         if (doctorError) throw doctorError;
       }
 
-      const { error: userError } = await supabase
+      // Remover da tabela profiles
+      const { error: profileError } = await supabaseAdmin
         .from("profiles")
         .delete()
         .eq("id", user.id);
-      if (userError) throw userError;
+
+      if (profileError) throw profileError;
+
+      // Remover do Supabase Auth
+      const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+
+      if (authError) {
+        console.error("Auth Delete Error:", authError);
+        // Não lançamos erro aqui para não travar o fluxo se o usuário já não existir no Auth
+      }
 
       toast({ title: "Usuário excluído com sucesso!" });
       loadData();
@@ -186,43 +234,46 @@ const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps)
   ];
 
   return (
-    <div className="flex bg-gray-50 min-h-screen">
+    <div className={hideSidebar ? "" : "flex bg-gray-50 min-h-screen"}>
       {/* Mobile Toggle Button */}
-      {/* Keeping this header for mobile toggle visibility, though Sidebar can handle overlay */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center text-white">
-            <Stethoscope className="w-5 h-5" />
+      {!hideSidebar && (
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center text-white">
+              <Stethoscope className="w-5 h-5" />
+            </div>
+            <span className="font-bold text-gray-900">FluxoClinic</span>
           </div>
-          <span className="font-bold text-gray-900">FluxoClinic</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        >
-          {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </Button>
-      </div>
+      )}
 
-      <UnifiedSidebar
-        sections={sidebarSections}
-        activeTab={activeTab}
-        activeSubTab={financialSubTab}
-        onTabChange={setActiveTab}
-        onSubTabChange={setFinancialSubTab}
-        userProfile={{
-          name: profile?.name,
-          email: profile?.email,
-          role: profile?.role
-        }}
-        onLogout={signOut}
-        isMobileMenuOpen={isMobileMenuOpen}
-        setIsMobileMenuOpen={setIsMobileMenuOpen}
-      />
+      {!hideSidebar && (
+        <UnifiedSidebar
+          sections={sidebarSections}
+          activeTab={activeTab}
+          activeSubTab={financialSubTab}
+          onTabChange={setActiveTab as (tabId: string) => void}
+          onSubTabChange={setFinancialSubTab}
+          userProfile={{
+            name: profile?.name,
+            email: profile?.email,
+            role: profile?.role
+          }}
+          onLogout={signOut}
+          isMobileMenuOpen={isMobileMenuOpen}
+          setIsMobileMenuOpen={setIsMobileMenuOpen}
+        />
+      )}
 
       {/* Main Content */}
-      <main className="flex-1 min-w-0 pt-16 lg:pt-0">
+      <main className={hideSidebar ? "flex-1 min-w-0" : "flex-1 min-w-0 pt-16 lg:pt-0"}>
         <div className="p-4 lg:p-8 max-w-[1600px] mx-auto">
           <AnimatePresence mode="wait">
             <motion.div
@@ -258,8 +309,40 @@ const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps)
                         <Users className="w-4 h-4 mr-2" />
                         Pacientes
                       </Button>
+
+                      {plannerSelectedDoctor && (profile?.is_admin || ['CLINIC_ADMIN', 'ADMIN'].includes(profile?.role || '')) && (
+                        <Button
+                          onClick={() => {
+                            const doc = doctors.find(d => d.id === plannerSelectedDoctor);
+                            const user = users.find(u => u.id === doc?.user_id);
+                            if (doc && user) {
+                              handleManageWorkHours(doc as Doctor, user);
+                            }
+                          }}
+                          className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                          variant="outline"
+                        >
+                          <Clock className="w-4 h-4 mr-2" />
+                          Configurar Horários
+                        </Button>
+                      )}
                     </div>
                   </div>
+
+                  {/* Date Search for Receptionists */}
+                  {clinicId && (
+                    <DoctorsByDateSearch
+                      clinicId={clinicId}
+                      onSelectDoctor={(doctorId) => setPlannerSelectedDoctor(doctorId)}
+                    />
+                  )}
+
+                  {/* Exibir nome do médico selecionado */}
+                  {plannerSelectedDoctor && (
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                      Calendário do Dr(a). {doctors.find(d => d.id === plannerSelectedDoctor)?.profile?.name || 'Médico'}
+                    </h3>
+                  )}
 
                   <DoctorMonthlyCalendar
                     clinicId={clinicId || ""}

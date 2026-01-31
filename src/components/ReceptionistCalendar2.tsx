@@ -29,7 +29,7 @@ const statusColors = {
   SCHEDULED: { bg: "bg-blue-500", text: "text-white", label: "Agendado" },
   CONFIRMED: { bg: "bg-green-500", text: "text-white", label: "Confirmado" },
   COMPLETED: { bg: "bg-gray-500", text: "text-white", label: "Concluído" },
-  CANCELLED: { bg: "bg-red-500", text: "text-white", label: "Cancelado" },
+  CANCELED: { bg: "bg-red-500", text: "text-white", label: "Cancelado" },
   NO_SHOW: { bg: "bg-orange-500", text: "text-white", label: "Faltou" },
 };
 
@@ -320,11 +320,11 @@ const ReceptionistCalendar = ({ clinicId, doctorId }) => {
             {viewMode === "week"
               ? `Semana de ${weekStart.toLocaleDateString("pt-BR")}`
               : selectedDate.toLocaleDateString("pt-BR", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
           </h3>
         </div>
 
@@ -395,20 +395,18 @@ const ReceptionistCalendar = ({ clinicId, doctorId }) => {
                       className="text-center p-3 border-l border-gray-200"
                     >
                       <div
-                        className={`text-sm font-semibold ${
-                          isToday ? "text-purple-600" : "text-gray-700"
-                        }`}
+                        className={`text-sm font-semibold ${isToday ? "text-purple-600" : "text-gray-700"
+                          }`}
                       >
                         {viewMode === "week"
                           ? weekdays[day.getDay()]
                           : weekdaysFull[day.getDay()]}
                       </div>
                       <div
-                        className={`text-2xl font-bold mt-1 ${
-                          isToday
+                        className={`text-2xl font-bold mt-1 ${isToday
                             ? "bg-purple-600 text-white rounded-full w-10 h-10 flex items-center justify-center mx-auto"
                             : "text-gray-900"
-                        }`}
+                          }`}
                       >
                         {day.getDate()}
                       </div>
@@ -461,20 +459,18 @@ const ReceptionistCalendar = ({ clinicId, doctorId }) => {
                             <div
                               className="bg-blue-50 opacity-30"
                               style={{
-                                top: `${
-                                  (parseInt(workHour.start_time.split(":")[0]) -
+                                top: `${(parseInt(workHour.start_time.split(":")[0]) -
                                     6) *
                                   2 *
                                   48
-                                }px`,
-                                height: `${
-                                  (parseInt(workHour.end_time.split(":")[0]) -
+                                  }px`,
+                                height: `${(parseInt(workHour.end_time.split(":")[0]) -
                                     parseInt(
                                       workHour.start_time.split(":")[0]
                                     )) *
                                   2 *
                                   48
-                                }px`,
+                                  }px`,
                               }}
                             />
                           </div>

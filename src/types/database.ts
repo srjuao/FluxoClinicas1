@@ -1,17 +1,19 @@
 // Database types based on Supabase schema
 
-export type AppointmentStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED";
+export type AppointmentStatus = "SCHEDULED" | "COMPLETED" | "CANCELED" | "PRE_SCHEDULED" | "CONFIRMED";
 
 export interface Appointment {
   id: string;
   clinic_id: string;
   doctor_id: string;
-  patient_id: string;
+  patient_id: string | null;
   scheduled_start: string; // ISO timestamp
   scheduled_end: string; // ISO timestamp
   status: AppointmentStatus;
   created_at: string;
   reason?: string;
+  pre_schedule_name?: string | null;
+  pre_schedule_phone?: string | null;
 }
 
 export interface DoctorWorkHours {
