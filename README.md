@@ -65,6 +65,7 @@ Create a `.env` file (recommended for production):
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_anon_key
 VITE_SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+VITE_WHATSAPP_API_URL=http://localhost:3000
 ```
 
 ## 📊 Database Schema

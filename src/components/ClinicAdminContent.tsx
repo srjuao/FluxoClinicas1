@@ -11,7 +11,8 @@ import {
   Menu,
   X,
   Stethoscope,
-  LogOut
+  LogOut,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
@@ -21,6 +22,7 @@ import CreateUserModal from "@/components/CreateUserModal";
 import ManageWorkHoursModal from "@/components/ManageWorkHoursModal";
 import DoctorMonthlyCalendar from "@/components/DoctorMonthlyCalendar";
 import PatientManagementModal from "@/components/PatientManagementModal";
+import WhatsAppModal from "@/components/WhatsAppModal";
 import FinancialModule, { financialMenuItems } from "@/components/FinancialModule";
 import type {
   Profile,
@@ -32,7 +34,7 @@ import DoctorAutocomplete from "@/components/DoctorAutocomplete";
 import UnifiedSidebar, { SidebarItem, SidebarSection } from "@/components/UnifiedSidebar";
 
 interface ClinicAdminContentProps {
-  defaultTab?: 'planner' | 'users' | 'financial';
+  defaultTab?: 'planner' | 'users' | 'whatsapp' | 'financial';
 }
 
 const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps) => {
@@ -50,6 +52,7 @@ const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps)
   const [userSearch, setUserSearch] = useState("");
   const [plannerSelectedDoctor, setPlannerSelectedDoctor] = useState<string | null>(null);
   const [showPatientManagement, setShowPatientManagement] = useState(false);
+  const [showWhatsApp, setShowWhatsApp] = useState(false);
 
   const clinicId = profile?.clinic_id;
 
@@ -136,6 +139,7 @@ const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps)
   const menuItems = [
     { id: 'planner', label: 'Planner', icon: Calendar, text: "Planner Semanal" },
     { id: 'users', label: 'Equipe', icon: Users, text: "Gestão de Equipe", roles: ["CLINIC_ADMIN", "ADMIN"] },
+    { id: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, text: "WhatsApp", roles: ["CLINIC_ADMIN", "ADMIN"] },
     { id: 'financial', label: 'Financeiro', icon: DollarSign, text: "Gestão Financeira", roles: ["CLINIC_ADMIN", "ADMIN"] },
   ];
 
@@ -410,6 +414,48 @@ const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps)
                 </div>
               )}
 
+              {activeTab === 'whatsapp' && (
+                <div className="space-y-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        WhatsApp
+                      </h2>
+                      <p className="text-gray-500">Gerencie a conexão e envie mensagens</p>
+                    </div>
+
+                    <Button
+                      onClick={() => setShowWhatsApp(true)}
+                      className="bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-200"
+                    >
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      Gerenciar WhatsApp
+                    </Button>
+                  </div>
+
+                  <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
+                    <div className="flex flex-col items-center justify-center text-center py-8">
+                      <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
+                        <MessageCircle className="w-8 h-8 text-green-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        Integração WhatsApp
+                      </h3>
+                      <p className="text-gray-500 max-w-md mb-6">
+                        Conecte o WhatsApp da clínica para enviar mensagens aos pacientes diretamente pelo sistema.
+                      </p>
+                      <Button
+                        onClick={() => setShowWhatsApp(true)}
+                        className="bg-green-500 hover:bg-green-600 text-white gap-2"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Abrir WhatsApp
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'financial' && (
                 <div className="h-full flex flex-col">
                   <div className="mb-6">
@@ -469,6 +515,10 @@ const ClinicAdminContent = ({ defaultTab = 'planner' }: ClinicAdminContentProps)
           clinicId={clinicId}
           onClose={() => setShowPatientManagement(false)}
         />
+      )}
+
+      {showWhatsApp && (
+        <WhatsAppModal onClose={() => setShowWhatsApp(false)} />
       )}
     </div>
   );
