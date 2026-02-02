@@ -24,7 +24,7 @@ import CreateUserModal from "@/components/CreateUserModal";
 import ManageWorkHoursModal from "@/components/ManageWorkHoursModal";
 import DoctorMonthlyCalendar from "@/components/DoctorMonthlyCalendar";
 import PatientManagementModal from "@/components/PatientManagementModal";
-import WhatsAppModal from "@/components/WhatsAppModal";
+import WhatsApp from "@/pages/WhatsApp";
 import FinancialModule, { financialMenuItems } from "@/components/FinancialModule";
 import type {
   Profile,
@@ -61,7 +61,6 @@ const ClinicAdminContent = ({ defaultTab = 'planner', hideSidebar = false }: Cli
   const [userSearch, setUserSearch] = useState("");
   const [plannerSelectedDoctor, setPlannerSelectedDoctor] = useState<string | null>(null);
   const [showPatientManagement, setShowPatientManagement] = useState(false);
-  const [showWhatsApp, setShowWhatsApp] = useState(false);
 
   const clinicId = profile?.clinic_id;
 
@@ -234,7 +233,7 @@ const ClinicAdminContent = ({ defaultTab = 'planner', hideSidebar = false }: Cli
   ];
 
   return (
-    <div className={hideSidebar ? "" : "flex bg-gray-50 min-h-screen"}>
+    <div className={hideSidebar ? "" : "flex bg-gray-50 flex-1"}>
       {/* Mobile Toggle Button */}
       {!hideSidebar && (
         <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between shadow-sm">
@@ -273,8 +272,8 @@ const ClinicAdminContent = ({ defaultTab = 'planner', hideSidebar = false }: Cli
       )}
 
       {/* Main Content */}
-      <main className={hideSidebar ? "flex-1 min-w-0" : "flex-1 min-w-0 pt-16 lg:pt-0"}>
-        <div className="p-4 lg:p-8 max-w-[1600px] mx-auto">
+      <main className={hideSidebar ? "flex-1 min-w-0 flex" : "flex-1 min-w-0 pt-16 lg:pt-0 flex"}>
+        <div className="p-4 lg:p-8 w-[96%] max-w-[1600px] h-[calc(100vh-6rem)] mx-auto overflow-y-scroll">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -498,44 +497,8 @@ const ClinicAdminContent = ({ defaultTab = 'planner', hideSidebar = false }: Cli
               )}
 
               {activeTab === 'whatsapp' && (
-                <div className="space-y-6">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900">
-                        WhatsApp
-                      </h2>
-                      <p className="text-gray-500">Gerencie a conexão e envie mensagens</p>
-                    </div>
-
-                    <Button
-                      onClick={() => setShowWhatsApp(true)}
-                      className="bg-green-500 hover:bg-green-600 text-white shadow-lg shadow-green-200"
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      Gerenciar WhatsApp
-                    </Button>
-                  </div>
-
-                  <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
-                    <div className="flex flex-col items-center justify-center text-center py-8">
-                      <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
-                        <MessageCircle className="w-8 h-8 text-green-600" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Integração WhatsApp
-                      </h3>
-                      <p className="text-gray-500 max-w-md mb-6">
-                        Conecte o WhatsApp da clínica para enviar mensagens aos pacientes diretamente pelo sistema.
-                      </p>
-                      <Button
-                        onClick={() => setShowWhatsApp(true)}
-                        className="bg-green-500 hover:bg-green-600 text-white gap-2"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        Abrir WhatsApp
-                      </Button>
-                    </div>
-                  </div>
+                <div className="flex flex-col">
+                  <WhatsApp />
                 </div>
               )}
 
@@ -598,10 +561,6 @@ const ClinicAdminContent = ({ defaultTab = 'planner', hideSidebar = false }: Cli
           clinicId={clinicId}
           onClose={() => setShowPatientManagement(false)}
         />
-      )}
-
-      {showWhatsApp && (
-        <WhatsAppModal onClose={() => setShowWhatsApp(false)} />
       )}
     </div>
   );

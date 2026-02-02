@@ -14,7 +14,7 @@ const ClinicAdminDashboard = () => {
         <meta name="description" content="Painel administrativo da clínica" />
       </Helmet>
 
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 flex flex-col align-center">
         <nav className="glass-effect border-b border-white/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
@@ -44,7 +44,7 @@ const ClinicAdminDashboard = () => {
           </div>
         </nav>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="md:w-[93%] max-w-7xl mx-auto flex flex-1 pt-4">
           <ClinicAdminContent />
         </div>
       </div>

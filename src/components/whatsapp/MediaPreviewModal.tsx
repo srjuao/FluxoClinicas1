@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Send, Loader2, FileText, Music, Film, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { validateMediaFile, formatFileSize } from "@/lib/fileUpload";
+import { validateMediaFile } from "@/lib/fileUpload";
+import { formatFileSize } from "@/lib/whatsappUtils";
 
 interface MediaPreviewModalProps {
   file: File | null;

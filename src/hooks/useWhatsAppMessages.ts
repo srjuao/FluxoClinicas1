@@ -20,7 +20,10 @@ export function useWhatsAppMessages(chatId: string | null) {
     setLoading(true);
     try {
       const response = await whatsappClient.getMessages(chatId, limit, 0);
-      setMessages(response.messages.reverse()); // Reverse to show oldest first
+      // Messages come from API in descending order (newest first)
+      // We need to reverse them to show oldest first in the UI
+      const sortedMessages = [...response.messages].reverse();
+      setMessages(sortedMessages);
       setOffset(response.messages.length);
       setHasMore(response.messages.length === limit);
     } catch (err) {
@@ -42,7 +45,9 @@ export function useWhatsAppMessages(chatId: string | null) {
     try {
       const response = await whatsappClient.getMessages(chatId, limit, offset);
       if (response.messages.length > 0) {
-        setMessages((prev) => [...response.messages.reverse(), ...prev]);
+        // Reverse messages to show oldest first, then prepend to existing messages
+        const olderMessages = [...response.messages].reverse();
+        setMessages((prev) => [...olderMessages, ...prev]);
         setOffset((prev) => prev + response.messages.length);
         setHasMore(response.messages.length === limit);
       } else {

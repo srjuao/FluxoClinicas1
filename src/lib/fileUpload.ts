@@ -24,19 +24,6 @@ export const MAX_AUDIO_SIZE = 16; // MB
 export const MAX_DOCUMENT_SIZE = 10; // MB
 
 /**
- * Format file size for display
- */
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  } else if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  } else {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-}
-
-/**
  * Upload file to Supabase Storage
  */
 export async function uploadToSupabase(

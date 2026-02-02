@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Info, X } from "lucide-react";
 import { ChatList } from "./ChatList";
 import { MessageList } from "./MessageList";
@@ -47,9 +47,9 @@ export function WhatsAppChatInterface() {
   });
 
   // Load chats on mount
-  useState(() => {
+  useEffect(() => {
     loadChats();
-  });
+  }, [loadChats]);
 
   const handleSelectChat = useCallback((chatId: string) => {
     setSelectedChatId(chatId);
