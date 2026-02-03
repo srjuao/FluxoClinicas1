@@ -631,7 +631,23 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                             </summary>
                             <ul className="text-xs text-gray-700 mt-2 p-2 bg-white rounded border border-gray-200 list-disc list-inside">
                               {parsedContent.selectedExams.map((exam, i) => (
-                                <li key={i}>{exam}</li>
+                                <li key={i}>
+                                  {typeof exam === 'string' ? (
+                                    exam
+                                  ) : (
+                                    <span>
+                                      <strong>{exam.exam}</strong>
+                                      <span className="text-gray-500 mx-1">
+                                        ({exam.eye === 'OD' ? 'Olho Direito' : exam.eye === 'OE' ? 'Olho Esquerdo' : 'Ambos'})
+                                      </span>
+                                      {exam.observation && (
+                                        <span className="block text-gray-400 italic text-[10px] ml-2">
+                                          Obs: {exam.observation}
+                                        </span>
+                                      )}
+                                    </span>
+                                  )}
+                                </li>
                               ))}
                             </ul>
                           </details>
