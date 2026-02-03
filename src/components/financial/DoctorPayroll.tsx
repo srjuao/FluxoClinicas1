@@ -32,6 +32,7 @@ interface DoctorWithRules {
     totalDue: number;
     totalPaid: number;
     consultationValue: number | null;
+    returnConsultationValue: number | null;
     commissionPercentage: number | null;
     isCustomCommission: boolean;
 }
@@ -46,6 +47,8 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
     const [newDefaultCommission, setNewDefaultCommission] = useState("");
     const [editingConsultationValueId, setEditingConsultationValueId] = useState<string | null>(null);
     const [newConsultationValue, setNewConsultationValue] = useState("");
+    const [editingReturnConsultationValueId, setEditingReturnConsultationValueId] = useState<string | null>(null);
+    const [newReturnConsultationValue, setNewReturnConsultationValue] = useState("");
     const [editingDoctor, setEditingDoctor] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [newRule, setNewRule] = useState({
@@ -167,6 +170,7 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                     totalDue: doctorTotals[doc.id]?.due || 0,
                     totalPaid: paidByDoctor[doc.id] || 0,
                     consultationValue: pricing?.consultation_value || null,
+                    returnConsultationValue: pricing?.return_consultation_value || null,
                     commissionPercentage: commission?.commission_percentage ?? clinicDefaultCommission,
                     isCustomCommission: !!commission,
                 };
@@ -268,6 +272,59 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
             loadData();
         } catch (error) {
             console.error("Error saving consultation value:", error);
+            toast({
+                title: "Erro ao salvar valor",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleSaveReturnConsultationValue = async (doctorId: string) => {
+        const value = parseFloat(newReturnConsultationValue);
+        if (isNaN(value) || value < 0) {
+            toast({
+                title: "Valor inválido",
+                description: "Digite um valor numérico válido",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        try {
+            // Check if exists
+            const { data: existing } = await supabase
+                .from("doctor_pricing")
+                .select("id")
+                .eq("clinic_id", clinicId)
+                .eq("doctor_id", doctorId)
+                .single();
+
+            let error;
+            if (existing) {
+                const { error: updateError } = await supabase
+                    .from("doctor_pricing")
+                    .update({ return_consultation_value: value })
+                    .eq("id", existing.id);
+                error = updateError;
+            } else {
+                const { error: insertError } = await supabase
+                    .from("doctor_pricing")
+                    .insert({
+                        clinic_id: clinicId,
+                        doctor_id: doctorId,
+                        return_consultation_value: value
+                    });
+                error = insertError;
+            }
+
+            if (error) throw error;
+
+            toast({ title: "Valor do retorno atualizado!" });
+            setEditingReturnConsultationValueId(null);
+            setNewReturnConsultationValue("");
+            loadData();
+        } catch (error) {
+            console.error("Error saving return consultation value:", error);
             toast({
                 title: "Erro ao salvar valor",
                 variant: "destructive",
@@ -742,6 +799,69 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                                                             }}
                                                         >
                                                             Definir Valor Consulta
+                                                            {!isRestricted && <Edit className="w-3 h-3 ml-1 opacity-50" />}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Valor Retorno */}
+                                            {editingReturnConsultationValueId === doctor.id ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-sm font-semibold text-blue-700">R$</span>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            value={newReturnConsultationValue}
+                                                            onChange={(e) => setNewReturnConsultationValue(e.target.value)}
+                                                            className="w-20 px-2 py-1 text-sm rounded border border-blue-300 focus:ring-1 focus:ring-blue-500 min-w-[80px]"
+                                                            autoFocus
+                                                        />
+                                                    </div>
+                                                    <Button
+                                                        onClick={() => handleSaveReturnConsultationValue(doctor.id)}
+                                                        size="sm"
+                                                        className="h-7 px-2 bg-blue-600 hover:bg-blue-700 text-white"
+                                                    >
+                                                        <Save className="w-3 h-3" />
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => {
+                                                            setEditingReturnConsultationValueId(null);
+                                                            setNewReturnConsultationValue("");
+                                                        }}
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-7 px-2 text-gray-500 hover:text-red-500"
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1">
+                                                    {doctor.returnConsultationValue ? (
+                                                        <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 flex items-center gap-1 cursor-pointer hover:bg-blue-200 transition-colors"
+                                                            onClick={() => {
+                                                                if (!isRestricted) {
+                                                                    setEditingReturnConsultationValueId(doctor.id);
+                                                                    setNewReturnConsultationValue(doctor.returnConsultationValue?.toString() || "");
+                                                                }
+                                                            }}
+                                                        >
+                                                            Retorno: R$ {doctor.returnConsultationValue.toFixed(2)}
+                                                            {!isRestricted && <Edit className="w-3 h-3 ml-1 opacity-50" />}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-500 flex items-center gap-1 cursor-pointer hover:bg-gray-200 transition-colors"
+                                                            onClick={() => {
+                                                                if (!isRestricted) {
+                                                                    setEditingReturnConsultationValueId(doctor.id);
+                                                                    setNewReturnConsultationValue("");
+                                                                }
+                                                            }}
+                                                        >
+                                                            Definir Valor Retorno
                                                             {!isRestricted && <Edit className="w-3 h-3 ml-1 opacity-50" />}
                                                         </span>
                                                     )}
