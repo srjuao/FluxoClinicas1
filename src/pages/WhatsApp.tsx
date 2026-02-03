@@ -275,7 +275,7 @@ const WhatsApp = () => {
 
   // Show full chat interface when connected
   return (
-    <div className="flex flex-col bg-gray-50" style={{ height: 'calc(100vh - 80px)' }}>
+    <div className="flex flex-col bg-gray-50 h-full">
       {/* Header */}
       <div className="bg-white border-b flex-shrink-0">
         <div className="px-4 sm:px-6 lg:px-8 py-3">

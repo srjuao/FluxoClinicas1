@@ -281,6 +281,7 @@ const ClinicAdminContent = ({ defaultTab = 'planner', hideSidebar = false }: Cli
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
+              className="h-full"
             >
               {activeTab === 'planner' && (
                 <div className="space-y-6">
@@ -497,7 +498,7 @@ const ClinicAdminContent = ({ defaultTab = 'planner', hideSidebar = false }: Cli
               )}
 
               {activeTab === 'whatsapp' && (
-                <div className="flex flex-col">
+                <div className="flex flex-col h-full">
                   <WhatsApp />
                 </div>
               )}
