@@ -11,7 +11,7 @@ Multi-tenant SaaS medical clinic management system built with React, TypeScript,
 - **Modern UI**: Glass-morphism design with Tailwind CSS
 - **Type-safe**: Full TypeScript with Supabase dfffatabase types
 
-## 🛠️ Tech Stack
+## 🛠️ Tech Stack..
 
 - **Frontend**: React 18 + TypeScript
 - **Build Tool**: Vite 4
