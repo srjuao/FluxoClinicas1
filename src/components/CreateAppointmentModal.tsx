@@ -11,6 +11,13 @@ import type {
   PatientFormData,
 } from "@/types/components.types";
 
+interface DoctorWithPricing extends DoctorWithProfileName {
+  pricing?: {
+    consultation_value: number;
+    return_consultation_value: number;
+  }[];
+}
+
 const SEX_OPTIONS = [
   { value: "M", label: "Masculino" },
   { value: "F", label: "Feminino" },
@@ -29,10 +36,10 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [doctors, setDoctors] = useState<DoctorWithProfileName[]>([]);
+  const [doctors, setDoctors] = useState<DoctorWithPricing[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [selectedDoctor, setSelectedDoctor] =
-    useState<DoctorWithProfileName | null>(null);
+    useState<DoctorWithPricing | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
@@ -63,12 +70,12 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
 
     const { data: doctorsData, error: doctorsError } = await supabase
       .from("doctors")
-      .select("*, profile:profiles(name)")
+      .select("*, profile:profiles(name), pricing:doctor_pricing(consultation_value, return_consultation_value)")
       .eq("clinic_id", clinicId);
 
     if (doctorsError)
       toast({ title: "Erro ao buscar médicos", variant: "destructive" });
-    else setDoctors((doctorsData as DoctorWithProfileName[]) || []);
+    else setDoctors((doctorsData as unknown as DoctorWithPricing[]) || []);
 
     // Carrega pacientes recentes para exibição inicial
     const { data: patientsData, error: patientsError } = await supabase
@@ -439,6 +446,11 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
                     }}
                   >
                     {d.profile?.name} - CRM: {d.crm}
+                    {d.pricing && d.pricing[0]?.consultation_value && (
+                      <span className="block text-xs text-green-600 font-medium">
+                        Valor da Consulta: R$ {d.pricing[0].consultation_value.toFixed(2)}
+                      </span>
+                    )}
                   </div>
                 ))}
                 {filteredDoctors.length === 0 && (
@@ -446,6 +458,13 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
                 )}
               </div>
             )}
+            {selectedDoctor && selectedDoctor.pricing && selectedDoctor.pricing[0]?.consultation_value ? (
+              <div className="mt-2">
+                <span className="text-sm font-medium text-green-600 bg-green-50 px-2 py-1 rounded-md">
+                  Valor da Consulta: R$ {selectedDoctor.pricing[0].consultation_value.toFixed(2)}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           {/* Data */}
@@ -705,6 +724,7 @@ const CreateAppointmentModal: React.FC<CreateAppointmentModalProps> = ({
                   Trocar
                 </Button>
               </div>
+
             </div>
           )}
 

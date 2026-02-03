@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
     Users,
@@ -37,7 +37,7 @@ interface DoctorWithRules {
     isCustomCommission: boolean;
 }
 
-const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = false }) => {
+const DoctorPayroll = ({ clinicId, isRestricted = false }: DoctorPayrollProps) => {
     const [loading, setLoading] = useState(true);
     const [doctors, setDoctors] = useState<DoctorWithRules[]>([]);
     const [_payments, setPayments] = useState<DoctorPaymentWithRelations[]>([]);
@@ -414,15 +414,15 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
     };
 
     // Filtrar médicos pela busca
-    const filteredDoctors = doctors.filter((doctor) =>
+    const filteredDoctors = doctors.filter((doctor: DoctorWithRules) =>
         doctor.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // Estatísticas gerais (baseado nos médicos filtrados quando há busca, senão todos)
     const displayDoctors = searchTerm ? filteredDoctors : doctors;
-    const totalProduced = displayDoctors.reduce((sum, d) => sum + d.totalProduced, 0);
-    const totalDue = displayDoctors.reduce((sum, d) => sum + d.totalDue, 0);
-    const totalPaid = displayDoctors.reduce((sum, d) => sum + d.totalPaid, 0);
+    const totalProduced = displayDoctors.reduce((sum: number, d: DoctorWithRules) => sum + d.totalProduced, 0);
+    const totalDue = displayDoctors.reduce((sum: number, d: DoctorWithRules) => sum + d.totalDue, 0);
+    const totalPaid = displayDoctors.reduce((sum: number, d: DoctorWithRules) => sum + d.totalPaid, 0);
     const totalPending = totalDue - totalPaid;
 
     // Função para imprimir recibo de pagamento
@@ -641,7 +641,7 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                                 min="0"
                                 max="100"
                                 value={newDefaultCommission}
-                                onChange={(e) => setNewDefaultCommission(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDefaultCommission(e.target.value)}
                                 className="w-24 px-3 py-2 rounded-lg border border-indigo-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-lg font-bold text-center"
                             />
                             <span className="text-lg font-bold text-indigo-600">%</span>
@@ -706,7 +706,7 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                             type="text"
                             placeholder="Buscar médico..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                             className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                         />
                     </div>
@@ -717,9 +717,9 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                         {searchTerm ? `Nenhum médico encontrado para "${searchTerm}"` : "Nenhum médico cadastrado"}
                     </div>
                 ) : (
-                    filteredDoctors.map((doctor) => {
+                    filteredDoctors.map((doctor: DoctorWithRules) => {
                         const isEditing = editingDoctor === doctor.id;
-                        const defaultRule = doctor.rules.find((r) => !r.insurance_plan_id);
+                        const defaultRule = doctor.rules.find((r: any) => !r.insurance_plan_id);
                         const pendingAmount = doctor.totalDue - doctor.totalPaid;
 
                         return (
@@ -751,7 +751,7 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                                                             type="number"
                                                             step="0.01"
                                                             value={newConsultationValue}
-                                                            onChange={(e) => setNewConsultationValue(e.target.value)}
+                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewConsultationValue(e.target.value)}
                                                             className="w-20 px-2 py-1 text-sm rounded border border-green-300 focus:ring-1 focus:ring-green-500 min-w-[80px]"
                                                             autoFocus
                                                         />
@@ -814,7 +814,7 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                                                             type="number"
                                                             step="0.01"
                                                             value={newReturnConsultationValue}
-                                                            onChange={(e) => setNewReturnConsultationValue(e.target.value)}
+                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewReturnConsultationValue(e.target.value)}
                                                             className="w-20 px-2 py-1 text-sm rounded border border-blue-300 focus:ring-1 focus:ring-blue-500 min-w-[80px]"
                                                             autoFocus
                                                         />
@@ -889,11 +889,11 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                                         )}
 
                                         {/* Regras por convênio */}
-                                        {doctor.rules.filter((r) => r.insurance_plan_id).length > 0 && (
+                                        {doctor.rules.filter((r: any) => r.insurance_plan_id).length > 0 && (
                                             <div className="mt-2 space-y-1">
                                                 {doctor.rules
-                                                    .filter((r) => r.insurance_plan_id)
-                                                    .map((rule) => (
+                                                    .filter((r: any) => r.insurance_plan_id)
+                                                    .map((rule: any) => (
                                                         <span
                                                             key={rule.id}
                                                             className="inline-block mr-2 px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-xs"
@@ -966,7 +966,7 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                                                 </label>
                                                 <select
                                                     value={newRule.payment_type}
-                                                    onChange={(e) =>
+                                                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                                                         setNewRule({ ...newRule, payment_type: e.target.value })
                                                     }
                                                     className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500"
@@ -988,7 +988,7 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                                                                 min="0"
                                                                 max="100"
                                                                 value={newRule.default_percentage}
-                                                                onChange={(e) => {
+                                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                                                     const val = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
                                                                     setNewRule({ ...newRule, default_percentage: String(val) });
                                                                 }}
@@ -1007,7 +1007,7 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                                                                 min="0"
                                                                 max="100"
                                                                 value={100 - (parseFloat(newRule.default_percentage) || 0)}
-                                                                onChange={(e) => {
+                                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                                                     const clinicVal = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
                                                                     const doctorVal = 100 - clinicVal;
                                                                     setNewRule({ ...newRule, default_percentage: String(doctorVal) });
@@ -1029,7 +1029,7 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                                                         type="number"
                                                         step="0.01"
                                                         value={newRule.default_fixed_value}
-                                                        onChange={(e) =>
+                                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                                             setNewRule({ ...newRule, default_fixed_value: e.target.value })
                                                         }
                                                         className="w-full px-3 py-2 rounded-lg border border-blue-200 focus:ring-2 focus:ring-blue-500 bg-blue-50"
@@ -1044,13 +1044,13 @@ const DoctorPayroll: React.FC<DoctorPayrollProps> = ({ clinicId, isRestricted = 
                                                 </label>
                                                 <select
                                                     value={newRule.insurance_plan_id}
-                                                    onChange={(e) =>
+                                                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                                                         setNewRule({ ...newRule, insurance_plan_id: e.target.value })
                                                     }
                                                     className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500"
                                                 >
                                                     <option value="">Todos (padrão)</option>
-                                                    {insurancePlans.map((plan) => (
+                                                    {insurancePlans.map((plan: any) => (
                                                         <option key={plan.id} value={plan.id}>
                                                             {plan.name}
                                                         </option>
