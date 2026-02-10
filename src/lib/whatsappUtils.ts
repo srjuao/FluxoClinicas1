@@ -168,9 +168,12 @@ export function getMediaUrl(message: WhatsAppMessage): string | null {
  * Get message preview text for chat list
  */
 export function getMessagePreview(message: WhatsAppMessage): string {
-  switch (message.message_type) {
+  const type = message.message_type as string;
+  const raw = message.content as Record<string, any>;
+
+  switch (type) {
     case "text":
-      return message.content.text || "";
+      return raw?.text || "";
     case "image":
       return "📷 Imagem";
     case "video":
@@ -178,12 +181,32 @@ export function getMessagePreview(message: WhatsAppMessage): string {
     case "audio":
       return "🎤 Áudio";
     case "document":
-      return `📎 ${message.content.filename || "Documento"}`;
+      return `📎 ${raw?.filename || raw?.fileName || "Documento"}`;
     case "sticker":
       return "🎨 Figurinha";
     case "location":
       return "📍 Localização";
     case "contact":
+      return "👤 Contato";
+    // Legacy Baileys raw types
+    case "conversation":
+      return raw?.conversation || raw?.text || "";
+    case "extendedTextMessage":
+      return raw?.extendedTextMessage?.text || raw?.text || "";
+    case "imageMessage":
+      return "📷 Imagem";
+    case "videoMessage":
+      return "🎥 Vídeo";
+    case "audioMessage":
+      return "🎤 Áudio";
+    case "documentMessage":
+      return `📎 ${raw?.documentMessage?.fileName || "Documento"}`;
+    case "stickerMessage":
+      return "🎨 Figurinha";
+    case "locationMessage":
+      return "📍 Localização";
+    case "contactMessage":
+    case "contactsArrayMessage":
       return "👤 Contato";
     default:
       return "Mensagem";

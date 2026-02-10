@@ -15,33 +15,48 @@ export function useWhatsAppChats() {
     try {
       const response = await whatsappClient.getChats();
       
-      // Transform API response to WhatsAppChat format
-      const transformedChats: WhatsAppChat[] = await Promise.all(
-        response.chats.map(async (chat) => {
-          const phone = extractPhoneFromJid(chat.jid);
-          
-          // Try to get profile picture
-          let profile_picture: string | undefined;
-          try {
-            const picResponse = await whatsappClient.getProfilePicture(phone);
-            profile_picture = picResponse.profile_picture_url || undefined;
-          } catch {
-            // Profile picture not available
-          }
-
-          return {
-            jid: chat.jid,
-            phone,
-            profile_picture,
-            unread_count: 0,
-            pinned: false,
-            archived: false,
-            muted: false,
-          };
-        })
-      );
+      // Transform API response to WhatsAppChat format — render immediately without pictures
+      const transformedChats: WhatsAppChat[] = response.chats.map((chat) => {
+        const phone = extractPhoneFromJid(chat.jid);
+        const lastMsg = chat.last_message;
+        return {
+          jid: chat.jid,
+          phone,
+          last_message: lastMsg
+            ? ({
+                message_type: lastMsg.message_type,
+                content: lastMsg.content as any,
+                timestamp: lastMsg.timestamp,
+                from_me: lastMsg.from_me,
+              } as any)
+            : undefined,
+          last_message_time: lastMsg?.timestamp,
+          unread_count: 0,
+          pinned: false,
+          archived: false,
+          muted: false,
+        };
+      });
 
       setChats(transformedChats);
+      setLoading(false);
+
+      // Fetch profile pictures in background without blocking the UI
+      for (const chat of transformedChats) {
+        whatsappClient.getProfilePicture(chat.phone).then((picResponse) => {
+          if (picResponse.profile_picture_url) {
+            setChats((prev) =>
+              prev.map((c) =>
+                c.jid === chat.jid
+                  ? { ...c, profile_picture: picResponse.profile_picture_url || undefined }
+                  : c
+              )
+            );
+          }
+        }).catch(() => {
+          // Profile picture not available — ignore
+        });
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erro ao carregar conversas";
       setError(errorMessage);
@@ -50,7 +65,6 @@ export function useWhatsAppChats() {
         description: errorMessage,
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
   }, []);

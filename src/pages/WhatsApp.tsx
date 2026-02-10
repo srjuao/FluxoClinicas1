@@ -1,141 +1,55 @@
-import { useState, useEffect, useCallback } from "react";
-import { MessageCircle, QrCode, Loader2, CheckCircle2, XCircle, RefreshCw, LogOut } from "lucide-react";
+import { MessageCircle, QrCode, Loader2, CheckCircle2, XCircle, RefreshCw, LogOut, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/use-toast";
-import { whatsappClient, type WhatsAppStatus } from "@/lib/whatsappClient";
+import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 import { WhatsAppChatInterface } from "@/components/whatsapp/WhatsAppChatInterface";
+import type { WhatsAppStatus } from "@/lib/whatsappClient";
+
+function StatusBadge({ status }: { status: WhatsAppStatus }) {
+  const badges = {
+    connected: {
+      color: "bg-green-100 text-green-700 border-green-200",
+      icon: CheckCircle2,
+      text: "Conectado",
+    },
+    disconnected: {
+      color: "bg-gray-100 text-gray-700 border-gray-200",
+      icon: XCircle,
+      text: "Desconectado",
+    },
+    connecting: {
+      color: "bg-yellow-100 text-yellow-700 border-yellow-200",
+      icon: Loader2,
+      text: "Conectando...",
+    },
+    qr_pending: {
+      color: "bg-blue-100 text-blue-700 border-blue-200",
+      icon: QrCode,
+      text: "Aguardando QR Code",
+    },
+  };
+
+  const badge = badges[status.status];
+  const Icon = badge.icon;
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border ${badge.color}`}>
+      <Icon className={`w-4 h-4 ${status.status === "connecting" ? "animate-spin" : ""}`} />
+      {badge.text}
+      {status.phone && ` • ${status.phone}`}
+    </span>
+  );
+}
 
 const WhatsApp = () => {
-  const [status, setStatus] = useState<WhatsAppStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
-
-  const fetchStatus = useCallback(async () => {
-    try {
-      const data = await whatsappClient.getStatus();
-      setStatus(data);
-      
-      // Auto-reconnect if there's a saved session
-      if (data.status === "disconnected" && data.canReconnect && !connecting) {
-        console.log("Auto-reconnecting with saved session...");
-        setConnecting(true);
-        try {
-          const connectData = await whatsappClient.connect();
-          setStatus(connectData);
-        } catch (err) {
-          console.error("Auto-reconnect failed:", err);
-        } finally {
-          setConnecting(false);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching status:", error);
-      setStatus({ status: "disconnected" });
-    } finally {
-      setLoading(false);
-    }
-  }, [connecting]);
-
-  useEffect(() => {
-    fetchStatus();
-  }, []);
-
-  useEffect(() => {
-    if (status?.status === "qr_pending" || status?.status === "connecting") {
-      const interval = setInterval(fetchStatus, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [status?.status, fetchStatus]);
-
-  const handleConnect = async () => {
-    setConnecting(true);
-    try {
-      const data = await whatsappClient.connect();
-      setStatus(data);
-      if (data.status === "connected") {
-        toast({ title: "WhatsApp conectado com sucesso!" });
-      }
-    } catch (error) {
-      toast({
-        title: "Erro ao conectar",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
-      });
-    } finally {
-      setConnecting(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    try {
-      await whatsappClient.disconnect();
-      setStatus({ status: "disconnected" });
-      toast({ title: "WhatsApp desconectado" });
-    } catch (error) {
-      toast({
-        title: "Erro ao desconectar",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleLogout = async () => {
-    const confirmed = window.confirm(
-      "Isso irá desconectar e remover a sessão do WhatsApp. Você precisará escanear o QR code novamente. Continuar?"
-    );
-    if (!confirmed) return;
-
-    try {
-      await whatsappClient.logout();
-      setStatus({ status: "disconnected" });
-      toast({ title: "Sessão do WhatsApp removida" });
-    } catch (error) {
-      toast({
-        title: "Erro ao fazer logout",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const renderStatusBadge = () => {
-    if (!status) return null;
-
-    const badges = {
-      connected: {
-        color: "bg-green-100 text-green-700 border-green-200",
-        icon: CheckCircle2,
-        text: "Conectado",
-      },
-      disconnected: {
-        color: "bg-gray-100 text-gray-700 border-gray-200",
-        icon: XCircle,
-        text: "Desconectado",
-      },
-      connecting: {
-        color: "bg-yellow-100 text-yellow-700 border-yellow-200",
-        icon: Loader2,
-        text: "Conectando...",
-      },
-      qr_pending: {
-        color: "bg-blue-100 text-blue-700 border-blue-200",
-        icon: QrCode,
-        text: "Aguardando QR Code",
-      },
-    };
-
-    const badge = badges[status.status];
-    const Icon = badge.icon;
-
-    return (
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border ${badge.color}`}>
-        <Icon className={`w-4 h-4 ${status.status === "connecting" ? "animate-spin" : ""}`} />
-        {badge.text}
-        {status.phone && ` • ${status.phone}`}
-      </span>
-    );
-  };
+  const {
+    status,
+    loading,
+    connecting,
+    fetchStatus,
+    handleConnect,
+    handleDisconnect,
+    handleLogout,
+  } = useWhatsAppConnection();
 
   if (loading) {
     return (
@@ -162,7 +76,7 @@ const WhatsApp = () => {
                   <p className="text-sm text-gray-600">Gerenciamento de mensagens</p>
                 </div>
               </div>
-              {renderStatusBadge()}
+              {status && <StatusBadge status={status} />}
             </div>
           </div>
         </div>
@@ -219,9 +133,21 @@ const WhatsApp = () => {
                   <h2 className="text-xl font-semibold text-gray-900 mb-2">
                     WhatsApp Desconectado
                   </h2>
-                  <p className="text-gray-600 mb-6">
-                    Conecte sua conta do WhatsApp para começar a enviar e receber mensagens
-                  </p>
+                  {status.has_saved_session && status.phone ? (
+                    <div className="space-y-2">
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg text-sm text-gray-600">
+                        <Phone className="w-4 h-4" />
+                        Sessão salva: {status.phone}
+                      </div>
+                      <p className="text-gray-600">
+                        Reconectando automaticamente...
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-gray-600 mb-6">
+                      Conecte sua conta do WhatsApp para começar a enviar e receber mensagens
+                    </p>
+                  )}
                 </div>
                 <Button
                   onClick={handleConnect}
@@ -234,7 +160,7 @@ const WhatsApp = () => {
                   ) : (
                     <QrCode className="w-5 h-5" />
                   )}
-                  {connecting ? "Conectando..." : "Conectar WhatsApp"}
+                  {connecting ? "Conectando..." : status.has_saved_session ? "Reconectar" : "Conectar WhatsApp"}
                 </Button>
               </div>
             )}
@@ -255,7 +181,7 @@ const WhatsApp = () => {
             )}
 
             {/* Logout Option */}
-            {status?.status !== "disconnected" && (
+            {(status?.status !== "disconnected" || status?.has_saved_session) && (
               <div className="pt-6 border-t">
                 <Button
                   onClick={handleLogout}
@@ -289,7 +215,7 @@ const WhatsApp = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {renderStatusBadge()}
+              <StatusBadge status={status} />
               <Button
                 onClick={handleDisconnect}
                 variant="outline"

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { WhatsAppMessage } from "@/types/whatsapp.types";
 import { whatsappClient } from "@/lib/whatsappClient";
+import { supabase } from "@/lib/customSupabaseClient";
 
 interface UseWhatsAppRealtimeOptions {
   chatId: string | null;
@@ -13,66 +14,72 @@ export function useWhatsAppRealtime({
   chatId,
   onNewMessage,
   enabled = true,
-  pollingInterval = 3000,
+  pollingInterval = 5000,
 }: UseWhatsAppRealtimeOptions) {
-  const lastMessageIdRef = useRef<string | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const onNewMessageRef = useRef(onNewMessage);
+  onNewMessageRef.current = onNewMessage;
+  const knownIdsRef = useRef<Set<string>>(new Set());
 
+  // Reset known IDs when chat changes
   useEffect(() => {
-    if (!enabled || !chatId) {
-      return;
-    }
+    knownIdsRef.current = new Set();
+  }, [chatId]);
 
-    const checkForNewMessages = async () => {
-      try {
-        const response = await whatsappClient.getMessages(chatId, 10, 0);
-        
-        if (response.messages.length > 0) {
-          const latestMessage = response.messages[0];
-          
-          // Check if this is a new message
-          if (
-            lastMessageIdRef.current &&
-            latestMessage.message_id !== lastMessageIdRef.current
-          ) {
-            // Find all new messages
-            const newMessages = [];
-            for (const message of response.messages) {
-              if (message.message_id === lastMessageIdRef.current) {
-                break;
-              }
-              newMessages.push(message);
-            }
-            
-            // Notify about new messages (oldest first)
-            newMessages.reverse().forEach((message) => {
-              onNewMessage(message);
-            });
+  // Supabase Realtime subscription (instant if enabled on table)
+  useEffect(() => {
+    if (!enabled || !chatId) return;
+
+    const channel = supabase
+      .channel(`whatsapp-messages-${chatId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "whatsapp_messages",
+          filter: `remote_jid=eq.${chatId}`,
+        },
+        (payload) => {
+          const row = payload.new as WhatsAppMessage;
+          if (!knownIdsRef.current.has(row.message_id)) {
+            knownIdsRef.current.add(row.message_id);
+            onNewMessageRef.current(row);
           }
-          
-          // Update last message ID
-          lastMessageIdRef.current = latestMessage.message_id;
         }
-      } catch (error) {
-        console.error("Error checking for new messages:", error);
-      }
-    };
-
-    // Initial check to set the baseline
-    checkForNewMessages();
-
-    // Set up polling
-    intervalRef.current = setInterval(checkForNewMessages, pollingInterval);
+      )
+      .subscribe();
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      supabase.removeChannel(channel);
+    };
+  }, [chatId, enabled]);
+
+  // Polling fallback (in case Supabase Realtime is not enabled on the table)
+  useEffect(() => {
+    if (!enabled || !chatId) return;
+
+    const poll = async () => {
+      try {
+        const response = await whatsappClient.getMessages(chatId, 10, 0);
+        for (const msg of response.messages) {
+          if (!knownIdsRef.current.has(msg.message_id)) {
+            knownIdsRef.current.add(msg.message_id);
+            onNewMessageRef.current(msg);
+          }
+        }
+      } catch {
+        // Ignore poll errors silently
       }
     };
-  }, [chatId, enabled, pollingInterval, onNewMessage]);
 
-  // Reset when chat changes
-  useEffect(() => {
-    lastMessageIdRef.current = null;
-  }, [chatId]);
+    // Initial baseline — populate known IDs without dispatching
+    whatsappClient.getMessages(chatId, 50, 0).then((response) => {
+      for (const msg of response.messages) {
+        knownIdsRef.current.add(msg.message_id);
+      }
+    }).catch(() => {});
+
+    const interval = setInterval(poll, pollingInterval);
+    return () => clearInterval(interval);
+  }, [chatId, enabled, pollingInterval]);
 }

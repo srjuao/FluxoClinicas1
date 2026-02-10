@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Check, CheckCheck, Clock, Download, FileText, MapPin, User } from "lucide-react";
 import type { WhatsAppMessage } from "@/types/whatsapp.types";
-import { formatMessageTime, getMediaUrl, formatFileSize } from "@/lib/whatsappUtils";
+import { formatMessageTime, getMediaUrl } from "@/lib/whatsappUtils";
 
 interface MessageBubbleProps {
   message: WhatsAppMessage;
@@ -37,6 +37,7 @@ export function MessageBubble({ message, onMediaClick }: MessageBubbleProps) {
   );
 
   const renderImageMessage = () => {
+    console.log('mediaUrl', mediaUrl, imageError);
     if (!mediaUrl || imageError) {
       return (
         <div className="flex items-center gap-2 text-gray-500">

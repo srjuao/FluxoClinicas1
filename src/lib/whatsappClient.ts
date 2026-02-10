@@ -1,6 +1,5 @@
 import { supabase } from "./customSupabaseClient";
 import type {
-  WhatsAppMessage,
   SendMediaPayload,
   ChatListResponse,
   MessagesResponse,
@@ -15,7 +14,20 @@ interface WhatsAppStatus {
   status: "connected" | "disconnected" | "connecting" | "qr_pending";
   qr?: string;
   phone?: string;
-  canReconnect?: boolean;
+  has_saved_session?: boolean;
+  can_reconnect?: boolean;
+  connected_at?: string;
+  updated_at?: string;
+}
+
+interface WhatsAppSessionInfo {
+  clinic_id: string;
+  phone_number: string | null;
+  db_status: string;
+  live_status: string;
+  connected_at: string | null;
+  updated_at: string | null;
+  qr?: string;
 }
 
 interface SendMessagePayload {
@@ -85,6 +97,16 @@ export const whatsappClient = {
     return apiRequest<ApiResponse>("/api/instance/logout", {
       method: "POST",
     });
+  },
+
+  async reconnect(): Promise<WhatsAppStatus> {
+    return apiRequest<WhatsAppStatus>("/api/instance/reconnect", {
+      method: "POST",
+    });
+  },
+
+  async getSessions(): Promise<{ sessions: WhatsAppSessionInfo[] }> {
+    return apiRequest<{ sessions: WhatsAppSessionInfo[] }>("/api/instance/sessions");
   },
 
   async sendTextMessage(payload: SendMessagePayload): Promise<ApiResponse> {
@@ -227,4 +249,4 @@ export const whatsappClient = {
   },
 };
 
-export type { WhatsAppStatus, SendMessagePayload };
+export type { WhatsAppStatus, WhatsAppSessionInfo, SendMessagePayload };

@@ -14,6 +14,7 @@ export interface WhatsAppMessage {
     latitude?: number;
     longitude?: number;
     name?: string;
+    address?: string;
     phone?: string;
   };
   status: 'sent' | 'delivered' | 'read' | 'failed';
@@ -53,7 +54,15 @@ export interface SendMediaPayload {
 }
 
 export interface ChatListResponse {
-  chats: Array<{ jid: string }>;
+  chats: Array<{
+    jid: string;
+    last_message?: {
+      message_type: string;
+      content: Record<string, unknown>;
+      timestamp: string;
+      from_me: boolean;
+    };
+  }>;
 }
 
 export interface MessagesResponse {

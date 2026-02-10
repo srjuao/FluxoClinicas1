@@ -37,7 +37,7 @@ export function MessageInput({
     }
   };
 
-  const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendText();
@@ -160,7 +160,7 @@ export function MessageInput({
           ref={textareaRef}
           value={message}
           onChange={handleTextareaChange}
-          onKeyPress={handleKeyPress}
+          onKeyDown={handleKeyDown}
           placeholder="Digite uma mensagem..."
           disabled={disabled || sending}
           rows={1}
