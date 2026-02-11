@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/customSupabaseClient";
 import { toast } from "@/components/ui/use-toast";
-import type { DoctorPaymentRuleWithRelations, DoctorPaymentWithRelations } from "@/types/financial.types";
+import type { DoctorPaymentRuleWithRelations, DoctorPaymentWithRelations, DoctorProcedure } from "@/types/financial.types";
 
 interface DoctorPayrollProps {
     clinicId: string;
@@ -35,6 +35,7 @@ interface DoctorWithRules {
     returnConsultationValue: number | null;
     commissionPercentage: number | null;
     isCustomCommission: boolean;
+    procedures: DoctorProcedure[];
 }
 
 const DoctorPayroll = ({ clinicId, isRestricted = false }: DoctorPayrollProps) => {
@@ -58,6 +59,8 @@ const DoctorPayroll = ({ clinicId, isRestricted = false }: DoctorPayrollProps) =
         insurance_plan_id: "",
         custom_value: "",
     });
+    const [newProcedure, setNewProcedure] = useState({ name: "", value: "" });
+    const [editingProcedureDoctor, setEditingProcedureDoctor] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
         if (!clinicId) return;
@@ -97,6 +100,12 @@ const DoctorPayroll = ({ clinicId, isRestricted = false }: DoctorPayrollProps) =
             // Carregar comissões personalizadas por médico
             const { data: commissionsData } = await supabase
                 .from("clinic_commission")
+                .select("*")
+                .eq("clinic_id", clinicId);
+
+            // Carregar procedimentos/cirurgias
+            const { data: proceduresData } = await supabase
+                .from("doctor_procedures")
                 .select("*")
                 .eq("clinic_id", clinicId);
 
@@ -173,6 +182,7 @@ const DoctorPayroll = ({ clinicId, isRestricted = false }: DoctorPayrollProps) =
                     returnConsultationValue: pricing?.return_consultation_value || null,
                     commissionPercentage: commission?.commission_percentage ?? clinicDefaultCommission,
                     isCustomCommission: !!commission,
+                    procedures: (proceduresData || []).filter((p: any) => p.doctor_id === doc.id),
                 };
             });
 
@@ -401,6 +411,60 @@ const DoctorPayroll = ({ clinicId, isRestricted = false }: DoctorPayrollProps) =
             console.error("Error saving rule:", error);
             toast({
                 title: "Erro ao salvar regra",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleSaveProcedure = async (doctorId: string) => {
+        if (!newProcedure.name || !newProcedure.value) {
+            toast({
+                title: "Preencha os campos",
+                description: "Nome e valor são obrigatórios",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from("doctor_procedures")
+                .insert({
+                    clinic_id: clinicId,
+                    doctor_id: doctorId,
+                    name: newProcedure.name,
+                    value: parseFloat(newProcedure.value),
+                });
+
+            if (error) throw error;
+
+            toast({ title: "Procedimento adicionado!" });
+            setNewProcedure({ name: "", value: "" });
+            loadData();
+        } catch (error) {
+            console.error("Error saving procedure:", error);
+            toast({
+                title: "Erro ao salvar procedimento",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleDeleteProcedure = async (procedureId: string) => {
+        try {
+            const { error } = await supabase
+                .from("doctor_procedures")
+                .delete()
+                .eq("id", procedureId);
+
+            if (error) throw error;
+
+            toast({ title: "Procedimento removido!" });
+            loadData();
+        } catch (error) {
+            console.error("Error deleting procedure:", error);
+            toast({
+                title: "Erro ao remover procedimento",
                 variant: "destructive",
             });
         }
@@ -875,6 +939,11 @@ const DoctorPayroll = ({ clinicId, isRestricted = false }: DoctorPayrollProps) =
                                                     Médico recebe: R$ {(doctor.consultationValue * (1 - doctor.commissionPercentage / 100)).toFixed(2)}
                                                 </span>
                                             )}
+                                            {doctor.returnConsultationValue && doctor.commissionPercentage !== null && (
+                                                <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-semibold">
+                                                    Médico recebe (Retorno): R$ {(doctor.returnConsultationValue * (1 - doctor.commissionPercentage / 100)).toFixed(2)}
+                                                </span>
+                                            )}
                                         </div>
 
                                         {/* Regra atual (legado) */}
@@ -903,6 +972,96 @@ const DoctorPayroll = ({ clinicId, isRestricted = false }: DoctorPayrollProps) =
                                                     ))}
                                             </div>
                                         )}
+
+                                        {/* Pequenas Cirurgias / Procedimentos */}
+                                        <div className="mt-4 pt-4 border-t border-gray-100">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h5 className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                                                    PROCEDIMENTOS / CIRURGIAS
+                                                </h5>
+                                            </div>
+
+                                            {!isRestricted && (
+                                                <div className="flex items-center gap-2 mb-3 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Nome do procedimento"
+                                                        className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-teal-500 outline-none"
+                                                        value={editingProcedureDoctor === doctor.id ? newProcedure.name : ""}
+                                                        onFocus={() => {
+                                                            if (editingProcedureDoctor !== doctor.id) {
+                                                                setEditingProcedureDoctor(doctor.id);
+                                                                setNewProcedure({ name: "", value: "" });
+                                                            }
+                                                        }}
+                                                        onChange={(e) => setNewProcedure({ ...newProcedure, name: e.target.value })}
+                                                    />
+                                                    <div className="relative w-24">
+                                                        <span className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs">R$</span>
+                                                        <input
+                                                            type="number"
+                                                            placeholder="0,00"
+                                                            className="w-full pl-6 pr-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-teal-500 outline-none"
+                                                            value={editingProcedureDoctor === doctor.id ? newProcedure.value : ""}
+                                                            onFocus={() => {
+                                                                if (editingProcedureDoctor !== doctor.id) {
+                                                                    setEditingProcedureDoctor(doctor.id);
+                                                                    setNewProcedure({ name: "", value: "" });
+                                                                }
+                                                            }}
+                                                            onChange={(e) => setNewProcedure({ ...newProcedure, value: e.target.value })}
+                                                        />
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-8 px-3 bg-teal-600 hover:bg-teal-700 text-white font-medium"
+                                                        onClick={() => handleSaveProcedure(doctor.id)}
+                                                        disabled={editingProcedureDoctor !== doctor.id || !newProcedure.name || !newProcedure.value}
+                                                    >
+                                                        <Save className="w-3 h-3 mr-1" />
+                                                        Adicionar
+                                                    </Button>
+                                                </div>
+                                            )}
+
+                                            <div className="flex flex-wrap gap-2">
+                                                {doctor.procedures && doctor.procedures.length > 0 ? (
+                                                    doctor.procedures.map((proc) => {
+                                                        const doctorShare = proc.value * (1 - (doctor.commissionPercentage ?? 30) / 100);
+                                                        return (
+                                                            <div
+                                                                key={proc.id}
+                                                                className="group relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-teal-100 shadow-sm text-sm text-gray-700 hover:border-teal-300 transition-all"
+                                                            >
+                                                                <span className="font-semibold text-teal-700">{proc.name}</span>
+                                                                <div className="h-3 w-px bg-gray-200"></div>
+                                                                <span className="font-medium">R$ {proc.value.toFixed(2)}</span>
+
+                                                                {/* Tooltip com valor do médico */}
+                                                                <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20 shadow-lg">
+                                                                    Médico recebe: <span className="text-teal-300 font-bold">R$ {doctorShare.toFixed(2)}</span>
+                                                                    <div className="absolute bottom-[-4px] left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+                                                                </div>
+
+                                                                {!isRestricted && (
+                                                                    <button
+                                                                        onClick={() => handleDeleteProcedure(proc.id)}
+                                                                        className="ml-1 p-1 rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                                                                        title="Remover procedimento"
+                                                                    >
+                                                                        <X className="w-3 h-3" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <span className="text-xs text-gray-400 italic py-1 block w-full text-center bg-gray-50 rounded border border-dashed border-gray-200">
+                                                        Nenhum procedimento cadastrado.
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div className="flex flex-col gap-2 text-right">

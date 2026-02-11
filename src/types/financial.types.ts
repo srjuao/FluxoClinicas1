@@ -196,6 +196,18 @@ export interface InsuranceAvgPaymentTime {
 }
 
 // ============================================
+// PROCEDIMENTOS / CIRURGIAS
+// ============================================
+export interface DoctorProcedure {
+  id: string;
+  clinic_id: string;
+  doctor_id: string;
+  name: string;
+  value: number;
+  created_at: string;
+}
+
+// ============================================
 // CONSTANTES
 // ============================================
 export const EXPENSE_CATEGORIES: { value: ExpenseCategory; label: string }[] = [

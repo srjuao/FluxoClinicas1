@@ -6,7 +6,8 @@ import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
 import { formatCPF } from "@/utils";
 import type { Patient } from "@/types/database";
-import type { InsurancePlan, DoctorPricing, ClinicCommission } from "@/types/database.types";
+import type { InsurancePlan, ClinicCommission } from "@/types/database.types";
+import type { DoctorProcedure } from "@/types/financial.types";
 
 // Lista de tipos de exame de ultrassom
 const EXAM_TYPES = [
@@ -82,13 +83,19 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
   const [selectedUltrasoundDoctor, setSelectedUltrasoundDoctor] = useState<string | null>(null);
   const [currentDoctorHasUltrasound, setCurrentDoctorHasUltrasound] = useState(false);
 
+  // Estados para procedimentos
+  const [doctorProcedures, setDoctorProcedures] = useState<DoctorProcedure[]>([]);
+  const [selectedProcedureId, setSelectedProcedureId] = useState<string>("");
+  const [procedureSearch, setProcedureSearch] = useState("");
+
   // Estados para convênio
   const [isInsurance, setIsInsurance] = useState(false);
   const [insurancePlans, setInsurancePlans] = useState<InsurancePlan[]>([]);
   const [selectedInsurancePlan, setSelectedInsurancePlan] = useState<string>("");
 
   // Estados para valores financeiros
-  const [consultationValue, setConsultationValue] = useState<number>(0);
+  const [pricing, setPricing] = useState<{ consultation: number; return: number }>({ consultation: 0, return: 0 });
+  const [baseValue, setBaseValue] = useState<number>(0);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [finalValue, setFinalValue] = useState<number>(0);
   const [clinicCommissionPercentage, setClinicCommissionPercentage] = useState<number>(0);
@@ -187,18 +194,27 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
       // Carregar valor da consulta do médico
       const { data: pricingData, error: pricingError } = await supabase
         .from("doctor_pricing")
-        .select("consultation_value")
+        .select("consultation_value, return_consultation_value")
         .eq("doctor_id", doctorId)
         .eq("clinic_id", clinicId)
         .single();
 
       if (pricingError && pricingError.code !== "PGRST116") {
-        // PGRST116 = no rows returned, que é ok se não tiver preço definido
         throw pricingError;
       }
 
-      const value = pricingData?.consultation_value || 0;
-      setConsultationValue(value);
+      const consultationPrice = pricingData?.consultation_value || 0;
+      const returnPrice = pricingData?.return_consultation_value || 0;
+      setPricing({ consultation: consultationPrice, return: returnPrice });
+
+      // Carregar procedimentos do médico
+      const { data: proceduresData } = await supabase
+        .from("doctor_procedures")
+        .select("*")
+        .eq("doctor_id", doctorId)
+        .eq("clinic_id", clinicId);
+
+      setDoctorProcedures(proceduresData || []);
 
       // Carregar comissão da clínica
       const { data: commissionData, error: commissionError } = await supabase
@@ -304,9 +320,29 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
     loadUltrasoundDoctors();
   }, [loadUltrasoundDoctors]);
 
-  // Calcular valores quando mudar convênio ou valor da consulta
+  // Calcular valor base quando mudar motivo, pricing ou procedimento
   useEffect(() => {
-    if (consultationValue <= 0) {
+    if (reason === "consulta") {
+      setBaseValue(pricing.consultation);
+    } else if (reason === "consulta_retorno") {
+      setBaseValue(pricing.consultation + pricing.return);
+    } else if (reason === "retorno") {
+      setBaseValue(pricing.return);
+    } else if (reason === "pequena_cirurgia" && selectedProcedureId) {
+      const proc = doctorProcedures.find(p => p.id === selectedProcedureId);
+      setBaseValue(proc ? proc.value : 0);
+    } else {
+      // Exame ou outros
+      setBaseValue(0);
+    }
+  }, [reason, pricing, selectedProcedureId, doctorProcedures]);
+
+  // Calcular valores finais
+  useEffect(() => {
+    // Se for retorno, muitas vezes é gratuito ou valor fixo sem desconto de convênio comum, 
+    // mas vamos manter a lógica de convênio se o usuário selecionar.
+
+    if (baseValue <= 0) {
       setFinalValue(0);
       setDiscountAmount(0);
       setClinicCommissionAmount(0);
@@ -318,11 +354,11 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
     if (isInsurance && selectedInsurancePlan) {
       const plan = insurancePlans.find((p) => p.id === selectedInsurancePlan);
       if (plan) {
-        discount = (consultationValue * plan.discount_percentage) / 100;
+        discount = (baseValue * plan.discount_percentage) / 100;
       }
     }
 
-    const final = consultationValue - discount;
+    const final = baseValue - discount;
     const clinicCommission = (final * clinicCommissionPercentage) / 100;
     const doctor = final - clinicCommission;
 
@@ -331,7 +367,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
     setClinicCommissionAmount(clinicCommission);
     setDoctorAmount(doctor);
   }, [
-    consultationValue,
+    baseValue,
     isInsurance,
     selectedInsurancePlan,
     insurancePlans,
@@ -394,15 +430,27 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
       let reasonText =
         reason === "consulta"
           ? "Consulta"
-          : reason === "retorno"
-            ? "Retorno"
-            : reason === "exame"
-              ? "Exame"
-              : null;
+          : reason === "consulta_retorno"
+            ? "Consulta + Retorno"
+            : reason === "retorno"
+              ? "Retorno"
+              : reason === "exame"
+                ? "Exame"
+                : reason === "pequena_cirurgia"
+                  ? "Pequena Cirurgia"
+                  : null;
 
       // Se for exame, adicionar o tipo de exame ao motivo
       if (reason === "exame" && selectedExamType) {
         reasonText = `Exame: ${selectedExamType}`;
+      }
+
+      // Se for cirurgia, adicionar o nome
+      if (reason === "pequena_cirurgia" && selectedProcedureId) {
+        const proc = doctorProcedures.find(p => p.id === selectedProcedureId);
+        if (proc) {
+          reasonText = `Cirurgia: ${proc.name}`;
+        }
       }
 
       const { error } = await supabase.from("appointments").insert({
@@ -415,7 +463,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
         reason: reasonText,
         is_insurance: isInsurance,
         insurance_plan_id: isInsurance && selectedInsurancePlan ? selectedInsurancePlan : null,
-        consultation_value: consultationValue > 0 ? consultationValue : null,
+        consultation_value: baseValue > 0 ? baseValue : null,
         discount_amount: discountAmount > 0 ? discountAmount : null,
         final_value: finalValue > 0 ? finalValue : null,
         clinic_commission_percentage: clinicCommissionPercentage > 0 ? clinicCommissionPercentage : null,
@@ -523,11 +571,40 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
                 className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
               >
                 <option value="">Selecione o motivo...</option>
-                <option value="consulta">Consulta</option>
-                <option value="retorno">Retorno</option>
+                <option value="consulta">Consulta (R$ {pricing.consultation.toFixed(2)})</option>
+                <option value="consulta_retorno">Consulta + Retorno (R$ {(pricing.consultation + pricing.return).toFixed(2)})</option>
+                <option value="retorno">Retorno (R$ {pricing.return.toFixed(2)})</option>
                 <option value="exame">Exame</option>
+                <option value="pequena_cirurgia">Pequena Cirurgia</option>
               </select>
             </div>
+
+            {/* Selector de Pequena Cirurgia */}
+            {reason === "pequena_cirurgia" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Selecione o Procedimento
+                </label>
+                {doctorProcedures.length === 0 ? (
+                  <p className="text-sm text-yellow-600 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                    Nenhum procedimento cadastrado para este médico. Configure no Financeiro.
+                  </p>
+                ) : (
+                  <select
+                    value={selectedProcedureId}
+                    onChange={(e) => setSelectedProcedureId(e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+                  >
+                    <option value="">Selecione...</option>
+                    {doctorProcedures.map((proc) => (
+                      <option key={proc.id} value={proc.id}>
+                        {proc.name} - R$ {proc.value.toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
 
             {/* Exam Type Selector - aparece quando motivo é Exame */}
             {reason === "exame" && (
@@ -672,15 +749,15 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
             </div>
 
             {/* Resumo Financeiro (se houver valores configurados) */}
-            {consultationValue > 0 && (
+            {baseValue > 0 && (
               <div className="glass-effect rounded-lg p-4 space-y-2">
                 <h4 className="font-semibold text-gray-900 text-sm mb-2">
                   Resumo Financeiro
                 </h4>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Valor da Consulta:</span>
-                    <span className="font-medium">R$ {consultationValue.toFixed(2)}</span>
+                    <span className="text-gray-600">Valor Base:</span>
+                    <span className="font-medium">R$ {baseValue.toFixed(2)}</span>
                   </div>
                   {discountAmount > 0 && (
                     <div className="flex justify-between text-green-600">
@@ -763,7 +840,7 @@ const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({
           <Button
             onClick={handleSubmit}
             className="flex-1 gradient-primary text-white"
-            disabled={!selectedPatient || !reason || (reason === "exame" && (!selectedExamType || !selectedUltrasoundDoctor || ultrasoundDoctors.length === 0)) || submitting}
+            disabled={!selectedPatient || !reason || (reason === "exame" && (!selectedExamType || !selectedUltrasoundDoctor || ultrasoundDoctors.length === 0)) || (reason === "pequena_cirurgia" && !selectedProcedureId) || submitting}
           >
             {submitting ? "Agendando..." : "Confirmar Agendamento"}
           </Button>
