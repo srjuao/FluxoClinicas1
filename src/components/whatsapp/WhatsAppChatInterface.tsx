@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Info, X } from "lucide-react";
+import { Info, X, User } from "lucide-react";
+import { formatPhoneDisplay } from "@/lib/whatsappUtils";
 import { ChatList } from "./ChatList";
 import { MessageList } from "./MessageList";
 import { MessageInput } from "./MessageInput";
@@ -53,6 +54,14 @@ export function WhatsAppChatInterface() {
 
   const handleSelectChat = useCallback((chatId: string) => {
     setSelectedChatId(chatId);
+    setShowContactInfo(false);
+  }, []);
+
+  const handleNewChat = useCallback((phone: string) => {
+    const cleaned = phone.replace(/\D/g, "");
+    const withCountry = cleaned.length <= 11 ? `55${cleaned}` : cleaned;
+    const jid = `${withCountry}@s.whatsapp.net`;
+    setSelectedChatId(jid);
     setShowContactInfo(false);
   }, []);
 
@@ -169,6 +178,7 @@ export function WhatsAppChatInterface() {
           chats={chats}
           selectedChatId={selectedChatId}
           onSelectChat={handleSelectChat}
+          onNewChat={handleNewChat}
           loading={chatsLoading}
           onRefresh={loadChats}
         />
@@ -181,15 +191,32 @@ export function WhatsAppChatInterface() {
             {/* Chat Header */}
             <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="font-semibold text-gray-900">
-                  {selectedChat?.name || selectedChat?.phone || "Conversa"}
+                {selectedChat?.profile_picture ? (
+                  <img
+                    src={selectedChat.profile_picture}
+                    alt={selectedChat.name || ""}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                    <User className="w-5 h-5 text-gray-500" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="font-semibold text-gray-900 truncate">
+                    {selectedChat?.name || selectedChat?.phone || "Conversa"}
+                  </div>
+                  {selectedChat?.phone && (
+                    <div className="text-xs text-gray-500 truncate">
+                      {formatPhoneDisplay(selectedChat.phone)}
+                    </div>
+                  )}
                 </div>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowContactInfo(!showContactInfo)}
-                className="md:hidden"
               >
                 {showContactInfo ? (
                   <X className="w-5 h-5" />
@@ -226,19 +253,17 @@ export function WhatsAppChatInterface() {
       </div>
 
       {/* Contact Info - Right Panel */}
-      <div
-        className={`${
-          showContactInfo ? "block" : "hidden"
-        } md:block flex-shrink-0`}
-      >
-        <ContactInfo
-          chat={selectedChat}
-          onArchive={handleArchiveChat}
-          onMute={handleMuteChat}
-          onDelete={handleDeleteChat}
-          onClose={() => setShowContactInfo(false)}
-        />
-      </div>
+      {selectedChat && showContactInfo && (
+        <div className="flex-shrink-0">
+          <ContactInfo
+            chat={selectedChat}
+            onArchive={handleArchiveChat}
+            onMute={handleMuteChat}
+            onDelete={handleDeleteChat}
+            onClose={() => setShowContactInfo(false)}
+          />
+        </div>
+      )}
 
       {/* Media Preview Modal */}
       {mediaPreview && (

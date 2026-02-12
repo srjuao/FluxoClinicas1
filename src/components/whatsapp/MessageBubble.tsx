@@ -37,7 +37,6 @@ export function MessageBubble({ message, onMediaClick }: MessageBubbleProps) {
   );
 
   const renderImageMessage = () => {
-    console.log('mediaUrl', mediaUrl, imageError);
     if (!mediaUrl || imageError) {
       return (
         <div className="flex items-center gap-2 text-gray-500">
@@ -191,9 +190,16 @@ export function MessageBubble({ message, onMediaClick }: MessageBubbleProps) {
       case "contact":
         return renderContactMessage();
       case "sticker":
-        return (
+        return mediaUrl ? (
+          <img
+            src={mediaUrl}
+            alt="Sticker"
+            className="w-32 h-32 object-contain"
+            onError={() => setImageError(true)}
+          />
+        ) : (
           <div className="text-sm text-gray-500 italic">
-            Figurinha não suportada
+            Figurinha
           </div>
         );
       default:

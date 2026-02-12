@@ -73,9 +73,10 @@ async function apiRequest<T>(
 }
 
 export const whatsappClient = {
-  async connect(): Promise<WhatsAppStatus> {
+  async connect(options?: { syncFullHistory?: boolean }): Promise<WhatsAppStatus> {
     return apiRequest<WhatsAppStatus>("/api/instance/connect", {
       method: "POST",
+      body: JSON.stringify(options || {}),
     });
   },
 

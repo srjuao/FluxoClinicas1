@@ -161,7 +161,7 @@ const WhatsAppModal = ({ onClose }: WhatsAppModalProps) => {
               {/* Connection Actions */}
               {status?.status === "disconnected" && (
                 <Button
-                  onClick={handleConnect}
+                  onClick={() => handleConnect()}
                   disabled={connecting}
                   className="w-full bg-green-500 hover:bg-green-600 text-white gap-2"
                 >

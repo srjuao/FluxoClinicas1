@@ -149,8 +149,10 @@ const WhatsApp = () => {
                     </p>
                   )}
                 </div>
+                {/* History Import Option — hidden: Baileys syncFullHistory is currently broken */}
+
                 <Button
-                  onClick={handleConnect}
+                  onClick={() => handleConnect()}
                   disabled={connecting}
                   className="bg-green-500 hover:bg-green-600 text-white gap-2 px-8 py-6 text-lg"
                   size="lg"

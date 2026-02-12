@@ -52,10 +52,10 @@ export function useWhatsAppConnection() {
     }
   }, [status?.status, fetchStatus]);
 
-  const handleConnect = useCallback(async () => {
+  const handleConnect = useCallback(async (options?: { syncFullHistory?: boolean }) => {
     setConnecting(true);
     try {
-      const data = await whatsappClient.connect();
+      const data = await whatsappClient.connect(options);
       setStatus(data);
       if (data.status === "connected") {
         toast({ title: "WhatsApp conectado com sucesso!" });
