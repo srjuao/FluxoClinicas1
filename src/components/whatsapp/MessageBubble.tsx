@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { Check, CheckCheck, Clock, Download, FileText, MapPin, User } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Check, CheckCheck, Clock, Download, FileText, Loader2, MapPin, User } from "lucide-react";
 import type { WhatsAppMessage } from "@/types/whatsapp.types";
-import { formatMessageTime, getMediaUrl } from "@/lib/whatsappUtils";
+import { formatMessageTime, isMediaMessage } from "@/lib/whatsappUtils";
+import { whatsappClient } from "@/lib/whatsappClient";
 
 interface MessageBubbleProps {
   message: WhatsAppMessage;
@@ -10,8 +11,35 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, onMediaClick }: MessageBubbleProps) {
   const [imageError, setImageError] = useState(false);
+  const [mediaBlobUrl, setMediaBlobUrl] = useState<string | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const blobUrlRef = useRef<string | null>(null);
   const isFromMe = message.from_me;
-  const mediaUrl = getMediaUrl(message);
+
+  useEffect(() => {
+    if (!isMediaMessage(message) || !message.message_id) return;
+
+    let cancelled = false;
+    setMediaLoading(true);
+
+    whatsappClient.fetchMediaBlob(message.message_id).then((url) => {
+      if (cancelled) {
+        if (url) URL.revokeObjectURL(url);
+        return;
+      }
+      blobUrlRef.current = url;
+      setMediaBlobUrl(url);
+      setMediaLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, [message.message_id, message.message_type]);
 
   const renderStatusIcon = () => {
     if (!isFromMe) return null;
@@ -30,6 +58,15 @@ export function MessageBubble({ message, onMediaClick }: MessageBubbleProps) {
     }
   };
 
+  const mediaUrl = mediaBlobUrl;
+
+  const renderMediaLoading = () => (
+    <div className="flex items-center gap-2 text-gray-400 py-2">
+      <Loader2 className="w-5 h-5 animate-spin" />
+      <span className="text-sm">Carregando mídia...</span>
+    </div>
+  );
+
   const renderTextMessage = () => (
     <div className="whitespace-pre-wrap break-words">
       {message.content.text}
@@ -37,6 +74,7 @@ export function MessageBubble({ message, onMediaClick }: MessageBubbleProps) {
   );
 
   const renderImageMessage = () => {
+    if (mediaLoading) return renderMediaLoading();
     if (!mediaUrl || imageError) {
       return (
         <div className="flex items-center gap-2 text-gray-500">
@@ -63,6 +101,7 @@ export function MessageBubble({ message, onMediaClick }: MessageBubbleProps) {
   };
 
   const renderVideoMessage = () => {
+    if (mediaLoading) return renderMediaLoading();
     if (!mediaUrl) {
       return (
         <div className="flex items-center gap-2 text-gray-500">
@@ -90,6 +129,7 @@ export function MessageBubble({ message, onMediaClick }: MessageBubbleProps) {
   };
 
   const renderAudioMessage = () => {
+    if (mediaLoading) return renderMediaLoading();
     if (!mediaUrl) {
       return (
         <div className="flex items-center gap-2 text-gray-500">
@@ -116,14 +156,14 @@ export function MessageBubble({ message, onMediaClick }: MessageBubbleProps) {
         <FileText className="w-8 h-8 text-gray-600 flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="font-medium text-sm truncate">{filename}</div>
-          <div className="text-xs text-gray-500">Documento</div>
+          <div className="text-xs text-gray-500">
+            {mediaLoading ? "Baixando..." : "Documento"}
+          </div>
         </div>
         {mediaUrl && (
           <a
             href={mediaUrl}
             download={filename}
-            target="_blank"
-            rel="noopener noreferrer"
             className="flex-shrink-0"
           >
             <Download className="w-5 h-5 text-gray-600 hover:text-gray-900" />

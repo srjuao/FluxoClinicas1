@@ -252,6 +252,21 @@ export const whatsappClient = {
       body: JSON.stringify({ phones }),
     });
   },
+
+  async fetchMediaBlob(messageId: string): Promise<string | null> {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(
+        `${WHATSAPP_API_URL}/api/messages/media/${messageId}`,
+        { headers: { Authorization: headers.Authorization } }
+      );
+      if (!response.ok) return null;
+      const blob = await response.blob();
+      return URL.createObjectURL(blob);
+    } catch {
+      return null;
+    }
+  },
 };
 
 export type { WhatsAppStatus, WhatsAppSessionInfo, SendMessagePayload };

@@ -155,13 +155,14 @@ export function isMediaMessage(message: WhatsAppMessage): boolean {
 }
 
 /**
- * Get media URL from message content
+ * Check if message has media that can be fetched via backend proxy
  */
 export function getMediaUrl(message: WhatsAppMessage): string | null {
   if (!isMediaMessage(message)) {
     return null;
   }
-  return message.content.url || null;
+  // Return message_id as a marker — actual fetching is done via whatsappClient.fetchMediaBlob
+  return message.message_id || null;
 }
 
 /**
