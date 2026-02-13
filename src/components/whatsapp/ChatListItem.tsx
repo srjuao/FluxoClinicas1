@@ -66,7 +66,7 @@ export function ChatListItem({ chat, isSelected, onClick }: ChatListItemProps) {
           <p className="text-sm text-gray-600 truncate flex-1">
             {truncateText(lastMessagePreview, 40)}
           </p>
-          {chat.unread_count && chat.unread_count > 0 && (
+          {chat.unread_count != null && chat.unread_count > 0 && (
             <span className="ml-2 bg-green-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
               {chat.unread_count > 99 ? "99+" : chat.unread_count}
             </span>

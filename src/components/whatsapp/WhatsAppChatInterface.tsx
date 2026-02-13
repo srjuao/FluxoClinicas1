@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { Info, X, User } from "lucide-react";
-import { formatPhoneDisplay } from "@/lib/whatsappUtils";
+import { formatPhoneDisplay, extractPhoneFromJid } from "@/lib/whatsappUtils";
 import { ChatList } from "./ChatList";
 import { MessageList } from "./MessageList";
 import { MessageInput } from "./MessageInput";
 import { ContactInfo } from "./ContactInfo";
 import { MediaPreviewModal } from "./MediaPreviewModal";
+import { NewChatModal } from "./NewChatModal";
 import { useWhatsAppChats } from "@/hooks/useWhatsAppChats";
 import { useWhatsAppMessages } from "@/hooks/useWhatsAppMessages";
 import { useWhatsAppRealtime } from "@/hooks/useWhatsAppRealtime";
@@ -21,6 +22,7 @@ export function WhatsAppChatInterface() {
     type: string;
   } | null>(null);
   const [sendingMedia, setSendingMedia] = useState(false);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
 
   // Custom hooks
   const {
@@ -28,6 +30,8 @@ export function WhatsAppChatInterface() {
     loading: chatsLoading,
     loadChats,
     updateChatInList,
+    addOrUpdateChat,
+    resetUnread,
   } = useWhatsAppChats();
 
   const {
@@ -52,18 +56,44 @@ export function WhatsAppChatInterface() {
     loadChats();
   }, [loadChats]);
 
+  // Poll chat list periodically to pick up new messages across all chats
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadChats();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [loadChats]);
+
   const handleSelectChat = useCallback((chatId: string) => {
     setSelectedChatId(chatId);
     setShowContactInfo(false);
+    resetUnread(chatId);
+  }, [resetUnread]);
+
+  const openNewChatModal = useCallback(() => {
+    setShowNewChatModal(true);
   }, []);
 
-  const handleNewChat = useCallback((phone: string) => {
+  const handleContactSelected = useCallback((phone: string, contactName?: string) => {
     const cleaned = phone.replace(/\D/g, "");
     const withCountry = cleaned.length <= 11 ? `55${cleaned}` : cleaned;
     const jid = `${withCountry}@s.whatsapp.net`;
+
+    // Add placeholder chat so it appears in the list and header immediately
+    addOrUpdateChat({
+      jid,
+      phone: withCountry,
+      name: contactName,
+      unread_count: 0,
+      pinned: false,
+      archived: false,
+      muted: false,
+    });
+
     setSelectedChatId(jid);
     setShowContactInfo(false);
-  }, []);
+    setShowNewChatModal(false);
+  }, [addOrUpdateChat]);
 
   const handleSendText = useCallback(
     async (text: string) => {
@@ -170,6 +200,10 @@ export function WhatsAppChatInterface() {
 
   const selectedChat = chats.find((c) => c.jid === selectedChatId) || null;
 
+  // Fallback display values when chat isn't in the list yet
+  const displayPhone = selectedChat?.phone || (selectedChatId ? extractPhoneFromJid(selectedChatId) : "");
+  const displayName = selectedChat?.name || (displayPhone ? formatPhoneDisplay(displayPhone) : "Conversa");
+
   return (
     <div className="flex h-full">
       {/* Chat List - Left Panel */}
@@ -178,7 +212,7 @@ export function WhatsAppChatInterface() {
           chats={chats}
           selectedChatId={selectedChatId}
           onSelectChat={handleSelectChat}
-          onNewChat={handleNewChat}
+          onNewChat={openNewChatModal}
           loading={chatsLoading}
           onRefresh={loadChats}
         />
@@ -204,11 +238,11 @@ export function WhatsAppChatInterface() {
                 )}
                 <div className="min-w-0">
                   <div className="font-semibold text-gray-900 truncate">
-                    {selectedChat?.name || selectedChat?.phone || "Conversa"}
+                    {displayName}
                   </div>
-                  {selectedChat?.phone && (
+                  {displayPhone && (
                     <div className="text-xs text-gray-500 truncate">
-                      {formatPhoneDisplay(selectedChat.phone)}
+                      {formatPhoneDisplay(displayPhone)}
                     </div>
                   )}
                 </div>
@@ -263,6 +297,14 @@ export function WhatsAppChatInterface() {
             onClose={() => setShowContactInfo(false)}
           />
         </div>
+      )}
+
+      {/* New Chat Modal */}
+      {showNewChatModal && (
+        <NewChatModal
+          onSelectContact={handleContactSelected}
+          onClose={() => setShowNewChatModal(false)}
+        />
       )}
 
       {/* Media Preview Modal */}

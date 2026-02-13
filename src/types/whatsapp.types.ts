@@ -62,6 +62,7 @@ export interface ChatListResponse {
       timestamp: string;
       from_me: boolean;
     };
+    incoming_count?: number;
   }>;
 }
 

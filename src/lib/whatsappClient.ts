@@ -110,6 +110,10 @@ export const whatsappClient = {
     return apiRequest<{ sessions: WhatsAppSessionInfo[] }>("/api/instance/sessions");
   },
 
+  async getContacts(): Promise<{ contacts: Array<{ jid: string; name?: string; notify?: string; phone?: string }> }> {
+    return apiRequest<{ contacts: Array<{ jid: string; name?: string; notify?: string; phone?: string }> }>("/api/contacts");
+  },
+
   async sendTextMessage(payload: SendMessagePayload): Promise<ApiResponse> {
     return apiRequest<ApiResponse>("/api/messages/text", {
       method: "POST",

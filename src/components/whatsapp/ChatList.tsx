@@ -9,7 +9,7 @@ interface ChatListProps {
   selectedChatId: string | null;
   onSelectChat: (chatId: string) => void;
   onRefresh?: () => void;
-  onNewChat?: (phone: string) => void;
+  onNewChat?: () => void;
   loading?: boolean;
 }
 
@@ -21,8 +21,6 @@ export function ChatList({
   loading = false,
 }: ChatListProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [showNewChat, setShowNewChat] = useState(false);
-  const [newChatPhone, setNewChatPhone] = useState("");
 
   const filteredChats = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -55,7 +53,7 @@ export function ChatList({
           <h2 className="font-semibold text-gray-900">Conversas</h2>
           {onNewChat && (
             <button
-              onClick={() => setShowNewChat(!showNewChat)}
+              onClick={onNewChat}
               className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-600 hover:text-gray-900"
               title="Nova conversa"
             >
@@ -63,37 +61,6 @@ export function ChatList({
             </button>
           )}
         </div>
-
-        {/* New Chat Input */}
-        {showNewChat && onNewChat && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (newChatPhone.trim()) {
-                onNewChat(newChatPhone.trim());
-                setNewChatPhone("");
-                setShowNewChat(false);
-              }
-            }}
-            className="flex gap-2"
-          >
-            <input
-              type="text"
-              placeholder="Número (ex: 11999998888)"
-              value={newChatPhone}
-              onChange={(e) => setNewChatPhone(e.target.value)}
-              autoFocus
-              className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-            <button
-              type="submit"
-              disabled={!newChatPhone.trim()}
-              className="px-3 py-1.5 text-sm bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Iniciar
-            </button>
-          </form>
-        )}
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
