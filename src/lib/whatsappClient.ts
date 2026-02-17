@@ -253,6 +253,31 @@ export const whatsappClient = {
     });
   },
 
+  // API Key Management
+  async getApiKeys(): Promise<{ api_keys: Array<{ id: string; name: string; key_prefix: string; is_active: boolean; created_at: string; last_used_at: string | null }> }> {
+    return apiRequest("/api/api-keys");
+  },
+
+  async createApiKey(name?: string): Promise<{ api_key: { id: string; name: string; key_prefix: string; is_active: boolean; created_at: string; key: string }; warning: string }> {
+    return apiRequest("/api/api-keys", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  async toggleApiKey(id: string, isActive: boolean): Promise<{ api_key: { id: string; name: string; key_prefix: string; is_active: boolean; created_at: string; last_used_at: string | null } }> {
+    return apiRequest(`/api/api-keys/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_active: isActive }),
+    });
+  },
+
+  async deleteApiKey(id: string): Promise<{ success: boolean }> {
+    return apiRequest(`/api/api-keys/${id}`, {
+      method: "DELETE",
+    });
+  },
+
   async fetchMediaBlob(messageId: string): Promise<string | null> {
     try {
       const headers = await getAuthHeaders();

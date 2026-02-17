@@ -1,7 +1,10 @@
-import { MessageCircle, QrCode, Loader2, CheckCircle2, XCircle, RefreshCw, LogOut, Phone } from "lucide-react";
+import { useState } from "react";
+import { MessageCircle, QrCode, Loader2, CheckCircle2, XCircle, RefreshCw, LogOut, Phone, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useWhatsAppConnection } from "@/hooks/useWhatsAppConnection";
 import { WhatsAppChatInterface } from "@/components/whatsapp/WhatsAppChatInterface";
+import { ApiKeysManager } from "@/components/whatsapp/ApiKeysManager";
 import type { WhatsAppStatus } from "@/lib/whatsappClient";
 
 function StatusBadge({ status }: { status: WhatsAppStatus }) {
@@ -41,6 +44,7 @@ function StatusBadge({ status }: { status: WhatsAppStatus }) {
 }
 
 const WhatsApp = () => {
+  const [showSettings, setShowSettings] = useState(false);
   const {
     status,
     loading,
@@ -219,6 +223,15 @@ const WhatsApp = () => {
             <div className="flex items-center gap-3">
               <StatusBadge status={status} />
               <Button
+                onClick={() => setShowSettings(true)}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <Settings className="w-4 h-4" />
+                Configurações
+              </Button>
+              <Button
                 onClick={handleDisconnect}
                 variant="outline"
                 size="sm"
@@ -236,6 +249,19 @@ const WhatsApp = () => {
       <div className="flex-1 overflow-hidden">
         <WhatsAppChatInterface />
       </div>
+
+      {/* Settings Dialog */}
+      <Dialog open={showSettings} onOpenChange={setShowSettings}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Configurações do WhatsApp
+            </DialogTitle>
+          </DialogHeader>
+          <ApiKeysManager />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
