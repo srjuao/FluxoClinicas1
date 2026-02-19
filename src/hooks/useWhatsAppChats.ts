@@ -34,6 +34,7 @@ export function useWhatsAppChats() {
         return {
           jid: chat.jid,
           phone,
+          name: chat.push_name || undefined,
           last_message: lastMsg
             ? ({
                 message_type: lastMsg.message_type,

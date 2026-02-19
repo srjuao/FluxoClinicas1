@@ -20,6 +20,7 @@ export interface WhatsAppMessage {
   status: 'sent' | 'delivered' | 'read' | 'failed';
   timestamp: string;
   created_at: string;
+  push_name?: string | null;
 }
 
 export interface WhatsAppChat {
@@ -56,6 +57,7 @@ export interface SendMediaPayload {
 export interface ChatListResponse {
   chats: Array<{
     jid: string;
+    push_name?: string | null;
     last_message?: {
       message_type: string;
       content: Record<string, unknown>;

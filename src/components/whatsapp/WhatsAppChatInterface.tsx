@@ -240,7 +240,7 @@ export function WhatsAppChatInterface() {
                   <div className="font-semibold text-gray-900 truncate">
                     {displayName}
                   </div>
-                  {displayPhone && (
+                  {selectedChat?.name && displayPhone && (
                     <div className="text-xs text-gray-500 truncate">
                       {formatPhoneDisplay(displayPhone)}
                     </div>

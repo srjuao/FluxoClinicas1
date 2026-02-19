@@ -4,6 +4,7 @@ import {
   getContactDisplayName,
   getMessagePreview,
   formatMessageTime,
+  formatPhoneDisplay,
   truncateText,
 } from "@/lib/whatsappUtils";
 
@@ -51,6 +52,11 @@ export function ChatListItem({ chat, isSelected, onClick }: ChatListItemProps) {
             <h3 className="font-semibold text-gray-900 truncate">
               {displayName}
             </h3>
+            {chat.name && (
+              <span className="text-xs text-gray-500 truncate flex-shrink-0">
+                {formatPhoneDisplay(chat.phone)}
+              </span>
+            )}
             {chat.pinned && (
               <Pin className="w-4 h-4 text-gray-500 flex-shrink-0" />
             )}
