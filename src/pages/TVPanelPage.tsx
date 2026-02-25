@@ -22,6 +22,26 @@ const TVPanelPage: React.FC<TVPanelPageProps> = ({ clinicId }) => {
     const [clinicName, setClinicName] = useState<string>("");
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
+    const playAudio = async () => {
+        if (audioRef.current) {
+            try {
+                audioRef.current.currentTime = 0;
+                audioRef.current.volume = 1.0;
+                await audioRef.current.play();
+
+                // Play again after 1.5 seconds for greater impact
+                setTimeout(async () => {
+                    if (audioRef.current) {
+                        audioRef.current.currentTime = 0;
+                        await audioRef.current.play();
+                    }
+                }, 1500);
+            } catch (error) {
+                console.error("Erro ao reproduzir áudio:", error);
+            }
+        }
+    };
+
     // Fetch clinic name
     useEffect(() => {
         const fetchClinic = async () => {
@@ -72,9 +92,7 @@ const TVPanelPage: React.FC<TVPanelPageProps> = ({ clinicId }) => {
                     setCurrentCall(newCall);
 
                     // Play audio alert
-                    if (audioRef.current) {
-                        audioRef.current.play().catch(console.error);
-                    }
+                    playAudio();
                 }
             )
             .subscribe();
@@ -113,11 +131,11 @@ const TVPanelPage: React.FC<TVPanelPageProps> = ({ clinicId }) => {
                 <title>Painel de Chamada - {clinicName || "Clínica"}</title>
             </Helmet>
 
-            {/* Audio alert */}
+            {/* Audio alert - using a clearer and louder doorbell sound */}
             <audio ref={audioRef} preload="auto">
                 <source
-                    src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdWmwm5qWjpSYpZmem5WVn5+io6Ojo6Sjo6OjoqOjo6OjoqOjo6Ojo6OjoqOipKOjo6Ojo6Ojo6Ojo6OjoqKioaGgoaCgoJ+fnp6enZycnJubmpqamZmYl5aVlJOSkZCPjo2Mi4qJiIeGhYSDgoGAf359fHt6eXh3dnV0c3JxcG9ubWxramloZ2ZlZGNiYWBfXl1cW1pZWFdWVVRTUlFQT05NTEtKSUhHRkVEQ0JBQD8+PTw7Ojk4NzY1NDMyMTAvLi0sKyopKCcmJSQjIiEgHx4dHBsaGRgXFhUUExIREA8ODQwLCgkIBwYFBAMCAQAAAgQFBwkKDA4QEhQWGBocHiAiJCYoKiwuMDI0Njg6PD5AQkRGSEpMTlBSVFZYWlxeYGJkZmhqbG5wcnR2eHp8foGDhYeJi42PkZOVl5mbnZ+ho6Wmp6mqq6ytrrCxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+"
-                    type="audio/wav"
+                    src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
+                    type="audio/mpeg"
                 />
             </audio>
 
@@ -134,20 +152,31 @@ const TVPanelPage: React.FC<TVPanelPageProps> = ({ clinicId }) => {
                                 <p className="text-purple-300 text-sm">Painel de Chamada de Pacientes</p>
                             </div>
                         </div>
-                        <div className="text-right">
-                            <p className="text-white/60 text-sm">
-                                {new Date().toLocaleDateString("pt-BR", {
-                                    weekday: "long",
-                                    day: "numeric",
-                                    month: "long",
-                                })}
-                            </p>
-                            <p className="text-3xl font-bold text-white">
-                                {new Date().toLocaleTimeString("pt-BR", {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                })}
-                            </p>
+                        <div className="flex items-center gap-8">
+                            {/* Test Volume Button */}
+                            <button
+                                onClick={playAudio}
+                                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-lg transition-all text-sm border border-white/5"
+                                title="Testar Volume"
+                            >
+                                <Bell className="w-4 h-4" />
+                                Testar Som
+                            </button>
+                            <div className="text-right">
+                                <p className="text-white/60 text-sm">
+                                    {new Date().toLocaleDateString("pt-BR", {
+                                        weekday: "long",
+                                        day: "numeric",
+                                        month: "long",
+                                    })}
+                                </p>
+                                <p className="text-3xl font-bold text-white">
+                                    {new Date().toLocaleTimeString("pt-BR", {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                    })}
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </header>
@@ -166,12 +195,12 @@ const TVPanelPage: React.FC<TVPanelPageProps> = ({ clinicId }) => {
                             >
                                 {/* Bell Icon Animated */}
                                 <motion.div
-                                    animate={{ rotate: [0, 10, -10, 10, -10, 0] }}
-                                    transition={{ duration: 0.5, repeat: 3 }}
+                                    animate={{ rotate: [0, 20, -20, 20, -20, 0] }}
+                                    transition={{ duration: 0.8, repeat: 2, repeatDelay: 0.2 }}
                                     className="mb-8"
                                 >
-                                    <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-2xl">
-                                        <Bell className="w-12 h-12 text-white" />
+                                    <div className="w-32 h-32 mx-auto rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-[0_0_50px_rgba(234,179,8,0.3)]">
+                                        <Bell className="w-16 h-16 text-white" />
                                     </div>
                                 </motion.div>
 
@@ -180,7 +209,7 @@ const TVPanelPage: React.FC<TVPanelPageProps> = ({ clinicId }) => {
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     transition={{ delay: 0.3 }}
-                                    className="text-7xl font-extrabold text-white mb-6 tracking-tight"
+                                    className="text-8xl font-extrabold text-white mb-8 tracking-tight drop-shadow-2xl"
                                 >
                                     {currentCall.patient_name}
                                 </motion.h2>
@@ -192,9 +221,9 @@ const TVPanelPage: React.FC<TVPanelPageProps> = ({ clinicId }) => {
                                     transition={{ delay: 0.5 }}
                                     className="inline-block"
                                 >
-                                    <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-12 py-6 rounded-2xl shadow-2xl">
-                                        <p className="text-white/80 text-xl mb-1">Dirigir-se à</p>
-                                        <p className="text-5xl font-bold text-white">{currentCall.room}</p>
+                                    <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-16 py-8 rounded-3xl shadow-[0_20px_50px_rgba(16,185,129,0.3)] border border-emerald-400/20">
+                                        <p className="text-white/80 text-2xl mb-2">Dirigir-se à</p>
+                                        <p className="text-6xl font-black text-white">{currentCall.room}</p>
                                     </div>
                                 </motion.div>
                             </motion.div>
@@ -222,16 +251,17 @@ const TVPanelPage: React.FC<TVPanelPageProps> = ({ clinicId }) => {
                 {recentCalls.length > 0 && (
                     <footer className="p-6 border-t border-white/10">
                         <div className="max-w-6xl mx-auto">
-                            <p className="text-white/60 text-sm mb-3">Chamadas anteriores:</p>
+                            <p className="text-white/60 text-sm mb-3 font-medium uppercase tracking-wider">Chamadas anteriores:</p>
                             <div className="flex gap-4">
                                 {recentCalls.map((call) => (
                                     <div
                                         key={call.id}
-                                        className="bg-white/10 rounded-xl px-6 py-3 text-white"
+                                        className="bg-white/5 border border-white/10 rounded-2xl px-8 py-4 text-white hover:bg-white/10 transition-colors"
                                     >
-                                        <span className="font-semibold">{call.patient_name}</span>
-                                        <span className="text-white/60 mx-2">→</span>
-                                        <span className="text-emerald-400">{call.room}</span>
+                                        <div className="flex flex-col">
+                                            <span className="font-bold text-lg">{call.patient_name}</span>
+                                            <span className="text-emerald-400 font-semibold">{call.room}</span>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
