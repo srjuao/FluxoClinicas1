@@ -34,7 +34,7 @@ const SuperAdminDashboard = () => {
     } else {
       // Carregar contagem de usuários por clínica
       const clinicsWithCount = await Promise.all(
-        (data || []).map(async (clinic) => {
+        (data || []).map(async (clinic: Clinic) => {
           const { count } = await supabase
             .from("profiles")
             .select("*", { count: "exact", head: true })
@@ -137,7 +137,7 @@ const SuperAdminDashboard = () => {
         />
       </Helmet>
 
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 dark:from-[#161022] dark:via-[#1a1329] dark:to-[#161022]">
         <nav className="glass-effect border-b border-white/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
@@ -202,8 +202,8 @@ const SuperAdminDashboard = () => {
                   <div className="flex flex-col items-end gap-1">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold ${clinic.is_active
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
                         }`}
                     >
                       {clinic.is_active ? "Ativa" : "Inativa"}
@@ -258,7 +258,7 @@ const SuperAdminDashboard = () => {
                   {clinic.max_users &&
                     clinic.user_count &&
                     clinic.user_count >= clinic.max_users && (
-                      <AlertCircle className="w-4 h-4 text-red-500" title="Limite atingido" />
+                      <span title="Limite atingido"><AlertCircle className="w-4 h-4 text-red-500" /></span>
                     )}
                 </div>
 

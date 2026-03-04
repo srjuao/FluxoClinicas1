@@ -36,7 +36,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 dark:from-[#161022] dark:via-[#1a1329] dark:to-[#161022]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
@@ -57,7 +57,7 @@ function App() {
         }
         // Se a clínica ainda não carregou (devido a RLS ou outro problema), mostre um loading ou erro.
         return (
-          <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
+          <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 dark:from-[#161022] dark:via-[#1a1329] dark:to-[#161022] text-slate-800 dark:text-slate-200">
             Carregando dados da clínica...
           </div>
         );

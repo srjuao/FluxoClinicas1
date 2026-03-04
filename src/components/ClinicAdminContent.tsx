@@ -230,10 +230,10 @@ const ClinicAdminContent = ({ defaultTab = 'planner', hideSidebar = false }: Cli
   ];
 
   return (
-    <div className={hideSidebar ? "" : "flex bg-gray-50 min-h-screen"}>
+    <div className={hideSidebar ? "" : "flex bg-gray-50 dark:bg-transparent min-h-screen"}>
       {/* Mobile Toggle Button */}
       {!hideSidebar && (
-        <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between shadow-sm">
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white dark:bg-[#161022] border-b dark:border-white/10 px-4 py-3 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center text-white">
               <Stethoscope className="w-5 h-5" />

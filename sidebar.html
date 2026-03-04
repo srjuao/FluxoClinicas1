@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Unified Sidebar Navigation</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#6c2bee",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#161022",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-effect {
+            background-color: rgba(22, 16, 34, 0.8);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+        }
+        .gradient-primary {
+            background: linear-gradient(135deg, #6c2bee 0%, #4f46e5 100%);
+        }
+        .gradient-secondary {
+            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+        }
+        .item-hover:hover {
+            transform: translateX(4px);
+            background-color: rgba(108, 43, 238, 0.1);
+        }
+        .sidebar-container {
+            transition: transform 0.3s ease-in-out;
+        }
+        @media (max-width: 1024px) {
+            .sidebar-offcanvas {
+                transform: translateX(-100%);
+            }
+            .sidebar-offcanvas.open {
+                transform: translateX(0);
+            }
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 overflow-hidden">
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="sidebar-container sidebar-offcanvas fixed inset-y-0 left-0 z-50 w-72 lg:static lg:translate-x-0 glass-effect border-r border-slate-200/10 flex flex-col justify-between">
+<div class="flex flex-col h-full">
+<!-- Header / Brand -->
+<div class="p-6 flex items-center gap-3">
+<div class="gradient-primary size-10 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-white">health_and_safety</span>
+</div>
+<div class="flex flex-col">
+<span class="text-lg font-bold tracking-tight text-slate-100">Unified Health</span>
+<span class="text-xs font-medium text-primary/80 uppercase tracking-widest">Medical System</span>
+</div>
+</div>
+<!-- Navigation Groups -->
+<div class="flex-1 overflow-y-auto px-4 py-2 space-y-8 custom-scrollbar">
+<!-- Section: General -->
+<div>
+<h3 class="px-4 mb-3 text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Medical Area</h3>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg gradient-primary text-white shadow-lg shadow-primary/30 group transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-white">dashboard</span>
+<span class="text-sm font-semibold">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-slate-100 item-hover transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">group</span>
+<span class="text-sm font-medium">Patients</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-slate-100 item-hover transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">calendar_today</span>
+<span class="text-sm font-medium">Appointments</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-slate-100 item-hover transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">lab_profile</span>
+<span class="text-sm font-medium">Lab Results</span>
+</a>
+</nav>
+</div>
+<!-- Section: Administration -->
+<div>
+<h3 class="px-4 mb-3 text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Administration</h3>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-slate-100 item-hover transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">badge</span>
+<span class="text-sm font-medium">Staff Management</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-slate-100 item-hover transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">payments</span>
+<span class="text-sm font-medium">Billing &amp; Invoices</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-slate-100 item-hover transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">inventory_2</span>
+<span class="text-sm font-medium">Inventory</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-slate-100 item-hover transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">settings</span>
+<span class="text-sm font-medium">System Settings</span>
+</a>
+</nav>
+</div>
+</div>
+<!-- Footer / Profile -->
+<div class="p-4 border-t border-slate-200/10">
+<div class="bg-slate-800/40 rounded-xl p-4 flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<div class="relative">
+<img alt="Dr. Alex Rivera Profile" class="size-10 rounded-full border-2 border-primary/40" data-alt="Portrait of a male doctor avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjymi6gE-SiqCKUmgCpGC4TlTAWdUFLt0C_fu9uyjSgNLxn0hnf2KhlI94sqdjpGoi7k9Rh21oTTZEGIL0_jVsciwd4jQZOGQCk-It_WMHCbfzKhCfGU1geoXNJVhpPrtsyIk3kgDVe9ZeLoavCov0v1C8UkAzTweFvLJGHICwWR-VngJSncACkl_ZheEvESY5Wjc3PTHyXCZlBvDreDtQGnOfNnI2-I9LkgD9J3wqFCVC2cINliKzyhEPaDaBAbcZVeQS4CBS2Thk"/>
+<div class="absolute bottom-0 right-0 size-3 bg-green-500 border-2 border-slate-900 rounded-full"></div>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="text-sm font-bold text-slate-100 truncate">Dr. Alex Rivera</span>
+<span class="text-xs text-slate-400 truncate">Chief Administrator</span>
+</div>
+</div>
+<button class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-slate-700/50 text-slate-100 text-sm font-semibold hover:bg-red-500/10 hover:text-red-400 transition-all duration-200">
+<span class="material-symbols-outlined text-sm">logout</span>
+                            Logout
+                        </button>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col relative overflow-hidden bg-gradient-to-br from-background-dark via-[#1a1329] to-background-dark">
+<!-- Mobile Header -->
+<header class="lg:hidden flex items-center justify-between p-4 glass-effect border-b border-white/5">
+<div class="flex items-center gap-2">
+<div class="gradient-primary size-8 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-base">health_and_safety</span>
+</div>
+<span class="text-sm font-bold text-white">Unified Health</span>
+</div>
+<button class="size-10 flex items-center justify-center text-white bg-white/10 rounded-lg">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</header>
+<!-- Dashboard Content Placeholder -->
+<div class="p-8 lg:p-12 overflow-y-auto flex-1">
+<div class="max-w-6xl mx-auto space-y-8">
+<div class="flex flex-col gap-1">
+<h1 class="text-3xl font-bold text-white tracking-tight">Dashboard Overview</h1>
+<p class="text-slate-400">Welcome back, Dr. Rivera. Here's what's happening today.</p>
+</div>
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+<div class="glass-effect p-6 rounded-2xl flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<div class="bg-primary/20 text-primary p-2 rounded-lg">
+<span class="material-symbols-outlined">person_add</span>
+</div>
+<span class="text-green-400 text-xs font-bold">+12%</span>
+</div>
+<div>
+<p class="text-slate-400 text-sm font-medium">New Patients</p>
+<p class="text-2xl font-bold text-white">248</p>
+</div>
+</div>
+<div class="glass-effect p-6 rounded-2xl flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<div class="bg-blue-500/20 text-blue-400 p-2 rounded-lg">
+<span class="material-symbols-outlined">event_available</span>
+</div>
+<span class="text-red-400 text-xs font-bold">-2%</span>
+</div>
+<div>
+<p class="text-slate-400 text-sm font-medium">Appointments</p>
+<p class="text-2xl font-bold text-white">42</p>
+</div>
+</div>
+<div class="glass-effect p-6 rounded-2xl flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<div class="bg-cyan-500/20 text-cyan-400 p-2 rounded-lg">
+<span class="material-symbols-outlined">medical_services</span>
+</div>
+<span class="text-green-400 text-xs font-bold">+5%</span>
+</div>
+<div>
+<p class="text-slate-400 text-sm font-medium">Surgeries</p>
+<p class="text-2xl font-bold text-white">18</p>
+</div>
+</div>
+<div class="glass-effect p-6 rounded-2xl flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<div class="bg-violet-500/20 text-violet-400 p-2 rounded-lg">
+<span class="material-symbols-outlined">monetization_on</span>
+</div>
+<span class="text-green-400 text-xs font-bold">+24%</span>
+</div>
+<div>
+<p class="text-slate-400 text-sm font-medium">Revenue</p>
+<p class="text-2xl font-bold text-white">$54.2k</p>
+</div>
+</div>
+</div>
+<!-- Main Dashboard Area (2 columns) -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Left: Main Chart Placeholder -->
+<div class="lg:col-span-2 glass-effect rounded-3xl p-8 min-h-[400px] flex flex-col gap-6">
+<div class="flex items-center justify-between">
+<h2 class="text-lg font-bold text-white">Patient Growth</h2>
+<div class="flex gap-2">
+<button class="px-3 py-1.5 text-xs font-semibold bg-white/5 text-slate-300 rounded-lg">Weekly</button>
+<button class="px-3 py-1.5 text-xs font-semibold gradient-primary text-white rounded-lg shadow-lg">Monthly</button>
+</div>
+</div>
+<div class="flex-1 rounded-2xl border border-dashed border-slate-700/50 flex items-center justify-center">
+<div class="flex flex-col items-center gap-2 text-slate-500">
+<span class="material-symbols-outlined text-4xl">bar_chart</span>
+<span class="text-sm">Analytics Visualization Placeholder</span>
+</div>
+</div>
+</div>
+<!-- Right: Upcoming Tasks -->
+<div class="glass-effect rounded-3xl p-6 flex flex-col gap-6">
+<h2 class="text-lg font-bold text-white">Upcoming Appointments</h2>
+<div class="space-y-4">
+<div class="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group">
+<img alt="Sarah J." class="size-10 rounded-full" data-alt="Female patient avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAooIhzThYhvddRvcLDq0u6iwbLfinCoq96s2lCgQ2PlgFjtlMv43L_kA2ghYQ7sDzIUd0F2dYkBw41x5iW0hpP1nATcExiKsvyaVXq6-56bJT0tChf36az8R3EIKB0AYUQ6MiXQKmHj2Ki8I4dRSO6pW9aoHe1QQqL2MSiHJeeRgULC2WQwtKH37IQBaQdN5Ed3PRKoWV-lpc8NDRpJGNiWnUzpkqgHbEdmPCHaXnrZqqDRt2Cu8P2_9NRNZU0Tl9O3Reqbn9yT3gS"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-bold text-slate-100 truncate">Sarah Johnson</p>
+<p class="text-xs text-slate-400">09:30 AM - General Checkup</p>
+</div>
+<span class="material-symbols-outlined text-slate-500 group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+<div class="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group">
+<img alt="Michael R." class="size-10 rounded-full" data-alt="Male patient avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC67B4rYWNnxnTkbz6Xil3BZnsIEHDO3dODfGoOpGTotqnYCAys-J7CXXeCJ0ksmtzYzkcpwwQMIhtTXfueRFfmJeKAWXbwG0E7uwpfTbYkYDQRNTK-iMlNsD9bdbFoOd1SAT6HGpdPJKlx4CBal18znf_O8WD9tTRTf4ShBCRM4asX5NEcvUalEJZTLyUY3zkA0B-_bOD4drwSwTHIo9HLuViDipq0a7kxzymiAJzQ43fqJDvVTJKXCEc5ja0R2ZsIO6ry_pFwaOzT"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-bold text-slate-100 truncate">Michael Roberts</p>
+<p class="text-xs text-slate-400">10:15 AM - Blood Work</p>
+</div>
+<span class="material-symbols-outlined text-slate-500 group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+<div class="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors cursor-pointer group">
+<img alt="Emma W." class="size-10 rounded-full" data-alt="Female patient avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzVC2sMOZPAPPBqOfaKHcZaRkruBarFKo_r5iCcWINwhmlpyfVQKWy9AtCiiMKYjGb9scEUCx_g0ol2i8SWe2aPBu1NnWPEslviKtMjBru-tr1Dw2LCggaL64wpc57grVHVr2xvzNLQECPzN0v4NOxYWYjfzQ9blmbx_QZt76q-O-sFIa8ytZgc6Tm2F1fri-1AhTEpfl8Vjhkkps99HMIox6avY9S_Ot9r38f6mTQuxBysJlJFKdOMyOvAXwcbpC4TZT7pO5-hkIu"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-bold text-slate-100 truncate">Emma Wilson</p>
+<p class="text-xs text-slate-400">11:00 AM - Vaccination</p>
+</div>
+<span class="material-symbols-outlined text-slate-500 group-hover:text-primary transition-colors">chevron_right</span>
+</div>
+</div>
+<button class="w-full py-3 rounded-xl bg-primary/10 text-primary text-sm font-bold hover:bg-primary/20 transition-all">View All Appointments</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

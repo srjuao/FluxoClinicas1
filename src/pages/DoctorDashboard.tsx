@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
-import { Calendar, FileText, LogOut, Plus, Search, Users, DollarSign, Menu, X, Stethoscope, ClipboardList } from "lucide-react";
+import { Calendar, FileText, Plus, Search, Users, DollarSign, Menu, X, Stethoscope, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
 import { supabase } from "@/lib/customSupabaseClient";
@@ -80,7 +80,7 @@ const DoctorDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 dark:from-[#161022] dark:via-[#1a1329] dark:to-[#161022]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
@@ -136,15 +136,15 @@ const DoctorDashboard = () => {
         <meta name="description" content="Painel do médico" />
       </Helmet>
 
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 flex flex-col lg:flex-row">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 dark:from-[#161022] dark:via-[#1a1329] dark:to-[#161022] flex flex-col lg:flex-row">
 
         {/* Mobile Header Toggle */}
-        <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white border-b px-4 py-3 flex items-center justify-between shadow-sm">
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white dark:bg-[#161022] border-b dark:border-white/10 px-4 py-3 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center text-white">
               <Stethoscope className="w-5 h-5" />
             </div>
-            <span className="font-bold text-gray-900">FluxoClinic</span>
+            <span className="font-bold text-gray-900 dark:text-slate-100">FluxoClinic</span>
           </div>
           <Button
             variant="ghost"
