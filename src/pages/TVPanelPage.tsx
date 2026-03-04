@@ -20,7 +20,13 @@ const TVPanelPage: React.FC<TVPanelPageProps> = ({ clinicId }) => {
     const [currentCall, setCurrentCall] = useState<PatientCall | null>(null);
     const [recentCalls, setRecentCalls] = useState<PatientCall[]>([]);
     const [clinicName, setClinicName] = useState<string>("");
+    const [hasStarted, setHasStarted] = useState<boolean>(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const currentCallRef = useRef<PatientCall | null>(null);
+
+    useEffect(() => {
+        currentCallRef.current = currentCall;
+    }, [currentCall]);
 
     const playAudio = async () => {
         if (audioRef.current) {
@@ -88,7 +94,8 @@ const TVPanelPage: React.FC<TVPanelPageProps> = ({ clinicId }) => {
                 },
                 (payload) => {
                     const newCall = payload.new as PatientCall;
-                    setRecentCalls((prev) => [currentCall!, ...prev].filter(Boolean).slice(0, 4));
+                    const prevCall = currentCallRef.current;
+                    setRecentCalls((prev) => [prevCall!, ...prev].filter(Boolean).slice(0, 4));
                     setCurrentCall(newCall);
 
                     // Play audio alert
@@ -100,7 +107,7 @@ const TVPanelPage: React.FC<TVPanelPageProps> = ({ clinicId }) => {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [clinicId, currentCall]);
+    }, [clinicId]);
 
     // Auto-dismiss after 30 seconds
     useEffect(() => {
@@ -139,9 +146,38 @@ const TVPanelPage: React.FC<TVPanelPageProps> = ({ clinicId }) => {
                 />
             </audio>
 
-            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900 flex flex-col">
-                {/* Header */}
-                <header className="p-6 border-b border-white/10">
+            {!hasStarted ? (
+                <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900 flex flex-col items-center justify-center p-6 text-center">
+                    <div className="w-24 h-24 mb-8 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-2xl">
+                        <Tv className="w-12 h-12 text-white" />
+                    </div>
+                    <h1 className="text-4xl font-bold text-white mb-4">{clinicName || "Painel de Chamada"}</h1>
+                    <p className="text-purple-200 text-xl mb-12 max-w-md">
+                        Para o correto funcionamento dos alertas sonoros, é necessário iniciar o painel.
+                    </p>
+                    <button
+                        onClick={() => {
+                            if (audioRef.current) {
+                                // Toca um som mudo primeiro para desbloquear a política de autoplay
+                                audioRef.current.volume = 0;
+                                audioRef.current.play().then(() => {
+                                    audioRef.current!.pause();
+                                    audioRef.current!.currentTime = 0;
+                                    audioRef.current!.volume = 1;
+                                }).catch(e => console.error(e));
+                            }
+                            setHasStarted(true);
+                        }}
+                        className="px-10 py-5 bg-white text-indigo-900 hover:bg-gray-100 rounded-2xl text-2xl font-extrabold shadow-[0_0_40px_rgba(255,255,255,0.3)] transition-all hover:scale-105 active:scale-95 flex items-center gap-4"
+                    >
+                        <Bell className="w-8 h-8" />
+                        Iniciar Painel
+                    </button>
+                </div>
+            ) : (
+                <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-indigo-900 flex flex-col">
+                    {/* Header */}
+                    <header className="p-6 border-b border-white/10">
                     <div className="flex items-center justify-between max-w-6xl mx-auto">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
@@ -269,6 +305,7 @@ const TVPanelPage: React.FC<TVPanelPageProps> = ({ clinicId }) => {
                     </footer>
                 )}
             </div>
+            )}
         </>
     );
 };
