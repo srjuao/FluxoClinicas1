@@ -98,3 +98,17 @@
 .dark .border-slate-200 {
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
+
+/* Fix Inputs, Textareas, and Selects in Dark Mode */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #1a1329 !important;
+  color: #f8fafc !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #94a3b8 !important;
+}
