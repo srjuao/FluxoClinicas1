@@ -8,6 +8,7 @@ import DoctorDashboard from "@/pages/DoctorDashboard";
 import ReceptionistDashboard from "@/pages/ReceptionistDashboard";
 import TVPanelPage from "@/pages/TVPanelPage";
 import { useAuth } from "@/contexts/SupabaseAuthContext";
+import { ReleaseNotesModal } from "@/components/ReleaseNotesModal";
 
 function App() {
   const { user, loading, profile } = useAuth();
@@ -82,6 +83,7 @@ function App() {
         />
       </Helmet>
       {renderDashboard()}
+      <ReleaseNotesModal />
       <Toaster />
     </>
   );

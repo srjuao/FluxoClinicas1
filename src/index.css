@@ -102,13 +102,48 @@
 /* Fix Inputs, Textareas, and Selects in Dark Mode */
 .dark input,
 .dark textarea,
-.dark select {
+.dark select,
+.dark .bg-white:is(input, textarea, select),
+.dark [contenteditable="true"],
+.dark .bg-white,
+/* Modais, Cards, Dropdowns */
+.dark .bg-white\/60,
+.dark .bg-white\/80,
+.dark .bg-gray-50,
+.dark .bg-gray-100,
+.dark .bg-slate-50,
+.dark .bg-slate-100 {
   background-color: #1a1329 !important;
+  /* Cor principal de fundo escuro */
   color: #f8fafc !important;
-  border-color: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dark .bg-white\/50 {
+  background-color: rgba(26, 19, 41, 0.5) !important;
+}
+
+/* Inputs especificamente com cores mais profundas para contraste */
+.dark input:not([type="submit"]):not([type="button"]),
+.dark textarea,
+.dark select {
+  background-color: #0f172a !important;
+}
+
+/* Garante que o texto de dentro do input não seja sobrescrito por outras classes text-gray-* */
+.dark input *,
+.dark textarea *,
+.dark select * {
+  color: #f8fafc !important;
 }
 
 .dark input::placeholder,
 .dark textarea::placeholder {
-  color: #94a3b8 !important;
+  color: #64748b !important;
+}
+
+/* Corrigindo Selects nativos e Autocompletes */
+.dark option {
+  background-color: #1a1329 !important;
+  color: #f8fafc !important;
 }
