@@ -179,7 +179,7 @@
   background-color: #0d0d1a !important;
 }
 
-/* Garante que o texto que seria escuro fique claro no modo dark */
+/* Garante que o texto que seria escuro fique claro no modo dark (exceto botões) */
 .dark input *,
 .dark textarea *,
 .dark select *,
@@ -193,15 +193,33 @@
   color: #f8fafc !important;
 }
 
-/* Se por algum motivo existir algum elemento com fundo fixo branco (.bg-white puro sem overide), força letra escura nele */
-.dark .bg-white:not(input):not(textarea):not(select) {
-  /* Se tivermos backgrounds brancos que realmente sobraram brancos mesmo (e.g. componentes de terceiros) */
-  color: #1e293b !important;
+/* Regra específica solicitada: Botões que tiverem background branco no modo dark terão letras pretas */
+.dark button.bg-white,
+.dark button[class*="bg-white"],
+.dark a.bg-white,
+.dark .bg-white:is(button) {
+  background-color: #ffffff !important;
+  color: #000000 !important;
 }
 
-/* Se for um bg-white que MEU CSS já tornou escuro, eu deixo a cor como clara acima, mas preciso de cuidado.*/
-/* A regra da linha 116 já define .dark .bg-white com color: #f8fafc !important,
-   então a regra acima só servirá se houver !important conflitando. */
+.dark button.bg-white *,
+.dark button[class*="bg-white"] *,
+.dark .bg-white:is(button) * {
+  color: #000000 !important;
+}
+
+/* Tudo que não for botão (especialmente textos comuns) terá letra branca para dar contraste no modo dark */
+.dark p:not(button *),
+.dark span:not(button *),
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6,
+.dark label {
+  color: #f8fafc !important;
+}
 
 .dark .text-white {
   color: #ffffff !important;
