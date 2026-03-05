@@ -193,6 +193,16 @@
   color: #f8fafc !important;
 }
 
+/* Se por algum motivo existir algum elemento com fundo fixo branco (.bg-white puro sem overide), força letra escura nele */
+.dark .bg-white:not(input):not(textarea):not(select) {
+  /* Se tivermos backgrounds brancos que realmente sobraram brancos mesmo (e.g. componentes de terceiros) */
+  color: #1e293b !important;
+}
+
+/* Se for um bg-white que MEU CSS já tornou escuro, eu deixo a cor como clara acima, mas preciso de cuidado.*/
+/* A regra da linha 116 já define .dark .bg-white com color: #f8fafc !important,
+   então a regra acima só servirá se houver !important conflitando. */
+
 .dark .text-white {
   color: #ffffff !important;
 }
