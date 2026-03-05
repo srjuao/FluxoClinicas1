@@ -452,3 +452,75 @@ export async function checkPrescriptionSafety(
         return { safe: true, alerts: [] };
     }
 }
+
+export async function suggestDiagnosisAndMedication(
+    patientName: string,
+    historyData: any[],
+    currentAnamnesis?: string
+): Promise<{ diagnosis: string; medication: string; reasoning: string }> {
+    let contextText = "Nenhum histórico médico anterior encontrado.";
+    if (historyData && historyData.length > 0) {
+        contextText = historyData.map((report, index) => {
+            return `[Histórico ${index + 1} - ${new Date(report.created_at).toLocaleDateString()}]\n${report.content}`;
+        }).join("\n\n");
+    }
+
+    const currentContext = currentAnamnesis
+        ? `\n\nANAMNESE/QUEIXA ATUAL:\n${currentAnamnesis}`
+        : "\n\n(Não há anamnese atual preenchida ainda)";
+
+    const prompt = `Você é um Assistente Médico Especialista de Alto Nível.
+    Seu objetivo é auxiliar o médico a formular uma hipótese diagnóstica e sugerir um plano de medicação baseado no histórico do paciente e na queixa atual.
+
+    Paciente: ${patientName}
+
+    CONTEXTO MÉDICO RELEVANTE (Histórico anterior):
+    ${contextText}
+    ${currentContext}
+
+    SUA TAREFA:
+    1. Analise os sintomas e o histórico.
+    2. Proponha uma Hipótese Diagnóstica concisa.
+    3. Sugira uma conduta medicamentosa (nomes de medicamentos, dosagens padrão e frequência).
+    4. Explique brevemente o raciocínio clínico por trás dessas sugestões.
+
+    AVISO LEGAL IMPORTANTE:
+    - Esta é uma ferramenta de suporte. A decisão final é 100% responsabilidade do médico humano.
+    - Se as informações forem insuficientes, peça educadamente por mais detalhes no campo de raciocínio.
+
+    FORMATO DE SAÍDA (Obrigatório retornar APENAS este JSON exato):
+    {
+      "diagnosis": "Hipótese Diagnóstica clara",
+      "medication": "Lista de medicamentos sugeridos com posologia",
+      "reasoning": "Breve explicação do raciocínio clínico"
+    }
+    `;
+
+    try {
+        const chatCompletion = await getGroqClient().chat.completions.create({
+            messages: [
+                {
+                    role: "user",
+                    content: prompt,
+                },
+            ],
+            model: "llama-3.3-70b-versatile",
+            temperature: 0.3,
+            max_tokens: 2048,
+            response_format: { type: "json_object" }
+        });
+
+        const text = chatCompletion.choices[0]?.message?.content || "";
+        const cleanedText = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        const parsed = JSON.parse(cleanedText);
+
+        return {
+            diagnosis: parsed.diagnosis || "Não foi possível sugerir um diagnóstico.",
+            medication: parsed.medication || "Não foi possível sugerir medicação.",
+            reasoning: parsed.reasoning || ""
+        };
+    } catch (error) {
+        console.error("Erro ao sugerir diagnóstico/medicação:", error);
+        throw new Error("Falha ao processar sugestões da IA.");
+    }
+}

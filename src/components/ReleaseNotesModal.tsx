@@ -8,9 +8,9 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Landmark, Moon, CheckCircle2 } from "lucide-react";
+import { Sparkles, Landmark, Moon, CheckCircle2, BrainCircuit } from "lucide-react";
 
-const CURRENT_VERSION = "2.2.0"; // Incrementar esta versão para forçar o popup a aparecer novamente
+const CURRENT_VERSION = "2.3.0"; // Incrementar esta versão para forçar o popup a aparecer novamente
 
 export const ReleaseNotesModal = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -50,14 +50,25 @@ export const ReleaseNotesModal = () => {
                 </DialogHeader>
 
                 <div className="space-y-6 py-6">
-                    {/* Item 1: IA Copilot */}
+                    {/* Item 1: IA Assistente */}
+                    <div className="flex gap-4">
+                        <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded-xl h-fit">
+                            <BrainCircuit className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-slate-800 dark:text-slate-200">Novo: Assistente Diagnóstico IA</h4>
+                            <p className="text-sm text-slate-600 dark:text-slate-400">Receba sugestões inteligentes de hipóteses diagnósticas e prescrições baseadas no histórico do paciente.</p>
+                        </div>
+                    </div>
+
+                    {/* Item 2: IA Copilot */}
                     <div className="flex gap-4">
                         <div className="bg-indigo-100 dark:bg-indigo-900/30 p-3 rounded-xl h-fit">
                             <Sparkles className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                         </div>
                         <div>
-                            <h4 className="font-bold text-slate-800 dark:text-slate-200">Copilot IA: Segurança Prescritiva</h4>
-                            <p className="text-sm text-slate-600 dark:text-slate-400">Analise interações medicamentosas e alergias em tempo real com o histórico do paciente.</p>
+                            <h4 className="font-bold text-slate-800 dark:text-slate-200">Copilot de Segurança Prescritiva</h4>
+                            <p className="text-sm text-slate-600 dark:text-slate-400">Analise interações medicamentosas e alergias em tempo real na hora de prescrever.</p>
                         </div>
                     </div>
 

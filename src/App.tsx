@@ -83,7 +83,7 @@ function App() {
         />
       </Helmet>
       {renderDashboard()}
-      <ReleaseNotesModal />
+      {user && profile && <ReleaseNotesModal />}
       <Toaster />
     </>
   );

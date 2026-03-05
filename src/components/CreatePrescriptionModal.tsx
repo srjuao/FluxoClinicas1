@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import type { Patient, Doctor } from "@/types/database.types";
 import type { CreatePrescriptionModalProps } from "@/types/components.types";
-import { checkPrescriptionSafety } from "@/lib/geminiClient";
-import { Sparkles, CheckCircle2, Landmark } from "lucide-react";
+import { checkPrescriptionSafety, suggestDiagnosisAndMedication } from "@/lib/geminiClient";
+import { Sparkles, CheckCircle2, Landmark, BrainCircuit, Info } from "lucide-react";
 
 const examOptions = [
   "Consulta",
@@ -205,6 +205,9 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
   const oeEixoRef = useRef<HTMLInputElement>(null);
   const adicaoRef = useRef<HTMLInputElement>(null);
 
+  const [aiSuggestion, setAiSuggestion] = useState<{ diagnosis: string; medication: string; reasoning: string } | null>(null);
+  const [isSuggestingAi, setIsSuggestingAi] = useState<boolean>(false);
+
   const handleLensKeyDown = (
     e: KeyboardEvent<HTMLInputElement>,
     nextRef: React.RefObject<HTMLInputElement> | null
@@ -357,6 +360,52 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
       });
     } finally {
       setCheckingAi(false);
+    }
+  };
+
+  const handleSuggestAi = async () => {
+    const patId = selectedPatient || preselectedPatient?.id;
+    if (!patId) {
+      toast({
+        title: "Aviso",
+        description: "Selecione um paciente para receber sugestões da IA.",
+      });
+      return;
+    }
+
+    setIsSuggestingAi(true);
+    try {
+      // 1. Fetch patient name and history
+      let patientNameToUse = preselectedPatient?.name || "Paciente";
+      let historyData: any[] = [];
+
+      if (!preselectedPatient) {
+        const p = patients.find(p => String(p.id) === String(patId));
+        if (p) patientNameToUse = p.name;
+      }
+
+      // Fetch previous reports
+      const { data: reports } = await supabase
+        .from("medical_reports")
+        .select("content, created_at")
+        .eq("patient_id", patId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (reports) historyData = reports;
+
+      // 2. Call AI
+      const result = await suggestDiagnosisAndMedication(patientNameToUse, historyData);
+      setAiSuggestion(result);
+
+    } catch (error: any) {
+      toast({
+        title: "Erro na IA",
+        description: error.message || "Não foi possível carregar sugestões no momento.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSuggestingAi(false);
     }
   };
 
@@ -658,27 +707,90 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
                   onChange={(e) => setMedicationContent(e.target.value)}
                 />
 
-                <div className="flex justify-between items-center bg-indigo-50/50 p-3 mb-4 rounded-lg border border-indigo-100">
-                  <div className="text-sm text-indigo-800">
-                    <p className="font-medium flex items-center gap-1">
-                      <Sparkles className="w-4 h-4" /> Copilot IA
-                    </p>
-                    <p className="text-xs opacity-80">Valide interações e alergias com o histórico.</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <div className="flex-1 min-w-[200px] flex justify-between items-center bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
+                    <div className="text-sm text-indigo-800">
+                      <p className="font-medium flex items-center gap-1">
+                        <Sparkles className="w-4 h-4" /> Copilot IA
+                      </p>
+                      <p className="text-xs opacity-80">Valide interações e alergias com o histórico.</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="bg-indigo-100/50 hover:bg-indigo-200 text-indigo-700"
+                      onClick={handleCheckAi}
+                      disabled={checkingAi || !medicationContent.trim()}
+                    >
+                      {checkingAi ? "Analisando..." : "Checar Segurança"}
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="bg-indigo-100/50 hover:bg-indigo-200 text-indigo-700"
-                    onClick={handleCheckAi}
-                    disabled={checkingAi || !medicationContent.trim()}
-                  >
-                    {checkingAi ? (
-                      <span className="flex items-center gap-2">Analizando...</span>
-                    ) : (
-                      <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Checar Interações</span>
-                    )}
-                  </Button>
+
+                  <div className="flex-1 min-w-[200px] flex justify-between items-center bg-purple-50/50 p-3 rounded-lg border border-purple-100">
+                    <div className="text-sm text-purple-800">
+                      <p className="font-medium flex items-center gap-1">
+                        <BrainCircuit className="w-4 h-4" /> Assistente Diagnóstico
+                      </p>
+                      <p className="text-xs opacity-80">Sugestões baseadas no histórico.</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="bg-purple-100/50 hover:bg-purple-200 text-purple-700"
+                      onClick={handleSuggestAi}
+                      disabled={isSuggestingAi}
+                    >
+                      {isSuggestingAi ? "Processando..." : "Sugerir IA"}
+                    </Button>
+                  </div>
                 </div>
+
+                {/* AI Suggestions Result Box */}
+                {aiSuggestion && (
+                  <div className="mb-4 p-4 bg-white border border-purple-200 rounded-xl shadow-sm animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="flex items-center gap-2 text-purple-900 font-semibold">
+                        <BrainCircuit className="w-5 h-5" /> Sugestões da IA
+                      </h4>
+                      <Button variant="ghost" size="sm" onClick={() => setAiSuggestion(null)} className="h-7 text-gray-400">Fechar</Button>
+                    </div>
+
+                    <div className="space-y-4 text-sm">
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Hipótese Diagnóstica</p>
+                        <p className="text-gray-800 bg-gray-50 p-2 rounded-lg border border-gray-100">{aiSuggestion.diagnosis}</p>
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Medicação Sugerida</p>
+                        <div className="text-gray-800 bg-gray-50 p-2 rounded-lg border border-gray-100 relative group">
+                          <p className="whitespace-pre-line">{aiSuggestion.medication}</p>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 text-[10px]"
+                            onClick={() => {
+                              const newContent = medicationContent
+                                ? medicationContent + "\n\nSugestão IA:\n" + aiSuggestion.medication
+                                : aiSuggestion.medication;
+                              setMedicationContent(newContent);
+                              toast({ title: "Copiado", description: "Sugestão adicionada à prescrição." });
+                            }}
+                          >
+                            Usar Sugestão
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
+                        <p className="text-xs font-bold text-indigo-900 flex items-center gap-1 mb-1">
+                          <Info className="w-3 h-3" /> Raciocínio Clínico
+                        </p>
+                        <p className="text-indigo-800/90 italic leading-relaxed">{aiSuggestion.reasoning}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex justify-between items-end mt-auto gap-4">
                   <div className="flex-1">
