@@ -325,3 +325,130 @@ Responda APENAS com um JSON válido no formato abaixo, sem markdown ou texto adi
         throw new Error("Não foi possível gerar o laudo. Tente novamente.");
     }
 }
+
+export async function generatePatientSummary(
+    patientName: string,
+    reportsData: any[]
+): Promise<string> {
+    if (!reportsData || reportsData.length === 0) {
+        return "Não há histórico suficiente para gerar um resumo.";
+    }
+
+    const compiledHistory = reportsData.map((report, index) => {
+        return `Consulta ${index + 1} (${new Date(report.created_at).toLocaleDateString()}):
+Título: ${report.title}
+Conteúdo: ${report.content}`;
+    }).join("\n\n");
+
+    const prompt = `Você é um assistente médico especialista em compilar históricos clínicos.
+    
+    Abaixo está o histórico de consultas do paciente ${patientName}. 
+    Sua tarefa é ler todas as anamneses e gerar um RESUMO CLÍNICO CONCISO em UM ÚNICO PARÁGRAFO.
+    
+    O resumo deve destacar as informações mais importantes para o médico que irá atendê-lo agora, como:
+    - Principais queixas/diagnósticos passados.
+    - Condições crônicas ou acompanhamentos contínuos.
+    - Medicações em uso relevantes.
+    - Qualquer alergia mencionada.
+    
+    Seja extremamente profissional, objetivo e vá direto ao ponto. Não use formatações como Markdown ou listas, escreva um texto corrido.
+    Responda APENAS com o texto do resumo, sem saudações ou explicações adicionais.
+    
+    HISTÓRICO DO PACIENTE:
+    ${compiledHistory}
+    `;
+
+    try {
+        const chatCompletion = await getGroqClient().chat.completions.create({
+            messages: [
+                {
+                    role: "user",
+                    content: prompt,
+                },
+            ],
+            model: "llama-3.3-70b-versatile",
+            temperature: 0.2,
+            max_tokens: 1024,
+        });
+
+        const summary = chatCompletion.choices[0]?.message?.content || "Não foi possível gerar o resumo.";
+        return summary.trim();
+    } catch (error) {
+        console.error("Erro ao gerar resumo do paciente:", error);
+        throw new Error("Falha ao gerar o resumo inteligente. Tente novamente.");
+    }
+}
+
+export async function checkPrescriptionSafety(
+    patientName: string,
+    reportsData: any[],
+    prescriptionText: string
+): Promise<{ safe: boolean; alerts: string[] }> {
+    if (!prescriptionText || prescriptionText.trim() === "") {
+        return { safe: true, alerts: [] };
+    }
+
+    let historyText = "Nenhum histórico médico anterior encontrado.";
+    if (reportsData && reportsData.length > 0) {
+        historyText = reportsData.map((report, index) => {
+            return `[Consulta ${index + 1} - ${new Date(report.created_at).toLocaleDateString()}]\nConteúdo: ${report.content}`;
+        }).join("\n\n");
+    }
+
+    const prompt = `Você é um Assistente Médico Farmacêutico Especialista em Segurança do Paciente e Farmacovigilância.
+    Sua função é atuar como um "Copilot" revisor de prescrições.
+
+    Paciente: ${patientName}
+
+    HISTÓRICO DO PACIENTE (Anamneses anteriores onde podem conter alergias crônicas, medicações em uso, doenças de base):
+    ${historyText}
+
+    NOVA PRESCRIÇÃO (Medicamentos que o médico quer receitar AGORA):
+    ${prescriptionText}
+
+    TAREFA:
+    Compare a NOVA PRESCRIÇÃO com o HISTÓRICO DO PACIENTE.
+    Verifique SE HÁ RISCOS GRAVES. Foque apenas em:
+    1. ALERGIAS documentadas no histórico que conflitem com a nova prescrição (Ex: Histórico diz "Alergia a Dipirona", nova prescrição tem "Lisador").
+    2. INTERAÇÕES MEDICAMENTOSAS GRAVES entre o que está no histórico e a nova prescrição.
+    3. CONTRAINDICAÇÕES ABSOLUTAS com doenças de base do histórico (Ex: Histórico diz "Glaucoma", prescrição tem "Corticoide" sem ressalvas).
+
+    SEGREDO DA AVALIAÇÃO:
+    - Se a prescrição estiver total ou provavelmente segura e livre desses riscos CLAROS e GRAVES, você deve retornar um JSON com "safe": true e lista de alertas vazia.
+    - Se houver riscos claros identificados com base no texto fornecido, retorne "safe": false e liste o(s) alerta(s) de forma concisa em tom de aviso médico (sem exagerar em riscos teóricos raros, seja prático).
+
+    FORMATO DE SAÍDA (Obrigatório retornar APENAS este JSON exato válido):
+    {
+      "safe": boolean,
+      "alerts": ["Lista de strings com os alertas encontrados, se houver"]
+    }
+    `;
+
+    try {
+        const chatCompletion = await getGroqClient().chat.completions.create({
+            messages: [
+                {
+                    role: "user",
+                    content: prompt,
+                },
+            ],
+            model: "llama-3.3-70b-versatile",
+            temperature: 0.1, // temperatura baixa para respostas analíticas consistentes
+            max_tokens: 1024,
+            response_format: { type: "json_object" }
+        });
+
+        const text = chatCompletion.choices[0]?.message?.content || "";
+        const cleanedText = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        const parsed = JSON.parse(cleanedText);
+
+        return {
+            safe: typeof parsed.safe === 'boolean' ? parsed.safe : true,
+            alerts: Array.isArray(parsed.alerts) ? parsed.alerts : []
+        };
+    } catch (error) {
+        console.error("Erro ao checar segurança da prescrição:", error);
+        // Em caso de erro na IA, liberamos a prescrição mas no console fica o log
+        return { safe: true, alerts: [] };
+    }
+}

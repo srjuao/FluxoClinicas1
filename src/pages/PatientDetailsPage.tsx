@@ -20,6 +20,7 @@ import CreateCertificateModal from "@/components/CreateCertificateModal";
 import CreatePrescriptionModal from "@/components/CreatePrescriptionModal";
 import AddExamModal from "@/components/AddExamModal";
 import { PatientProtocolsTab } from "@/components/protocols";
+import { generatePatientSummary } from "@/lib/geminiClient";
 
 import { calculateAge, formatDate, formatCPF } from "@/utils";
 
@@ -41,6 +42,8 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
   const [selectedDoctorFilter, setSelectedDoctorFilter] = useState(null);
   const [doctorSearchQuery, setDoctorSearchQuery] = useState("");
   const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [patientSummary, setPatientSummary] = useState<string | null>(null);
   const doctorDropdownRef = useRef(null);
 
   // Close dropdown when clicking outside
@@ -301,6 +304,32 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
     setShowAddExam(true);
   };
 
+  const handleGenerateSummary = async () => {
+    if (!patient || reports.length === 0) {
+      toast({
+        title: "Histórico insuficiente",
+        description: "Não há anamneses suficientes para gerar um resumo.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingSummary(true);
+    try {
+      const summary = await generatePatientSummary(patient.name, reports);
+      setPatientSummary(summary);
+      toast({ title: "Resumo gerado com sucesso! ✨" });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao gerar resumo",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-purple-50 to-blue-50 dark:from-[#161022] dark:via-[#1a1329] dark:to-[#161022]">
@@ -382,6 +411,54 @@ const PatientDetailsPage = ({ patientId, appointment, onBack }) => {
                   </h2>
                   <FileText className="w-5 h-5 text-purple-600" />
                 </div>
+
+                {/* AI Summary Section */}
+                {reports.length > 0 && (
+                  <div className="mb-4">
+                    {!patientSummary ? (
+                      <Button
+                        onClick={handleGenerateSummary}
+                        disabled={isGeneratingSummary}
+                        variant="outline"
+                        className="w-full bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200 text-purple-700 hover:from-purple-100 hover:to-blue-100 transition-all shadow-sm group"
+                      >
+                        {isGeneratingSummary ? (
+                          <div className="flex items-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mr-2"></div>
+                            Gerando resumo...
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-lg mr-2 group-hover:scale-110 transition-transform">✨</span>
+                            Gerar Resumo Inteligente
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="p-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 rounded-xl shadow-sm relative"
+                      >
+                        <div className="flex items-center mb-2">
+                          <span className="text-xl mr-2">✨</span>
+                          <h3 className="font-semibold text-purple-900 text-sm">Resumo da IA</h3>
+                        </div>
+                        <p className="text-sm text-gray-800 leading-relaxed">
+                          {patientSummary}
+                        </p>
+                        <button
+                          onClick={() => setPatientSummary(null)}
+                          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+                          title="Limpar resumo"
+                        >
+                          ✕
+                        </button>
+                      </motion.div>
+                    )}
+                  </div>
+                )}
+
                 <div className="relative" ref={doctorDropdownRef}>
                   <input
                     type="text"

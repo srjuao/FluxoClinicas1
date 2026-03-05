@@ -4,7 +4,7 @@ import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/customSupabaseClient";
 import { validateCPF, formatCPF, cleanCPF } from "@/utils";
 import { FileText, Edit } from "lucide-react";
-import type { Patient } from "@/types/database.types";
+import type { Patient, Doctor } from "@/types/database.types";
 import type { CreateCertificateModalProps, PatientFormData } from "@/types/components.types";
 
 const SEX_OPTIONS = [
@@ -36,6 +36,7 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [cpfError, setCpfError] = useState<string | null>(null);
+  const [doctorData, setDoctorData] = useState<Doctor & { profile?: { name: string } } | null>(null);
 
   // Chave do localStorage para rascunho do atestado (por paciente)
   const draftKey = selectedPatient ? `certificate_draft_${selectedPatient.id}` : null;
@@ -92,6 +93,26 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
   useEffect(() => {
     loadPatients();
   }, [loadPatients]);
+
+  useEffect(() => {
+    const fetchDoctorData = async () => {
+      if (!_doctorId) return;
+
+      const { data, error } = await supabase
+        .from("doctors")
+        .select(`
+          crm,
+          profile:profiles(name)
+        `)
+        .eq("id", _doctorId)
+        .single();
+
+      if (!error && data) {
+        setDoctorData(data as any);
+      }
+    };
+    fetchDoctorData();
+  }, [_doctorId]);
 
   const filteredPatients = patients.filter(
     (p) =>
@@ -244,7 +265,12 @@ const CreateCertificateModal: React.FC<CreateCertificateModalProps> = ({
 
           <div class="line"><strong>Data:</strong> ${startDate.toLocaleDateString()}</div>
 
-          <div class="signature">Assinatura do médico: _______________________________</div>
+          <div style="margin-top: 60px; text-align: center; width: 300px;">
+            <div style="border-top: 1px solid #000; margin-bottom: 5px; width: 100%;"></div>
+            <p style="font-weight: bold; margin: 0; font-size: 14px;">Dr(a). ${doctorData?.profile?.name || "Médico não identificado"}</p>
+            <p style="margin: 2px 0; font-size: 13px; color: #444;">${doctorData?.crm ? `CRM: ${doctorData.crm}` : ""}</p>
+            <p style="font-size: 10px; color: #888; margin-top: 4px; font-style: italic;">Assinado e emitido digitalmente</p>
+          </div>
         </body>
       </html>
     `;

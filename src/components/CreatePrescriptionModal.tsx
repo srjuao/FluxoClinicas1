@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import type { Patient, Doctor } from "@/types/database.types";
 import type { CreatePrescriptionModalProps } from "@/types/components.types";
+import { checkPrescriptionSafety } from "@/lib/geminiClient";
+import { Sparkles, CheckCircle2, Landmark } from "lucide-react";
 
 const examOptions = [
   "Consulta",
@@ -191,7 +193,8 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
   const [selectedUrologyExams, setSelectedUrologyExams] = useState<string[]>([]);
   const [selectedCardiologyExams, setSelectedCardiologyExams] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [doctorData, setDoctorData] = useState<Doctor | null>(null);
+  const [checkingAi, setCheckingAi] = useState<boolean>(false);
+  const [doctorData, setDoctorData] = useState<Doctor & { profile?: { name: string } } | null>(null);
 
   // Refs para navegação com Enter nos campos de lentes
   const odEsfRef = useRef<HTMLInputElement>(null);
@@ -232,7 +235,14 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
 
       const { data, error } = await supabase
         .from("doctors")
-        .select("can_prescribe_exams, can_prescribe_lenses, can_prescribe_urology_exams, can_prescribe_cardiology_exams")
+        .select(`
+          can_prescribe_exams, 
+          can_prescribe_lenses, 
+          can_prescribe_urology_exams, 
+          can_prescribe_cardiology_exams,
+          crm,
+          profile:profiles(name)
+        `)
         .eq("id", doctorId)
         .single();
 
@@ -284,6 +294,70 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
     setSelectedCardiologyExams((prev) =>
       prev.includes(exam) ? prev.filter((e) => e !== exam) : [...prev, exam]
     );
+  };
+
+  const handleCheckAi = async () => {
+    if (!medicationContent.trim()) {
+      toast({
+        title: "Aviso",
+        description: "Digite alguma prescrição para checar interações.",
+        variant: "default",
+      });
+      return;
+    }
+
+    setCheckingAi(true);
+    try {
+      // 1. Fetch patient name and history
+      let patientNameToUse = preselectedPatient?.name || "Paciente";
+      let historyData: any[] = [];
+
+      const patId = selectedPatient || preselectedPatient?.id;
+
+      if (patId) {
+        if (!preselectedPatient) {
+          const p = patients.find(p => String(p.id) === String(patId));
+          if (p) patientNameToUse = p.name;
+        }
+
+        // Fetch previous reports for history
+        const { data: reports } = await supabase
+          .from("medical_reports")
+          .select("title, content, created_at")
+          .eq("patient_id", patId)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (reports) historyData = reports;
+      }
+
+      // 2. Call AI
+      const result = await checkPrescriptionSafety(patientNameToUse, historyData, medicationContent);
+
+      if (result.safe) {
+        toast({
+          title: "Prescrição Segura",
+          description: "A IA não detectou interações ou alergias graves com o histórico conhecido deste paciente.",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "⚠️ Atenção: Risco Detectado",
+          description: result.alerts.join("\n"),
+          variant: "destructive",
+          duration: 10000,
+        });
+      }
+
+    } catch (error: any) {
+      toast({
+        title: "Erro na Checagem",
+        description: error.message || "Não foi possível validar a prescrição no momento.",
+        variant: "destructive",
+      });
+    } finally {
+      setCheckingAi(false);
+    }
   };
 
   const handleSave = async (type: string) => {
@@ -404,6 +478,17 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
       printContent += `</div>`;
     }
 
+    // Assinatura
+    const doctorName = doctorData?.profile?.name || "Médico não identificado";
+    const doctorCrm = doctorData?.crm ? `CRM: ${doctorData.crm}` : "";
+    const signatureHtml = `
+      <div class="signature-block">
+        <div class="signature-line"></div>
+        <p class="signature-name">Dr(a). ${doctorName}</p>
+        <p class="signature-crm">${doctorCrm}</p>
+      </div>
+    `;
+
     if (!printWindow) return;
     printWindow.document.write(`
       <html>
@@ -413,28 +498,38 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
             @page { size: A4; margin: 20mm; }
             html, body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
             body { padding: 20mm; box-sizing: border-box; }
-            .print-wrapper { width: 100%; max-width: 210mm; margin: 0 auto; }
+            .print-wrapper { width: 100%; max-width: 210mm; margin: 0 auto; min-height: 80vh; display: flex; flex-direction: column; }
             .patient { font-weight: bold; margin-bottom: 8px; text-align: left; }
+            .content-area { flex: 1; }
             table { border-collapse: collapse; margin: 8px 0; width: 100%; }
             td, th { border: 1px solid #ccc; padding: 6px; text-align: center; }
             ul { list-style: none; padding: 0; margin-top: 6px; text-align: left; }
             li { margin: 2px 0; }
-            .footer { position: fixed; bottom: 12mm; right: 20mm; font-size: 12px; color: #555; display: flex; gap: 12px; }
+            .footer-section { margin-top: auto; padding-top: 40px; display: flex; justify-content: space-between; align-items: flex-end; }
+            .date-block { font-size: 14px; color: #333; }
+            
+            .signature-block { text-align: center; width: 300px; }
+            .signature-line { border-top: 1px solid #000; margin-bottom: 5px; width: 100%; }
+            .signature-name { font-weight: bold; margin: 0; font-size: 14px; }
+            .signature-crm { margin: 2px 0; font-size: 13px; color: #444; }
+
             h3 { margin-top: 12px; margin-bottom: 6px; text-align: left; }
             /* Evita quebra dentro dos blocos e tenta manter o conteúdo em uma única página */
             .content { page-break-inside: avoid; break-inside: avoid; -webkit-column-break-inside: avoid; }
             @media print {
               body { padding: 10mm; }
-              .footer { position: fixed; bottom: 12mm; }
             }
           </style>
         </head>
         <body>
           <div class="print-wrapper">
-            <p class="patient">Paciente: ${patientName}</p>
-            ${printContent || "<p>Nada para imprimir.</p>"}
-            <div class="footer">
-              <span>${formattedDate}</span>
+            <div class="content-area">
+              <p class="patient">Paciente: ${patientName}</p>
+              ${printContent || "<p>Nada para imprimir.</p>"}
+            </div>
+            <div class="footer-section">
+              <div class="date-block">Local e Data:<br/><br/>________________, ${formattedDate}</div>
+              ${signatureHtml}
             </div>
           </div>
         </body>
@@ -555,23 +650,61 @@ const CreatePrescriptionModal: React.FC<CreatePrescriptionModalProps> = ({
 
             {/* Subaba: Sem Lentes */}
             {subTab === "sem_lentes" && (
-              <div>
+              <div className="flex flex-col h-full">
                 <textarea
-                  className="border rounded-lg p-3 w-full h-40 mb-4"
+                  className="border rounded-lg p-3 w-full h-40 mb-3"
                   placeholder="Digite a prescrição..."
                   value={medicationContent}
                   onChange={(e) => setMedicationContent(e.target.value)}
                 />
-                <div className="flex justify-end gap-3">
-                  <Button variant="outline" onClick={onClose}>
-                    Cancelar
-                  </Button>
+
+                <div className="flex justify-between items-center bg-indigo-50/50 p-3 mb-4 rounded-lg border border-indigo-100">
+                  <div className="text-sm text-indigo-800">
+                    <p className="font-medium flex items-center gap-1">
+                      <Sparkles className="w-4 h-4" /> Copilot IA
+                    </p>
+                    <p className="text-xs opacity-80">Valide interações e alergias com o histórico.</p>
+                  </div>
                   <Button
-                    onClick={() => handleSave("medication")}
-                    disabled={loading}
+                    variant="ghost"
+                    size="sm"
+                    className="bg-indigo-100/50 hover:bg-indigo-200 text-indigo-700"
+                    onClick={handleCheckAi}
+                    disabled={checkingAi || !medicationContent.trim()}
                   >
-                    {loading ? "Salvando..." : "Criar & Imprimir Receita"}
+                    {checkingAi ? (
+                      <span className="flex items-center gap-2">Analizando...</span>
+                    ) : (
+                      <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> Checar Interações</span>
+                    )}
                   </Button>
+                </div>
+
+                <div className="flex justify-between items-end mt-auto gap-4">
+                  <div className="flex-1">
+                    <Button
+                      onClick={() => window.open('https://prescricaoeletronica.cfm.org.br/', '_blank')}
+                      type="button"
+                      className="w-full bg-[#1351b4] hover:bg-[#0c326f] text-white flex items-center justify-center gap-2"
+                    >
+                      <Landmark className="w-4 h-4" />
+                      Receita Digital (Portal CFM)
+                    </Button>
+                    <p className="text-xs text-gray-500 mt-1 text-center">Abre o emissor oficial para Tarja Preta/Azul.</p>
+                  </div>
+
+                  <div className="flex flex-1 justify-end gap-3 pb-5">
+                    <Button variant="outline" onClick={onClose} className="h-10">
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={() => handleSave("medication")}
+                      disabled={loading}
+                      className="h-10 gradient-primary text-white"
+                    >
+                      {loading ? "Salvando..." : "Criar & Imprimir Papel"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
