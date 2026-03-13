@@ -81,6 +81,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
   const [editingAppointment, setEditingAppointment] =
     useState<AppointmentWithPatientName | null>(null);
   const [doctorName, setDoctorName] = useState<string>("");
+  const [doctorConsultationValue, setDoctorConsultationValue] = useState<number | null>(null);
   // Estados para pré-agendamento
   const [showPreSchedule, setShowPreSchedule] = useState(false);
   const [confirmingPreSchedule, setConfirmingPreSchedule] = useState<AppointmentWithPatientName | null>(null);;
@@ -153,6 +154,16 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
       .eq("doctor_id", doctorId);
 
     setWorkHours((workHoursData as DoctorWorkHours[]) || []);
+
+    // Load doctor consultation value
+    const { data: pricingData } = await supabase
+      .from("doctor_pricing")
+      .select("consultation_value")
+      .eq("doctor_id", doctorId)
+      .eq("clinic_id", clinicId)
+      .maybeSingle();
+
+    setDoctorConsultationValue(pricingData?.consultation_value ?? null);
   };
 
   const setStatusToConfirmed = async (appointmentId: string) => {
@@ -870,6 +881,16 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
     return workHour?.slot_minutes || 30;
   };
 
+  const selectedDateRoom = useMemo(() => {
+    if (!selectedDate || workHoursMap.size === 0) return null;
+    const dateStr = selectedDate.toISOString().split("T")[0];
+    const dayOfWeek = selectedDate.getDay();
+    const workHour =
+      workHoursMap.get(`date-${dateStr}`) ||
+      workHoursMap.get(`weekday-${dayOfWeek}`);
+    return workHour?.room || null;
+  }, [selectedDate, workHoursMap]);
+
   const days = getDaysInMonth(currentDate);
   const timeSlots = generateTimeSlots;
   const selectedDateAppointments = useMemo(() => {
@@ -1196,9 +1217,23 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
               {/* Available Times */}
               {timeSlots.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                    Horários Disponíveis
-                  </h4>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-gray-700">
+                      Horários Disponíveis
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      {selectedDateRoom && (
+                        <span className="flex items-center gap-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+                          📍 {selectedDateRoom}
+                        </span>
+                      )}
+                      {doctorConsultationValue != null && doctorConsultationValue > 0 && (
+                        <span className="flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                          💰 R$ {doctorConsultationValue.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
                     {timeSlots
                       .filter((slot) => !slot.isBooked)
@@ -1262,6 +1297,7 @@ const DoctorMonthlyCalendar: React.FC<DoctorMonthlyCalendarProps> = ({
           selectedDate={selectedDate.toISOString().split("T")[0]}
           selectedTime={selectedTimeSlot}
           slotMinutes={getCurrentSlotMinutes()}
+          room={selectedDateRoom ?? undefined}
           onClose={() => {
             setShowQuickAppointment(false);
             setSelectedTimeSlot(null);
